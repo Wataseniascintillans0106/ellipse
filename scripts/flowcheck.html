@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <title>flow check</title>
+</head>
+<body style="margin:0;background:#8a8a8a">
+    <iframe id="frame" src="../index.html" style="width:390px;height:844px;border:0;display:block;background:#fff"></iframe>
+    <pre id="out" style="position:fixed;right:0;top:0;background:#fff;font:10px/1.4 monospace;margin:0;padding:5px;width:225px;white-space:pre-wrap"></pre>
+    <script>
+        const log = [];
+        const say = (m) => { log.push(m); document.getElementById('out').textContent = log.join('\n'); };
+        const frame = document.getElementById('frame');
+        const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+
+        frame.addEventListener('load', async () => {
+            const w = frame.contentWindow, d = frame.contentDocument;
+            const t = (label, cond) => say((cond ? 'ok   ' : 'FAIL ') + label);
+            try {
+                say('== 主页 ==');
+                t('主页可见', !d.getElementById('viewHome').hidden);
+                t('设置按钮在主页显示', !d.getElementById('settingsBtn').hidden);
+                t('返回按钮隐藏', d.getElementById('backHomeBtn').hidden);
+                t('竖栏只有状态记录', d.querySelectorAll('#rail .rail-item').length === 1
+                    && !!d.querySelector('#rail [data-act="record"]'));
+                t('竖栏无导出按钮', !d.querySelector('#rail [data-act="export-sheet"]'));
+
+                d.querySelector('#rail [data-act="record"]').click();
+                await sleep(200);
+                say('== 记录页 ==');
+                t('hash=#record', w.location.hash === '#record');
+                t('记录页可见', !d.getElementById('viewRecord').hidden);
+                t('设置按钮仍隐藏', d.getElementById('settingsBtn').hidden);
+                t('竖栏隐藏', d.getElementById('rail').hidden);
+                t('返回按钮可见', !d.getElementById('backHomeBtn').hidden);
+                const cards = Array.from(d.querySelectorAll('#moduleStack .module'));
+                say('栏: ' + cards.map((c) => c.dataset.module).join(','));
+                t('趋势栏在最后', cards.length > 0 && cards[cards.length - 1].dataset.module === 'trend');
+                t('趋势栏默认展开', cards.length > 0 && cards[cards.length - 1].classList.contains('is-open'));
+                const trend = d.querySelector('.module[data-module="trend"]');
+                t('趋势栏有区间切换', trend.querySelectorAll('.range-btn').length === 3);
+                const charts = trend.querySelectorAll('.chart-block');
+                t('出图 4 个模块', charts.length === 4);
+                say('图: ' + Array.from(charts).map((c) => c.dataset.module + '(' +
+                    c.querySelectorAll('svg').length + ')').join(' '));
+                const moodSvgs = trend.querySelector('.chart-block[data-module="mood"]').querySelectorAll('svg').length;
+                say('情绪 SVG 数=' + moodSvgs);
+                t('情绪至少 3 张图', moodSvgs >= 3);
+
+                /* 先测面板自带的关闭按钮，排除历史记录的干扰 */
+                d.querySelector('.export-card').click();
+                await sleep(300);
+                d.getElementById('sheetClose').click();
+                await sleep(400);
+                t('面板自身关闭按钮有效', !d.getElementById('sheet').classList.contains('open'));
+
+                /* 栏的展开 / 收起：点标题栏翻一次，再点一次回到原状 */
+                const card = (id) => d.querySelector('.module[data-module="' + id + '"]');
+                const isOpen = (id) => !!card(id) && card(id).classList.contains('is-open');
+                const clickHead = (id) => card(id).querySelector('.module-head').click();
+
+                const moodWas = isOpen('mood');
+                clickHead('mood');
+                await sleep(200);
+                t('情绪栏点标题栏翻转展开状态', isOpen('mood') !== moodWas);
+                clickHead('mood');
+                await sleep(200);
+                t('再点一次回到原状', isOpen('mood') === moodWas);
+
+                /* 停成「情绪展开」，波状图栏不该因此被收起 */
+                if (!isOpen('mood')) { clickHead('mood'); await sleep(200); }
+                t('展开情绪后趋势仍展开', isOpen('trend'));
+
+                /* 波状图栏收起后，展开别的模块不该把趋势带开 */
+                if (isOpen('mood')) { clickHead('mood'); await sleep(200); }  /* 先收起情绪，下一步好展开 */
+                clickHead('trend');
+                await sleep(200);
+                t('趋势栏可收起', !isOpen('trend'));
+                clickHead('mood');
+                await sleep(200);
+                t('趋势收起后展开情绪，趋势保持收起', isOpen('mood') && !isOpen('trend'));
+                clickHead('trend');
+                await sleep(200);
+                t('趋势可重新展开', isOpen('trend'));
+
+                d.querySelector('.module[data-module="trend"] .range-btn').click();
+                await sleep(150);
+                t('切到 7 天后仍选中', d.querySelector('.module[data-module="trend"] .range-btn').classList.contains('on'));
+
+                say('== 导出面板 ==');
+                d.querySelector('.export-card').click();
+                await sleep(300);
+                t('面板已打开', d.getElementById('sheet').classList.contains('open'));
+                t('返回按钮让位隐藏', d.getElementById('backHomeBtn').hidden);
+                t('body 锁定', d.body.classList.contains('is-locked'));
+                d.getElementById('backHomeBtn').click();
+                await sleep(400);
+                t('面板自身关闭按钮有效', !d.getElementById('sheet').classList.contains('open'));
+                t('关闭后返回按钮恢复', !d.getElementById('backHomeBtn').hidden);
+                t('仍在记录页', !d.getElementById('viewRecord').hidden);
+
+                d.querySelector('.export-card').click();
+                await sleep(300);
+                d.getElementById('backHomeBtn').click();
+                await sleep(300);
+                d.getElementById('backHomeBtn').click();
+                await sleep(400);
+                t('再点返回回到主页', !d.getElementById('viewHome').hidden);
+                t('主页上设置按钮恢复', !d.getElementById('settingsBtn').hidden);
+
+                say('== 设置里关闭趋势栏 ==');
+                d.getElementById('settingsBtn').click();
+                await sleep(200);
+                const trendRow = d.querySelector('[data-module-row="trend"] [data-toggle]');
+                t('设置里有趋势栏开关', !!trendRow);
+                trendRow.click();
+                await sleep(200);
+                d.getElementById('settingsClose').click();
+                await sleep(250);
+                d.querySelector('#rail [data-act="record"]').click();
+                await sleep(250);
+                t('关闭后趋势栏消失', !d.querySelector('.module[data-module="trend"]'));
+                say('DONE');
+            } catch (err) {
+                say('ERROR ' + err.message);
+            }
+        });
+    </script>
+</body>
+</html>

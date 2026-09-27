@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-seed="1">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>seed</title>
+    <link rel="stylesheet" href="../assets/app.css">
+</head>
+<body>
+    <!-- 仅用于本地预览：向 localStorage 写入示例记录后跳回首页。不是应用的一部分。 -->
+    <main class="app-main">
+        <p class="empty-note" id="seedState">正在写入示例数据…</p>
+    </main>
+
+    <script>
+        (function () {
+            const pad = (n) => String(n).padStart(2, '0');
+            const key = (d) => d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate());
+            const today = new Date();
+            const records = {};
+
+            for (let i = 89; i >= 0; i--) {
+                const d = new Date(today.getFullYear(), today.getMonth(), today.getDate() - i);
+                const k = key(d);
+                // 用确定性的伪随机，保证每次预览一致
+                const wave = Math.sin(i / 4.2);
+                const wave2 = Math.sin(i / 6.5);
+                const trend = i / 90;
+                records[k] = {
+                    updatedAt: Date.now(),
+                    data: {
+                        mood: {
+                            morning: Math.max(1, Math.min(10, Math.round(5.4 + wave * 2.1 + trend))),
+                            evening: Math.max(1, Math.min(10, Math.round(5.2 - wave2 * 2.6 + trend * 1.4)))
+                        },
+                        sleep: {
+                            quality: Math.max(1, Math.min(10, Math.round(6.2 + wave * 1.5))),
+                            hours: Math.round((6.6 - wave * 0.7 + trend) * 2) / 2
+                        },
+                        pain: {
+                            level: Math.max(0, Math.min(10, Math.round(3.4 - wave * 2.2 - trend * 1.2))),
+                            note: i % 7 === 0 ? '左侧膝关节' : ''
+                        },
+                        exercise: {
+                            minutes: i % 3 === 0 ? 30 : (i % 3 === 1 ? 20 : 0),
+                            discomfort: i % 5 === 0
+                        },
+                        diary: i < 3
+                            ? { text: i === 0 ? '上午在小区里慢走了二十分钟，膝盖比上周轻。晚上睡得早一些。' : '今天状态一般，下午休息为主。' }
+                            : {}
+                    }
+                };
+            }
+
+            localStorage.setItem('ellipse.v1.records', JSON.stringify(records));
+            localStorage.removeItem('ellipse.v1.settings');
+
+            document.getElementById('seedState').textContent =
+                '已写入 ' + Object.keys(records).length + ' 天示例记录，正在跳转…';
+            location.replace('../index.html');
+        })();
+    </script>
+</body>
+</html>

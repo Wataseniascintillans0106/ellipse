@@ -1,0 +1,9 @@
+# 统一换行符：仓库里一律存 LF，检出时不自动改成 CRLF
+# 作用：Windows / Mac / Linux 协作时不会因为换行符差异产生无意义的改动记录
+* text=auto eol=lf
+
+# 字体是二进制文件，禁止 Git 做任何换行符转换，否则文件会损坏
+*.woff2 binary
+*.ttf   binary
+*.png   binary
+*.ico   binary

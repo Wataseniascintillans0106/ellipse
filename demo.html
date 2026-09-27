@@ -1,0 +1,329 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ellipse</title>
+    <style>
+        /* ---------------- 字体 ---------------- */
+        /* 得意黑 Smiley Sans（同级 fonts 文件夹） */
+        @font-face {
+            font-family: "Smiley Sans";
+            src: url("fonts/SmileySans-Oblique.ttf.woff2") format("woff2");
+            font-weight: 400 700;
+            font-style: normal;
+            font-display: swap;
+        }
+
+        :root {
+            --edge: 24px;                     /* 按钮距屏幕边缘 */
+            --btn-size: 56px;                 /* 按钮直径 */
+            --accent: #df9068;                /* 右栏图标色 / 焦点圈 */
+            --gear: #de7b49;                  /* 设置按钮图标色 */
+            --ink: #2B2B28;                   /* 设置标题 / 关闭按钮 */
+            --paper: #FBFAED;                 /* 设置界面底色 */
+            --line: rgba(43, 43, 40, 0.12);   /* 顶栏下边缘线 */
+            --groove: #d8e0ec;                /* 右栏内框色：你自己改这一行 */
+            --rail-w: calc(var(--btn-size) + 7px);   /* 右栏宽 63px（比设置按钮每边各宽 3.5px）*/
+            --bg-left: #F2CED0;               /* 主页背景左端色 */
+            --bg-right: #FBFAED;              /* 主页背景右端色 */
+        }
+
+        html, body {
+            height: 100%;
+            margin: 0;
+        }
+        body {
+            background: linear-gradient(to right, var(--bg-left) 25%, var(--bg-right) 90%);
+            font-family: "Smiley Sans", -apple-system, BlinkMacSystemFont, "Segoe UI",
+                         "PingFang SC", "Microsoft YaHei", sans-serif;
+            -webkit-tap-highlight-color: transparent;
+        }
+        /* 表单控件不会继承 body 的字体，必须显式声明 */
+        button, input, select, textarea {
+            font-family: inherit;
+        }
+        /* 面板打开时锁住背景滚动 */
+        body.panel-open {
+            overflow: hidden;
+        }
+
+        /* ---------------- 设置按钮 ---------------- */
+        .settings-btn {
+            position: fixed;
+            bottom: var(--edge);
+            right: var(--edge);
+            color: var(--gear);       /* 齿轮描边取 currentColor，改这一行即可 */
+            width: var(--btn-size);
+            height: var(--btn-size);
+            padding: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: rgba(255, 255, 255, 0.6);
+            border: none;
+            border-radius: 50%;
+            cursor: pointer;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.08);
+            transition: background 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease;
+        }
+        .settings-btn:hover {
+            background: rgba(255, 255, 255, 0.9);
+            box-shadow: 0 4px 16px rgba(0, 0, 0, 0.14);
+            transform: scale(1.06);
+        }
+        .settings-btn:active {
+            transform: scale(0.96);
+        }
+        .settings-btn svg {
+            display: block;
+            width: 26px;
+            height: 26px;
+            transition: transform 0.3s ease;
+        }
+        .settings-btn:hover svg {
+            transform: rotate(45deg);
+        }
+
+        /* ---------------- 右侧竖排标签栏 ---------------- */
+        /* 不贴边、独立悬浮的一条竖栏，与下方设置按钮同轴：
+           设置按钮圆心距右边缘 = --edge + --btn-size / 2，
+           从这个距离里减去自身一半宽度，中轴就压在同一条竖线上 */
+        .tabbar {
+            position: fixed;
+            right: calc(var(--edge) + var(--btn-size) / 2 - var(--rail-w) / 2);
+            bottom: calc(var(--edge) + var(--btn-size) + 16px);   /* 正好落在设置按钮上方 */
+            z-index: 10;
+            width: var(--rail-w);
+            display: flex;
+            flex-direction: column;   /* 竖排 */
+            gap: 6px;
+            padding: 0;               /* 不留内边距：内框本身就是按下区域 */
+            /* 自适应：高度跟内容走，图标多到装不下时自己滚动 */
+            max-height: calc(100vh - var(--edge) - var(--btn-size) - 32px);
+            overflow-y: auto;
+            overscroll-behavior: contain;
+            scrollbar-width: none;
+            background: var(--groove);            /* 内框底色 */
+            border-radius: 20px;
+            /* 只往内打阴影，做出凹下去的槽感（不描边，所以外沿是软的） */
+            box-shadow:
+                inset 1px 1px 3px rgba(43, 43, 40, 0.22),
+                inset 0 -1px 2px rgba(43, 43, 40, 0.12);
+        }
+        .tabbar::-webkit-scrollbar {
+            display: none;
+        }
+
+        /* 按下区域横向撑满内框、纵向也取内框宽度 —— 只有一个图标时
+           内框、按下区域、按下反馈三者同尺寸同形状，正好是正方形 */
+        .tabbar-item {
+            flex: 0 0 auto;
+            height: var(--rail-w);
+            padding: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: transparent;
+            border: none;
+            border-radius: 20px;      /* 与内框圆角一致 */
+            color: var(--accent);
+            cursor: pointer;
+            transition: background 0.2s ease;
+        }
+        .tabbar-item:hover {
+            background: rgba(255, 255, 255, 0.45);
+        }
+        /* 按下只换底色，不缩放，尺寸始终和底色框一致 */
+        .tabbar-item:active {
+            background: rgba(255, 255, 255, 0.78);
+        }
+        .tabbar-item svg {
+            display: block;
+            width: 30px;
+            height: 30px;
+        }
+
+        /* ---------------- 遮罩 ---------------- */
+        .settings-overlay {
+            position: fixed;
+            inset: 0;
+            z-index: 100;
+            background: rgba(80, 55, 45, 0.22);
+            opacity: 0;
+            visibility: hidden;
+            transition: opacity 0.26s ease, visibility 0s linear 0.26s;
+        }
+        .settings-overlay.open {
+            opacity: 1;
+            visibility: visible;
+            transition: opacity 0.26s ease, visibility 0s;
+        }
+
+        /* ---------------- 设置界面（右侧抽屉） ---------------- */
+        .settings-panel {
+            position: fixed;
+            top: 0;
+            right: 0;
+            bottom: 0;
+            z-index: 101;             /* 盖住右栏和遮罩 */
+            width: 100%;              /* 全屏铺满，四周不留边 */
+            display: flex;
+            flex-direction: column;   /* 顶栏固定、内容区独立滚动 */
+            background: var(--paper);
+            box-shadow: -8px 0 32px rgba(43, 43, 40, 0.10);
+            transform: translateX(100%);
+            visibility: hidden;
+            transition: transform 0.26s cubic-bezier(0.32, 0.72, 0, 1),
+                        visibility 0s linear 0.26s;
+        }
+        .settings-panel.open {
+            transform: translateX(0);
+            visibility: visible;
+            transition: transform 0.26s cubic-bezier(0.32, 0.72, 0, 1), visibility 0s;
+        }
+
+        /* 顶栏：固定不随内容滚动 */
+        .settings-header {
+            flex: 0 0 auto;
+            position: relative;   /* 作为标题绝对居中的参照 */
+            display: flex;
+            align-items: center;
+            height: 60px;
+            padding: 0 4px;
+            background: var(--paper);        /* 内容滚到下面时不会透出来 */
+            border-bottom: 1px solid var(--line);
+        }
+        /* 标题在整条顶栏中绝对居中，与左侧关闭按钮互不影响 */
+        .settings-title {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            margin: 0;
+            padding-left: 8px;    /* 抵消 letter-spacing 加在末字后的 8px，让两个字视觉居中 */
+            font-size: 19px;
+            color: var(--ink);
+            letter-spacing: 8px;  /* 「设」与「置」间距 8px */
+            white-space: nowrap;
+        }
+        /* 关闭按钮：顶栏最左 */
+        .settings-close {
+            width: 44px;
+            height: 44px;
+            padding: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: transparent;
+            border: none;
+            border-radius: 50%;
+            color: var(--ink);
+            cursor: pointer;
+            transition: background 0.2s ease, transform 0.2s ease;
+        }
+        .settings-close:hover {
+            background: rgba(43, 43, 40, 0.06);
+        }
+        .settings-close:active {
+            transform: scale(0.92);
+        }
+        .settings-close svg {
+            display: block;
+            width: 22px;
+            height: 22px;
+        }
+
+        /* 内容区：只有这里滚动 */
+        .settings-body {
+            flex: 1 1 auto;
+            overflow-y: auto;
+            overscroll-behavior: contain;
+            -webkit-overflow-scrolling: touch;
+            padding: 16px 20px 32px;
+        }
+
+        :focus-visible {
+            outline: 2px solid var(--accent);
+            outline-offset: 2px;
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+            .settings-btn,
+            .settings-panel,
+            .settings-overlay,
+            .tabbar-item {
+                transition-duration: 0.01ms !important;
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <button class="settings-btn" id="settingsBtn" type="button" aria-label="设置" title="设置" aria-expanded="false">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" class="feather feather-settings"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
+    </button>
+
+    <!-- 右侧竖排标签栏：一个图标一项，按顺序往下加 -->
+    <nav class="tabbar" aria-label="侧栏">
+        <button class="tabbar-item" id="statusLogBtn" type="button" aria-label="状态记录" title="状态记录">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+                <!-- 纸：在后，被笔压住右上角 -->
+                <rect x="3" y="5.5" width="11.5" height="14.5" rx="1.6"></rect>
+                <!-- 笔：斜立着，笔尖落到纸上 -->
+                <path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"
+                      transform="translate(9.2 1.2) scale(0.58)"
+                      vector-effect="non-scaling-stroke"></path>
+            </svg>
+        </button>
+    </nav>
+
+    <div class="settings-overlay" id="settingsOverlay"></div>
+
+    <aside class="settings-panel" id="settingsPanel" role="dialog" aria-modal="true" aria-labelledby="settingsTitle" aria-hidden="true">
+        <header class="settings-header">
+            <button class="settings-close" id="settingsClose" type="button" aria-label="关闭设置" title="关闭">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"></polyline></svg>
+            </button>
+            <h2 class="settings-title" id="settingsTitle">设置</h2>
+        </header>
+
+        <div class="settings-body">
+            <!-- 设置项待定：确定后把分组 / 开关放进这里 -->
+        </div>
+    </aside>
+
+    <script>
+        const body = document.body;
+        const panel = document.getElementById('settingsPanel');
+        const overlay = document.getElementById('settingsOverlay');
+        const openBtn = document.getElementById('settingsBtn');
+        const closeBtn = document.getElementById('settingsClose');
+
+        function openSettings() {
+            panel.classList.add('open');
+            overlay.classList.add('open');
+            body.classList.add('panel-open');
+            panel.setAttribute('aria-hidden', 'false');
+            openBtn.setAttribute('aria-expanded', 'true');
+            closeBtn.focus();
+        }
+
+        function closeSettings() {
+            panel.classList.remove('open');
+            overlay.classList.remove('open');
+            body.classList.remove('panel-open');
+            panel.setAttribute('aria-hidden', 'true');
+            openBtn.setAttribute('aria-expanded', 'false');
+            openBtn.focus();
+        }
+
+        openBtn.addEventListener('click', openSettings);
+        closeBtn.addEventListener('click', closeSettings);
+        overlay.addEventListener('click', closeSettings);
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape' && panel.classList.contains('open')) closeSettings();
+        });
+    </script>
+</body>
+</html>

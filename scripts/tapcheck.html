@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>tap check</title>
+    <style>
+        body { margin: 0; background: #FBFAED; color: #2B2B28;
+               font: 14px/1.5 -apple-system, "PingFang SC", "Microsoft YaHei", sans-serif; }
+        iframe { width: 100%; height: 50vh; border: 0; display: block; background: #FBFAED; }
+        .ctrl { display: flex; gap: 10px; padding: 12px; }
+        .ctrl div { flex: 1; display: flex; align-items: center; justify-content: center;
+                    min-height: 56px; border: 1px solid rgba(43,43,40,0.12); border-radius: 12px;
+                    background: rgba(255,255,255,0.7); text-align: center; font-size: 13px; }
+        .ctrl .with-cursor { cursor: pointer; }
+        #log { margin: 0; padding: 10px 12px 40px; max-height: 34vh; overflow: auto;
+               background: #fff; border-top: 1px solid #ddd;
+               font: 11px/1.5 ui-monospace, Menlo, Consolas, monospace; white-space: pre-wrap; }
+        b { color: #b4571f; }
+    </style>
+</head>
+<body>
+    <iframe id="frame" src="../index.html#record"></iframe>
+
+    <p class="ctrl">
+        <div id="plainBox">A · 普通 div<br>（无 cursor: pointer）</div>
+        <div id="cursorBox" class="with-cursor">B · 带 cursor: pointer</div>
+    </p>
+
+    <pre id="log"></pre>
+
+    <script>
+        const lines = [];
+        const say = (m) => {
+            lines.push(m);
+            const el = document.getElementById('log');
+            el.textContent = lines.join('\n');
+            el.scrollTop = el.scrollHeight;
+        };
+
+        /* 对照实验：两个一模一样的方块，只有 B 带 cursor: pointer。
+           iOS Safari 上 A 不会有任何反应、B 会 —— 这正是卡片标题栏的问题所在 */
+        ['plainBox', 'cursorBox'].forEach((id) => {
+            document.getElementById(id).addEventListener('click', () => say('ok   ' + id + ' 收到 click'));
+        });
+
+        window.addEventListener('error', (e) => say('ERROR ' + e.message));
+
+        const frame = document.getElementById('frame');
+
+        frame.addEventListener('load', () => {
+            const w = frame.contentWindow;
+            const d = frame.contentDocument;
+            const css = (el) => (el ? w.getComputedStyle(el).cursor : '(无此元素)');
+
+            say('UA: ' + navigator.userAgent);
+            say('maxTouchPoints=' + (navigator.maxTouchPoints || 0) +
+                '  ontouchstart=' + ('ontouchstart' in w));
+            say('记录页可见: ' + !d.getElementById('viewRecord').hidden);
+            say('卡片数: ' + d.querySelectorAll('#moduleStack .module').length);
+
+            const head = d.querySelector('.module-head');
+            const toggle = d.querySelector('.module-toggle');
+            const name = d.querySelector('.module-name');
+            say('computed cursor  标题栏=' + css(head) + '  标题文字=' + css(name) +
+                '  箭头按钮=' + css(toggle));
+            say('  ↑ 标题栏不是 pointer 的话，iOS 上点它就是没反应');
+            say('');
+            say('请在下面这块 iframe 里点一下第一条卡片的标题栏：');
+            say('');
+
+            /* 捕获阶段记账：看事件到底有没有产生 */
+            ['touchstart', 'touchend', 'click'].forEach((type) => {
+                d.addEventListener(type, (evt) => {
+                    const t = evt.target;
+                    const tag = t.tagName ? t.tagName.toLowerCase() : String(t.nodeName);
+                    const cls = t.className && t.className.baseVal !== undefined
+                        ? t.className.baseVal : (t.className || '');
+                    const act = t.closest ? (t.closest('[data-act]') || {}) : {};
+                    const actName = act.getAttribute ? act.getAttribute('data-act') : null;
+                    if (type !== 'touchstart') {
+                        say('· ' + type + '  target=' + tag + '.' + String(cls).split(' ')[0] +
+                            '  [data-act]=' + (actName || '无'));
+                    }
+                    if (type === 'click') {
+                        const card = d.querySelector('.module[data-module="mood"]');
+                        say('   情绪栏 is-open = ' + !!card.classList.contains('is-open'));
+                        say('   localStorage.openModule = ' +
+                            (w.localStorage.getItem('ellipse.v1.settings') || '').slice(0, 120));
+                    }
+                }, true);
+            });
+
+            say('（每次点完都会在这里追加记录）');
+        });
+    </script>
+</body>
+</html>

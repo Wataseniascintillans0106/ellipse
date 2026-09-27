@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <meta name="theme-color" content="#FBFAED">
+    <title>ellipse</title>
+    <link rel="stylesheet" href="assets/app.css">
+    <script nomodule>document.documentElement.className += ' no-module';</script>
+</head>
+<body>
+
+    <noscript>
+        <p style="padding:24px">本应用需要开启 JavaScript。</p>
+    </noscript>
+
+    <!-- ======================= 主页（与 demo.html 一致） ======================= -->
+    <main class="view home" id="viewHome">
+        <div class="home-block">
+            <p class="wordmark">ellipse</p>
+            <p class="org-line">日常状态记录</p>
+        </div>
+    </main>
+
+    <!-- ======================= 状态记录（主页的下一层） ======================= -->
+    <main class="view record" id="viewRecord" hidden>
+        <header class="page-head">
+            <p class="head-line">状态记录</p>
+
+            <div class="date-bar">
+                <button class="date-nav" id="datePrev" type="button" aria-label="前一天" title="前一天">
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="14 18 8 12 14 6"></polyline></svg>
+                </button>
+
+                <button class="date-current" id="dateCurrent" type="button" aria-label="选择日期">
+                    <span class="date-num" id="dateNum">2025.01.01</span>
+                    <span class="date-sub" id="dateSub">周三 · 今天</span>
+                </button>
+
+                <button class="date-nav" id="dateNext" type="button" aria-label="后一天" title="后一天">
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="10 18 16 12 10 6"></polyline></svg>
+                </button>
+            </div>
+
+            <button class="date-today" id="dateToday" type="button" hidden>回到今天</button>
+            <input class="date-input" id="dateInput" type="date" aria-label="日期选择">
+        </header>
+
+        <section class="module-stack" id="moduleStack" aria-label="状态记录模块"></section>
+
+        <section class="export-zone" id="exportZone" aria-label="导出"></section>
+
+        <p class="foot-note">记录仅保存在本机浏览器中</p>
+    </main>
+
+    <!-- ======================= 右侧竖排栏（主页 / 记录页各有各的） ======================= -->
+    <nav class="rail" id="rail" aria-label="功能栏" hidden></nav>
+
+    <!-- 记录页右上角：返回主页（导出面板打开时变成关闭面板） -->
+    <button class="corner-btn corner-btn--top" id="backHomeBtn" type="button" aria-label="返回主页" title="返回主页">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><polyline points="14.5 18.5 8 12 14.5 5.5"></polyline><line x1="18.5" y1="12" x2="8.5" y2="12"></line></svg>
+    </button>
+
+    <!-- 右下角：设置（只在主页显示） -->
+    <button class="corner-btn corner-btn--bottom" id="settingsBtn" type="button" aria-label="设置" title="设置" aria-expanded="false">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
+    </button>
+
+    <!-- ======================= 设置界面（右侧全屏抽屉） ======================= -->
+    <div class="scrim" id="settingsScrim"></div>
+
+    <aside class="settings-panel" id="settingsPanel" role="dialog" aria-modal="true" aria-labelledby="settingsTitle" aria-hidden="true">
+        <header class="settings-header">
+            <button class="icon-btn" id="settingsClose" type="button" aria-label="关闭设置" title="关闭">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"></polyline></svg>
+            </button>
+            <h2 class="settings-title" id="settingsTitle">设置</h2>
+        </header>
+
+        <div class="settings-body" id="settingsBody"></div>
+    </aside>
+
+    <!-- ======================= 底部面板：md 导出 / 日期 / 输入 ======================= -->
+    <section class="sheet" id="sheet" role="dialog" aria-modal="true" aria-labelledby="sheetTitle" aria-hidden="true">
+        <header class="sheet-head">
+            <h2 class="sheet-title" id="sheetTitle">导出</h2>
+            <button class="icon-btn" id="sheetClose" type="button" aria-label="关闭" title="关闭">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><line x1="6" y1="6" x2="18" y2="18"></line><line x1="18" y1="6" x2="6" y2="18"></line></svg>
+            </button>
+        </header>
+        <div class="sheet-body" id="sheetBody"></div>
+        <footer class="sheet-foot" id="sheetFoot"></footer>
+    </section>
+
+    <div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+    <section class="boot-note" id="bootNote" hidden>
+        <h2>页面没有正常启动</h2>
+        <p>如果是从文件管理器直接双击打开的，某些浏览器会拦截本地模块加载。</p>
+        <p>在项目目录里执行 <code>node scripts/serve.mjs 5173</code>，再访问 <code>http://localhost:5173/index.html</code> 即可。</p>
+        <pre id="bootDetail"></pre>
+    </section>
+
+    <script>
+        /* 模块加载失败时给出可读的提示，而不是一片空白 */
+        window.addEventListener('error', function (evt) {
+            const note = document.getElementById('bootNote');
+            if (!note || note.hidden === false) return;
+            const home = document.getElementById('viewHome');
+            const record = document.getElementById('viewRecord');
+            if (home) home.style.display = 'none';
+            if (record) record.style.display = 'none';
+            const detail = document.getElementById('bootDetail');
+            if (detail && evt && evt.message) detail.textContent = evt.message;
+            note.hidden = false;
+        }, true);
+    </script>
+    <script type="module" src="assets/js/app.js"></script>
+</body>
+</html>
