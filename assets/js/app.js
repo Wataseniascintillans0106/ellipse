@@ -25,7 +25,8 @@ const state = {
     openModule: null,             // 展开的那条记录模块（同时只开一条）
     trendOpen: true,              // 波状图栏单独记，默认展开
     range: (getSettings().ui.lastRange || '30d'),
-    settingsOpen: false
+    settingsOpen: false,
+    installPrompt: null           // 浏览器给的安装事件，只在本次会话有效，用完即弃
 };
 
 const el = {
@@ -799,6 +800,23 @@ function renderSettings() {
         '<button class="btn danger" type="button" data-set="wipe">清空全部记录</button>' +
         '</div>' +
         '<p class="sheet-note">记录保存在本机浏览器；清理浏览器数据会一并清空，建议定期备份。</p>' +
+        '</section>' +
+
+        /* 安装到主屏 */
+        '<section class="set-group">' +
+        '<div class="set-group-head"><h3 class="set-group-title">安装到主屏</h3>' +
+        '<span class="set-group-note">' + (isStandalone() ? '已装到主屏' : '未安装') + '</span></div>' +
+        '<div class="set-row">' +
+        '<span class="set-row-main">' +
+        '<span class="set-row-title">当成一个 App 用</span>' +
+        '<span class="set-row-desc">装到主屏后全屏打开、断网也能用；录音转写要的麦克风授权也只发给装好的应用</span>' +
+        '</span>' +
+        '</div>' +
+        '<div class="set-actions">' +
+        '<button class="btn primary" type="button" data-set="install"' +
+        (state.installPrompt ? '' : ' disabled') + '>安装到主屏</button>' +
+        '</div>' +
+        '<p class="sheet-note" id="installNote">' + installHintText() + '</p>' +
         '</section>';
 }
 
@@ -961,6 +979,18 @@ function handleSettingAction(name, btn) {
             '<p class="sheet-note">将删除本机保存的全部状态记录与设置，操作无法撤销。建议先导出备份。</p>',
             '<button class="btn" type="button" data-action="wipe-cancel">取消</button>' +
             '<button class="btn danger" type="button" data-action="wipe-confirm">确认清空</button>');
+        return;
+    }
+
+    if (name === 'install') {
+        const installEvt = state.installPrompt;
+        if (!installEvt) { toast('这个浏览器请按下面的说明手动添加'); return; }
+        state.installPrompt = null;   /* 同一个事件只能问一次，留着会重复触发 */
+        installEvt.prompt();
+        installEvt.userChoice.then(function (choice) {
+            if (choice && choice.outcome === 'accepted') toast('已开始安装');
+            renderSettings();
+        });
     }
 }
 
@@ -1068,4 +1098,53 @@ el.backHomeBtn.addEventListener('click', function () {
         'font:10px/1.5 monospace;padding:6px;margin:0;max-width:100vw;white-space:pre-wrap';
     pre.textContent = rows.join('\n');
     document.body.appendChild(pre);
+})();
+
+/* ---------------- PWA：装到主屏与离线缓存 ---------------- */
+function isStandalone() {
+    if (window.matchMedia && window.matchMedia('(display-mode: standalone)').matches) return true;
+    return window.navigator.standalone === true;   /* iOS Safari 自己的一套写法 */
+}
+
+function isIos() {
+    if (/iPad|iPhone|iPod/.test(navigator.userAgent || '')) return true;
+    /* iPadOS 13 起 Safari 把自己报成 Mac，只能靠触点数认出来 */
+    return navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1;
+}
+
+/* 设置页底部那行说明：按当前平台给不同的安装步骤 */
+function installHintText() {
+    if (isStandalone()) return '当前已经以 App 形式运行。';
+    if (location.protocol === 'file:') {
+        return '从文件管理器直接双击打开时无法安装。部署到 HTTPS 后即可，步骤见 docs/PWA部署与安装.md。';
+    }
+    if (state.installPrompt) return '点上面的「安装到主屏」，确认即可。';
+    if (isIos()) return '点 Safari 底部的「分享」按钮 →「添加到主屏幕」。';
+    return '点地址栏右侧的安装图标，或浏览器菜单 →「安装 ellipse」。';
+}
+
+function registerServiceWorker() {
+    if (!('serviceWorker' in navigator)) return;
+    /* 只有 HTTPS 与 localhost 算安全来源；file:// 双击打开时注册会失败，干脆不试 */
+    const host = location.hostname;
+    if (location.protocol !== 'https:' && host !== 'localhost' && host !== '127.0.0.1') return;
+    navigator.serviceWorker.register('sw.js').catch(function () {});
+}
+
+window.addEventListener('beforeinstallprompt', function (evt) {
+    evt.preventDefault();
+    state.installPrompt = evt;
+    if (el.settingsPanel.classList.contains('open')) renderSettings();
+});
+
+window.addEventListener('appinstalled', function () {
+    state.installPrompt = null;
+    toast('已装到主屏');
+    if (el.settingsPanel.classList.contains('open')) renderSettings();
+});
+
+/* 放最后：注册 Service Worker 不参与首屏渲染，等页面加载完再说 */
+(function bootServiceWorker() {
+    if (document.readyState === 'complete') registerServiceWorker();
+    else window.addEventListener('load', registerServiceWorker);
 })();

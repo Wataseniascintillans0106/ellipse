@@ -5,6 +5,18 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <meta name="theme-color" content="#FBFAED">
     <title>ellipse</title>
+
+    <!-- ======================= 装到主屏（PWA） ======================= -->
+    <!-- 部署到 HTTPS 后即可「安装应用」：全屏运行、离线可用，麦克风授权也只在安全来源下才给 -->
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    <meta name="apple-mobile-web-app-title" content="ellipse">
+    <meta name="application-name" content="ellipse">
+    <link rel="manifest" href="manifest.webmanifest">
+    <link rel="icon" type="image/png" href="icon-192.png">
+    <link rel="apple-touch-icon" href="icon-192.png">
+
     <link rel="stylesheet" href="assets/app.css">
     <script nomodule>document.documentElement.className += ' no-module';</script>
 </head>

@@ -138,5 +138,59 @@ ok('出图模块为 4 个（日记除外）', chartModules(enabledOrder()).lengt
     chartModules(enabledOrder()).map((m) => m.id).join(','));
 ok('关闭情绪后少一个', chartModules(enabledOrder().filter((id) => id !== 'mood')).length === 3);
 
+/* ---------- 7. PWA 资源 ---------- */
+console.log('\n[7] PWA 资源');
+const { readFileSync, existsSync, statSync, readdirSync } = await import('node:fs');
+const path = await import('node:path');
+const root = path.resolve(import.meta.dirname, '..');
+const at = (rel) => path.join(root, rel);
+
+let manifest = null;
+try {
+    manifest = JSON.parse(readFileSync(at('manifest.webmanifest'), 'utf8'));
+} catch (err) {
+    manifest = null;
+}
+ok('manifest 能解析', !!manifest);
+if (manifest) {
+    ok('manifest 有 name 与 short_name', !!manifest.name && !!manifest.short_name);
+    ok('manifest 以 standalone 全屏运行', manifest.display === 'standalone');
+    ok('manifest 从 ./ 启动', manifest.start_url === './' && manifest.scope === './');
+    ok('manifest 声明了图标', Array.isArray(manifest.icons) && manifest.icons.length >= 2);
+
+    /* 最容易犯的错：改了图标文件名却忘了同步 manifest */
+    const missing = (manifest.icons || [])
+        .map((i) => String(i.src || '').replace(/^\.\//, ''))
+        .filter((rel) => !existsSync(at(rel)));
+    ok('manifest 里的图标都真的存在', missing.length === 0, missing.join(','));
+
+    /* 安卓的「安装应用」提示要求有 192 与 512 两档 */
+    const sizes = (manifest.icons || []).map((i) => i.sizes);
+    ok('图标含 192 与 512 两档', sizes.includes('192x192') && sizes.includes('512x512'), sizes.join(','));
+}
+
+ok('sw.js 存在且非空', existsSync(at('sw.js')) && statSync(at('sw.js')).size > 0);
+
+/* 预缓存清单是最容易腐烂的地方：加了新模块忘了写进去，
+   线上就会悄悄退回「第二次打开才有离线」，而这种问题在浏览器里很难看出来 */
+const swSrc = readFileSync(at('sw.js'), 'utf8');
+const shellBlock = (swSrc.match(/const SHELL = \[([\s\S]*?)\];/) || [])[1] || '';
+const shell = (shellBlock.match(/'([^']+)'/g) || []).map((s) => s.slice(1, -1));
+ok('sw.js 有预缓存清单', shell.length > 0, String(shell.length));
+
+const assetFiles = readdirSync(at('assets'), { recursive: true, withFileTypes: true })
+    .filter((d) => d.isFile())
+    .map((d) => path.relative(at('assets'), path.join(d.parentPath, d.name)).replace(/\\/g, '/'));
+const notCached = assetFiles.filter((rel) => shell.indexOf('./assets/' + rel) < 0);
+ok('预缓存覆盖 assets/ 下每个文件', notCached.length === 0, notCached.join(','));
+
+const shellMissing = shell.filter((rel) => !existsSync(at(rel.replace(/^\.\//, ''))));
+ok('预缓存清单里的文件都真实存在', shellMissing.length === 0, shellMissing.join(','));
+
+const html = readFileSync(at('index.html'), 'utf8');
+ok('index.html 挂了 manifest', /rel="manifest"/.test(html));
+ok('index.html 有 apple-touch-icon', /rel="apple-touch-icon"/.test(html));
+ok('index.html 有 apple-mobile-web-app-capable', /apple-mobile-web-app-capable/.test(html));
+
 console.log('\n' + (fails ? '有 ' + fails + ' 项未通过' : '全部通过'));
 process.exit(fails ? 1 : 0);

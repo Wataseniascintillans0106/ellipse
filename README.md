@@ -19,6 +19,30 @@ node scripts/serve.mjs 5173
 也可以直接双击 `index.html`（Chrome / Edge / Safari 都支持本地模块加载）。
 若浏览器拦截本地模块，就用上面的服务器方式。
 
+> ⚠️ 手机连 Wi-Fi 访问 `http://<电脑局域网IP>:5173` **只能看版式**。
+> 局域网 HTTP 不是浏览器的「安全来源」，所以 Service Worker、离线缓存、安装到主屏、
+> 麦克风授权在这个地址下**全都不会生效**。要试这些请按下面的方式部署到 HTTPS
+> （电脑上用 `http://localhost:5173` 则可以正常测）。
+
+### 部署到手机（PWA）
+
+项目已经配好了 PWA：部署到任意支持 HTTPS 的静态空间后，就能「安装到主屏」，
+全屏运行、断网可用，录音转写需要的麦克风授权也才会正常弹出。
+
+```
+manifest.webmanifest    应用清单（名称 / 图标 / 启动方式）
+sw.js                   Service Worker（联网优先，离线回退）
+icon-192.png            图标
+icon-512.png            图标
+```
+
+以免费的 GitHub Pages 为例：仓库 Settings → Pages → Deploy from a branch →
+分支选 `main`、目录选 **`/(root)`**（⚠️ 别选 `/docs`，那会是 404）→ 几分钟后拿到网址，
+手机浏览器打开后「添加到主屏幕」即可。
+
+逐步图文步骤、更新与缓存的注意事项、常见问题，都在
+**[docs/PWA部署与安装.md](docs/PWA部署与安装.md)**。
+
 **示例数据（可选）**：打开 `scripts/seed.html` 会写入 90 天示例记录并跳回首页。
 清除数据：设置 → 数据 → 清空全部记录。
 
@@ -121,6 +145,9 @@ modules: [mood, sleep, pain, exercise, diary]
 
 ```
 index.html                 页面骨架（主页 + 状态记录两层）
+manifest.webmanifest       PWA 应用清单（装到主屏用）
+sw.js                      Service Worker（联网优先，离线回退）
+icon-192.png / icon-512.png  PWA 图标
 assets/app.css             设计系统（沿用 demo.html 的配色、字体、右栏逻辑）
 assets/js/app.js           主逻辑：页面切换、日期、栏渲染、设置页、底部面板
 assets/js/modules.js       模块定义 + 「状态波动图」栏定义（新增模块只改这里）
@@ -137,6 +164,7 @@ scripts/smoke.mjs          逻辑冒烟测试（node scripts/smoke.mjs）
 scripts/flowcheck.html     浏览器交互自检（打开 /scripts/flowcheck.html 看结果）
 fonts/                     得意黑 Smiley Sans
 docs/版本管理.md            给自己看的 Git / GitHub 操作小抄
+docs/PWA部署与安装.md       部署到 HTTPS、装到手机主屏的步骤与常见问题
 ```
 
 ## 八、如何再加一个模块
