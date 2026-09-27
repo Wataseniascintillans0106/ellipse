@@ -136,6 +136,7 @@ scripts/seed.html          写入示例数据
 scripts/smoke.mjs          逻辑冒烟测试（node scripts/smoke.mjs）
 scripts/flowcheck.html     浏览器交互自检（打开 /scripts/flowcheck.html 看结果）
 fonts/                     得意黑 Smiley Sans
+docs/版本管理.md            给自己看的 Git / GitHub 操作小抄
 ```
 
 ## 八、如何再加一个模块
