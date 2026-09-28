@@ -5,7 +5,7 @@
    ⚠️ 改完本文件的内容，记得把下面的 CACHE 版本号 +1，否则旧缓存不会被清掉。
       详见 docs/PWA部署与安装.md。 */
 
-const CACHE = 'ellipse-cache-v1';
+const CACHE = 'ellipse-cache-v2';
 
 const NAV_TIMEOUT = 20000;   /* 页面：最多等 20 秒 */
 const ASSET_TIMEOUT = 9000;  /* 其它资源：最多等 9 秒 */
@@ -30,10 +30,23 @@ const SHELL = [
     './assets/js/charts.js',
     './assets/js/export.js',
     './assets/js/icons.js',
-    './assets/js/modules.js',
     './assets/js/storage.js',
     './assets/js/util.js',
     './assets/js/voice.js',
+    './assets/js/core/api.js',
+    './assets/js/core/fields.js',
+    './assets/js/core/loader.js',
+    './assets/js/core/registry.js',
+    './assets/js/core/sheet.js',
+    './assets/js/core/validate.js',
+    './assets/js/modules/index.js',
+    './assets/js/modules/mood.js',
+    './assets/js/modules/sleep.js',
+    './assets/js/modules/pain.js',
+    './assets/js/modules/exercise.js',
+    './assets/js/modules/diary.js',
+    './assets/js/modules/trend.js',
+    './assets/js/modules/assistant.js',
     './fonts/SmileySans-Oblique.ttf.woff2'
 ];
 

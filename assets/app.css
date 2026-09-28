@@ -1,6 +1,6 @@
 /* ==========================================================================
    ellipse · 日常状态记录
-   设计基线沿用同目录 demo.html：暖纸质底、右栏模块化、得意黑标题
+   设计基线沿用 docs/demo.html：暖纸质底、右栏模块化、得意黑标题
    ========================================================================== */
 
 /* ---------------- 字体 ---------------- */
@@ -76,7 +76,7 @@ body.is-locked { overflow: hidden; }
     to { opacity: 1; }
 }
 
-/* 主页：保持 demo.html 的样子，只有字标 */
+/* 主页：保持 docs/demo.html 的样子，只有字标 */
 .home {
     min-height: 100%;
     display: flex;
@@ -587,11 +587,11 @@ body.is-locked { overflow: hidden; }
     max-height: calc(100vh - var(--edge) - var(--btn-size) - 32px);
 }
 
-/* ---------------- 波状图栏（记录页内的一条普通栏） ---------------- */
-.module--trend .module-body { padding-top: 12px; }
-.module--trend .range-row { margin-bottom: 14px; }
-.module--trend .chart-block { padding: 0 0 18px; border-bottom: none; }
-.module--trend .chart-block + .chart-block {
+/* ---------------- 面板型模块（自己画一整块内容，比如波状图栏） ---------------- */
+.module[data-kind="panel"] .module-body { padding-top: 12px; }
+.module[data-kind="panel"] .range-row { margin-bottom: 14px; }
+.module[data-kind="panel"] .chart-block { padding: 0 0 18px; border-bottom: none; }
+.module[data-kind="panel"] .chart-block + .chart-block {
     padding-top: 18px;
     border-top: 1px solid var(--line-2);
 }
@@ -861,6 +861,41 @@ body.is-locked .corner-btn { pointer-events: none; }
 .btn.primary:hover { background: #d5825a; }
 .btn.danger { color: #b4553b; border-color: rgba(180, 85, 59, 0.34); }
 .btn[disabled] { opacity: 0.45; pointer-events: none; }
+
+/* 模块行里的次要操作（导出源码 / 卸载）：放在说明下面，不挤占右侧的排序与开关 */
+.set-row-tools { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 9px; }
+.set-row-tools .btn { padding: 6px 12px; font-size: 11.5px; letter-spacing: 1.2px; }
+
+/* 「自装」小标签：区分内置模块与用户自己装进来的 */
+.set-badge {
+    margin-left: 6px;
+    padding: 2px 7px;
+    background: rgba(223, 144, 104, 0.16);
+    border-radius: 999px;
+    font-size: 10px;
+    font-style: normal;
+    letter-spacing: 1px;
+    color: var(--accent);
+    vertical-align: 1px;
+}
+
+/* 数据分组里的复选框行 */
+.set-check {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-top: 12px;
+    font-size: 11.5px;
+    letter-spacing: 0.6px;
+    line-height: 1.6;
+    color: var(--ink-3);
+    cursor: pointer;
+}
+.set-check input { flex: 0 0 auto; width: 15px; height: 15px; accent-color: var(--accent); }
+
+/* 画不出来的模块：只坏这一栏，其余模块照常 */
+.module--error .module-head { opacity: 0.72; }
+.module--error .empty-note { color: #b4553b; }
 
 /* ---------------- 图表 ---------------- */
 .chart-block {

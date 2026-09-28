@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <title>mod check</title>
+</head>
+<body style="margin:0;background:#8a8a8a">
+    <iframe id="frame" src="../index.html" style="width:390px;height:844px;border:0;display:block;background:#fff"></iframe>
+    <pre id="out" style="position:fixed;right:0;top:0;background:#fff;font:10px/1.4 monospace;margin:0;padding:5px;width:225px;white-space:pre-wrap"></pre>
+    <script>
+        /* mod 系统的浏览器自检：设置分区、工具的连锁开关、装上 / 导出 / 卸载的完整闭环。
+           逻辑回归跑 node scripts/smoke.mjs，这里是真实 DOM 与真实交互那一层。 */
+        const log = [];
+        const say = (m) => { log.push(m); document.getElementById('out').textContent = log.join('\n'); };
+        const frame = document.getElementById('frame');
+        const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+
+        const MOD_SRC = [
+            '/* 体重：每天同一时间称重 */',
+            'ellipse.define({',
+            "    apiVersion: 1, id: 'weight', name: '体重', icon: 'chart', desc: '每天同一时间称重',",
+            '    fields: [',
+            "        { key: 'kg', type: 'number', label: '体重', unit: 'kg', step: 0.1, chips: [55, 60, 65] }",
+            '    ]',
+            '});'
+        ].join('\n');
+
+        frame.addEventListener('load', async () => {
+            const w = frame.contentWindow, d = frame.contentDocument;
+            const t = (label, cond, extra) => say((cond ? 'ok   ' : 'FAIL ') + label + (cond || !extra ? '' : ' -> ' + extra));
+            const q = (sel) => d.querySelector(sel);
+            const qa = (sel) => Array.from(d.querySelectorAll(sel));
+            const click = (node) => node.dispatchEvent(new w.MouseEvent('click', { bubbles: true }));
+            const texts = (sel) => qa(sel).map((n) => n.textContent.trim());
+
+            try {
+                for (let i = 0; i < 60 && !q('#rail [data-act="record"]'); i++) await sleep(50);
+
+                say('== 设置里的模块分区 ==');
+                click(d.getElementById('settingsBtn'));
+                await sleep(300);
+                const groups = texts('#settingsBody .set-group-title');
+                say('分组: ' + groups.join(' / '));
+                t('「模块」打头', groups[0] === '模块');
+                t('趋势模块贡献了「显示」', groups.indexOf('显示') > 0);
+                t('AI 模块贡献了「AI 辅助」', groups.indexOf('AI 辅助') > 0);
+                t('数据与安装分组还在', groups.indexOf('数据') > 0 && groups.indexOf('安装到主屏') > 0);
+
+                const rows = qa('#settingsBody [data-module-row]').map((n) => n.dataset.moduleRow);
+                say('模块行: ' + rows.join(','));
+                t('七个模块都在同一个列表里', rows.length === 7, String(rows.length));
+                t('内置模块不提供卸载', qa('#settingsBody [data-uninstall]').length === 0);
+                t('每个模块都能导出源码', qa('#settingsBody [data-export-mod]').length === 7);
+                t('服务型模块不占位置、不给排序按钮',
+                    qa('[data-module-row="assistant"] [data-order]').length === 0 &&
+                    qa('[data-module-row="assistant"] [data-toggle]').length === 1);
+
+                t('AI 分区有四个输入框', qa('#settingsBody [data-ai]').length === 4, String(qa('#settingsBody [data-ai]').length));
+                t('AI 状态显示未配置', /^当前状态：未配置/.test((q('#aiStatus') || {}).textContent || ''));
+                t('趋势分区有三个区间按钮', qa('#settingsBody [data-default-range]').length === 3);
+                const cb = d.getElementById('backupSecrets');
+                t('备份默认不带 AI 密钥', !!cb && cb.checked === false);
+
+                say('== 关掉 AI 助手，日记里的按钮一起消失 ==');
+                click(d.getElementById('settingsClose'));
+                await sleep(250);
+                click(q('#rail [data-act="record"]'));
+                await sleep(300);
+                t('日记里有语音与 AI 两个按钮', texts('#moduleStack .tool-btn').join(',') === '语音转写,整理成日记',
+                    texts('#moduleStack .tool-btn').join(','));
+
+                click(d.getElementById('backHomeBtn'));
+                await sleep(250);
+                click(d.getElementById('settingsBtn'));
+                await sleep(250);
+                click(q('[data-module-row="assistant"] [data-toggle]'));
+                await sleep(250);
+                t('AI 分区跟着消失', !q('#settingsBody [data-section="ai"]'));
+                click(d.getElementById('settingsClose'));
+                await sleep(250);
+                click(q('#rail [data-act="record"]'));
+                await sleep(300);
+                t('日记里的两个按钮也一起消失', qa('#moduleStack .tool-btn').length === 0);
+
+                click(d.getElementById('backHomeBtn'));
+                await sleep(250);
+                click(d.getElementById('settingsBtn'));
+                await sleep(250);
+                click(q('[data-module-row="assistant"] [data-toggle]'));
+                await sleep(250);
+                t('重新打开后 AI 分区回来', !!q('#settingsBody [data-section="ai"]'));
+
+                say('== 导入一个自装模块 ==');
+                const input = d.getElementById('modFile');
+                t('设置里有导入模块的入口', !!input && !!q('[data-set="import-mod"]'));
+                const dt = new w.DataTransfer();
+                dt.items.add(new w.File([MOD_SRC], 'weight.js', { type: 'text/javascript' }));
+                input.files = dt.files;
+                input.dispatchEvent(new w.Event('change', { bubbles: true }));
+                await sleep(500);
+                t('先弹出确认框', d.getElementById('sheet').classList.contains('open'));
+                const note = d.getElementById('sheetBody').textContent;
+                t('确认框里点名了模块自称的 id 与名字', note.indexOf('体重') >= 0 && note.indexOf('weight') >= 0);
+                t('确认框里写明了它能读本机记录与密钥',
+                    note.indexOf('能读到本机保存的全部记录') > 0 && note.indexOf('AI 密钥') > 0);
+
+                click(q('#sheetFoot [data-action="mod-install"]'));
+                await sleep(600);
+                t('确认框自动收起', !d.getElementById('sheet').classList.contains('open'));
+
+                click(d.getElementById('settingsClose'));
+                await sleep(250);
+                click(q('#rail [data-act="record"]'));
+                await sleep(300);
+                const cards = qa('#moduleStack .module').map((n) => n.dataset.module);
+                say('栏: ' + cards.join(','));
+                t('新模块出现在记录页', cards.indexOf('weight') >= 0);
+                t('排在最后一条', cards[cards.length - 1] === 'weight');
+
+                const kg = q('#moduleStack .module[data-module="weight"] [data-type="number"]');
+                t('数字框自动生成', !!kg);
+                kg.value = '63.5';
+                kg.dispatchEvent(new w.Event('input', { bubbles: true }));
+                await sleep(300);
+
+                click(q('.export-card'));
+                await sleep(300);
+                const md = d.getElementById('sheetBody').textContent;
+                t('md 导出自动接上新模块', md.indexOf('## 体重') > 0 && md.indexOf('- 体重：63.5 kg') > 0);
+                click(d.getElementById('sheetClose'));
+                await sleep(300);
+
+                say('== 导出源码 ==');
+                click(d.getElementById('backHomeBtn'));
+                await sleep(250);
+                click(d.getElementById('settingsBtn'));
+                await sleep(250);
+                click(q('[data-export-mod="weight"]'));
+                await sleep(400);
+                t('导出后给出提示', (d.getElementById('toast').textContent || '').indexOf('weight.js') >= 0,
+                    d.getElementById('toast').textContent);
+
+                say('== 卸载：代码走，数据留 ==');
+                click(q('[data-uninstall="weight"]'));
+                await sleep(300);
+                t('卸载前先问一句', d.getElementById('sheet').classList.contains('open'));
+                click(q('#sheetFoot [data-action="uninstall-keep"]'));
+                await sleep(400);
+                t('列表里没有它了', !q('[data-module-row="weight"]'));
+                click(d.getElementById('settingsClose'));
+                await sleep(250);
+                click(q('#rail [data-act="record"]'));
+                await sleep(300);
+                t('记录页上也没有了', qa('#moduleStack .module[data-module="weight"]').length === 0);
+                t('记录的数据仍在本机',
+                    (w.localStorage.getItem('ellipse.v1.records') || '').indexOf('63.5') > 0);
+                click(q('.export-card'));
+                await sleep(300);
+                t('代码没了，md 里就不再出现它', d.getElementById('sheetBody').textContent.indexOf('## 体重') < 0);
+                click(d.getElementById('sheetClose'));
+                await sleep(300);
+
+                say('== ?nomods=1 逃生舱 ==');
+                const f2 = d.createElement('iframe');
+                f2.style.cssText = 'width:390px;height:844px;border:0';
+                f2.src = '../index.html?nomods=1';
+                await new Promise((r) => { f2.addEventListener('load', r); d.body.appendChild(f2); });
+                const w2 = f2.contentWindow, d2 = f2.contentDocument;
+                d2.querySelector('#rail [data-act="record"]').click();
+                let cards2 = [];
+                for (let i = 0; i < 40; i++) {
+                    await sleep(80);
+                    cards2 = Array.from(d2.querySelectorAll('#moduleStack .module')).map((n) => n.dataset.module);
+                    if (cards2.length >= 6) break;
+                }
+                say('栏: ' + cards2.join(','));
+                t('内置模块照常', cards2.join(',') === 'mood,sleep,pain,exercise,diary,trend', cards2.join(','));
+                t('跳过了自装模块的求值', cards2.indexOf('weight') < 0);
+                f2.remove();
+
+                say('DONE');
+            } catch (err) {
+                say('ERROR ' + err.message);
+            }
+        });
+    </script>
+</body>
+</html>

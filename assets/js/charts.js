@@ -1,6 +1,7 @@
 /* 波状图：SVG 折线 + 数据点，纵轴为分值、横轴为时间 */
 
 import { recentKeys, shortDate, cnKey, fmtNum, escapeHtml } from './util.js';
+import { metricValueOf } from './core/fields.js';
 
 const W = 340;          // viewBox 宽度（随容器等比缩放）
 const PAD_L = 26;       // 左侧刻度
@@ -141,22 +142,11 @@ export function renderChart(opts) {
     return { svg: parts.join(''), points: points };
 }
 
-/** 从记录数据里取某模块某指标的序列 */
+/** 从记录数据里取某模块某指标的序列（取值规则统一在 core/fields.js） */
 export function metricSeries(module, metric, keys, dataOf) {
     return keys.map(function (key) {
         const data = dataOf(key) || {};
-        const m = data[module.id];
-        if (!m) return null;
-        if (metric.derived && typeof metric.value === 'function') {
-            const v = metric.value(m);
-            return Number.isFinite(v) ? v : null;
-        }
-        if (typeof module.metricValue === 'function') {
-            const v = module.metricValue(metric, m);
-            return Number.isFinite(v) ? v : null;
-        }
-        const raw = m[metric.field];
-        return Number.isFinite(raw) ? raw : null;
+        return metricValueOf(module, metric, data[module.id]);
     });
 }
 

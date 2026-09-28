@@ -1,8 +1,12 @@
-/* md 导出：Obsidian 风格（YAML frontmatter + 每日一文件） */
+/* md 导出：Obsidian 风格（YAML frontmatter + 每日一文件）
+
+   这里不认识任何具体模块 —— 正文怎么写由模块自己声明（def.markdown），
+   没声明就由 core/fields.js 按字段推导。所以外部模块的导出是自动通的。 */
 
 import { cnKey, weekdayCN, fmtNum, shortDate, recentKeys, escapeHtml } from './util.js';
-import { getRecordData, allRecordKeys, enabledOrder, getSettings, exportAll } from './storage.js';
-import { getModule } from './modules.js';
+import { getRecordData, allRecordKeys, getSettings } from './storage.js';
+import { get, enabledOrder } from './core/registry.js';
+import { markdownLines, metricValueOf } from './core/fields.js';
 
 function fmValue(v) {
     if (Array.isArray(v)) return '[' + v.join(', ') + ']';
@@ -20,10 +24,6 @@ function frontmatter(rows) {
     return lines.join('\n');
 }
 
-function num(v) {
-    return typeof v === 'number' && Number.isFinite(v) ? v : null;
-}
-
 function statLine(values) {
     const v = values.filter(function (x) { return x !== null; });
     if (!v.length) return '';
@@ -36,35 +36,17 @@ function statLine(values) {
 
 function valuesOf(module, metric, keys) {
     return keys.map(function (key) {
-        const data = getRecordData(key);
-        const m = data[module.id];
-        if (!m) return null;
-        if (metric.derived && typeof metric.value === 'function') return num(metric.value(m));
-        if (typeof module.metricValue === 'function') return num(module.metricValue(metric, m));
-        return num(m[metric.field]);
+        return metricValueOf(module, metric, getRecordData(key)[module.id]);
     });
 }
 
+/** 一个模块当天的正文行：模块自己声明了 markdown 就用它的，否则按字段推导 */
 function blockBody(module, m) {
-    const lines = [];
-    if (module.id === 'mood') {
-        lines.push('- 醒后：' + (num(m.morning) !== null ? m.morning + ' / 10' : '—'));
-        lines.push('- 睡前：' + (num(m.evening) !== null ? m.evening + ' / 10' : '—'));
-    } else if (module.id === 'sleep') {
-        lines.push('- 睡眠质量：' + (num(m.quality) !== null ? m.quality + ' / 10' : '—'));
-        lines.push('- 睡眠时长：' + (num(m.hours) !== null ? fmtNum(m.hours) + ' 小时' : '—'));
-    } else if (module.id === 'pain') {
-        lines.push('- 疼痛程度：' + (num(m.level) !== null ? m.level + ' / 10' : '—'));
-        if (m.note) lines.push('- 部位 / 备注：' + m.note);
-    } else if (module.id === 'exercise') {
-        lines.push('- 运动时长：' + (num(m.minutes) !== null ? fmtNum(m.minutes) + ' 分钟' : '—'));
-        lines.push('- 是否不适：' + (m.discomfort === true ? '有不适' : m.discomfort === false ? '无不适' : '—'));
-    } else if (module.id === 'diary') {
-        lines.push(String(m.text || '').trim());
-    } else {
-        Object.keys(m).forEach(function (k) { lines.push('- ' + k + '：' + m[k]); });
+    if (typeof module.markdown === 'function') {
+        const lines = module.markdown(m);
+        return Array.isArray(lines) ? lines : String(lines || '').split('\n');
     }
-    return lines;
+    return markdownLines(module.fields, m);
 }
 
 /** 单日 md */
@@ -104,12 +86,20 @@ export function dayMarkdown(key, opts) {
     }
 
     activeIds.forEach(function (id) {
-        const module = getModule(id);
+        const module = get(id);
         if (!module) return;
         const m = data[id] || {};
         out.push('## ' + module.name);
         out.push('');
-        blockBody(module, m).forEach(function (line) { out.push(line); });
+        let lines;
+        try {
+            lines = blockBody(module, m);
+        } catch (err) {
+            /* 一个模块的正文出错，不该让整份导出失败 */
+            console.warn('[ellipse] 模块「' + module.name + '」导出出错：', err);
+            lines = ['> 导出这个模块的内容时出错：' + String(err.message || err)];
+        }
+        lines.forEach(function (line) { out.push(line); });
         out.push('');
     });
 
@@ -140,7 +130,7 @@ export function rangeMarkdown(fromKey, toKey, opts) {
     out.push('');
 
     order.forEach(function (id) {
-        const module = getModule(id);
+        const module = get(id);
         if (!module) return;
         out.push('## ' + module.name);
         out.push('');
@@ -227,8 +217,4 @@ export async function copyText(text) {
     } catch (err) {
         return false;
     }
-}
-
-export function backupJson() {
-    return JSON.stringify(exportAll(), null, 2);
 }

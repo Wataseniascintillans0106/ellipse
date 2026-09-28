@@ -1,13 +1,18 @@
-/* AI 能力（可选）：语音转写、文段整理。全部在浏览器内直接请求用户自己填写的接口 */
+/* AI 能力：语音转写、文段整理。全部在浏览器内直接请求用户自己填写的接口。
 
-import { getSettings } from './storage.js';
+   这是「AI 助手」模块自己的实现细节，不是核心的一部分 ——
+   配置存在该模块的命名空间 settings.mods.assistant 下（老版本的顶层 ai 键会自动搬过来）。 */
+
+import { getModuleSettings } from './storage.js';
+
+const MOD_ID = 'assistant';
 
 const DEFAULT_BASE = 'https://api.openai.com/v1';
 const FALLBACK_BASE = 'https://api.deepseek.com/v1';
 const TRUSTED_HOSTS = ['api.openai.com', 'api.deepseek.com'];
 
 export function getAiConfig() {
-    const ai = getSettings().ai || {};
+    const ai = getModuleSettings(MOD_ID);
     let baseUrl = (ai.baseUrl || '').trim().replace(/\/+$/, '');
     if (!baseUrl) baseUrl = DEFAULT_BASE;
     if (!/\/v\d+(\/)?$/.test(baseUrl)) baseUrl += '/v1';

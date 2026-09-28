@@ -1,12 +1,22 @@
-/* 本地存储：所有记录与设置只保存在当前浏览器（localStorage） */
+/* 本地存储：所有记录与设置只保存在当前浏览器（localStorage）。
 
-import { MODULE_ORDER, DEFAULT_SETTINGS } from './modules.js';
-
-const ALL_MODULE_IDS = MODULE_ORDER.concat(Object.keys(DEFAULT_SETTINGS.modules));
+   这一层刻意不认识任何具体模块 —— 「有哪些模块、开没开」由 core/registry.js 负责。
+   依赖方向是单向的：registry → storage，反过来没有。 */
 
 const KEY_RECORDS = 'ellipse.v1.records';
 const KEY_SETTINGS = 'ellipse.v1.settings';
-const KEY_META = 'ellipse.v1.meta';
+const KEY_MODS = 'ellipse.v1.mods';      /* 用户装的模块源码，独立一个键，见 core/loader.js */
+
+const SETTINGS_VERSION = 2;
+
+/* 只有核心概念在这里给默认值；每个模块自己的配置由模块自己声明（settings.mods[id]） */
+const DEFAULT_SETTINGS = {
+    ui: { expandAll: true, openModule: null, panels: {} },
+    export: { frontmatter: true, includeSummary: true }
+};
+
+/* 认识的顶层键。不认识的（比如老版本写在顶层的 ai 配置）原样留着，不悄悄删掉。 */
+const KNOWN_KEYS = ['version', 'modules', 'order', 'ui', 'export', 'mods'];
 
 let records = null;
 let settings = null;
@@ -30,33 +40,43 @@ function loadRecords() {
     return records;
 }
 
+/** 把磁盘上的旧设置补成当前形状。不丢任何已有内容。 */
+function migrate(raw) {
+    const src = raw && typeof raw === 'object' ? raw : {};
+    const out = {
+        version: SETTINGS_VERSION,
+        modules: (src.modules && typeof src.modules === 'object') ? Object.assign({}, src.modules) : {},
+        order: Array.isArray(src.order) ? src.order.slice() : [],
+        ui: Object.assign({}, DEFAULT_SETTINGS.ui, src.ui || {}, {
+            /* 嵌套的对象要另开一份，否则会写到 DEFAULT_SETTINGS 身上去 */
+            panels: Object.assign({}, (src.ui && src.ui.panels) || {})
+        }),
+        export: Object.assign({}, DEFAULT_SETTINGS.export, src.export || {}),
+        mods: (src.mods && typeof src.mods === 'object') ? Object.assign({}, src.mods) : {}
+    };
+    /* 老版本把 AI 配置放在顶层的 ai 键里，现在归「AI 助手」模块自己管。
+       搬运一次即可；上面的 KNOWN_KEYS 会让老键继续留在磁盘上，搬错了还能捞回来。 */
+    if (!out.mods.assistant && src.ai && typeof src.ai === 'object') {
+        out.mods.assistant = Object.assign({}, src.ai);
+    }
+    /* 老版本把波状图栏的展开状态与默认区间放在 ui.trendOpen / ui.lastRange，
+       现在前者归核心的 panels，后者归模块自己的设置。 */
+    if (src.ui && typeof src.ui === 'object') {
+        if (src.ui.trendOpen !== undefined && out.ui.panels.trend === undefined) {
+            out.ui.panels.trend = src.ui.trendOpen !== false;
+        }
+        if (src.ui.lastRange && !out.mods.trend) {
+            out.mods.trend = { range: src.ui.lastRange };
+        }
+    }
+    KNOWN_KEYS.forEach(function (k) { delete src[k]; });
+    Object.keys(src).forEach(function (k) { out[k] = src[k]; });
+    return out;
+}
+
 function loadSettings() {
     if (settings) return settings;
-    const raw = safeParse(localStorage.getItem(KEY_SETTINGS), null) || {};
-    const modules = {};
-    ALL_MODULE_IDS.forEach(function (id) {
-        modules[id] = DEFAULT_SETTINGS.modules[id] === undefined ? true : DEFAULT_SETTINGS.modules[id];
-    });
-    if (raw.modules && typeof raw.modules === 'object') {
-        Object.keys(modules).forEach(function (id) {
-            if (typeof raw.modules[id] === 'boolean') modules[id] = raw.modules[id];
-        });
-    }
-    let order = Array.isArray(raw.order) ? raw.order.filter(function (id) {
-        return MODULE_ORDER.indexOf(id) >= 0;
-    }) : [];
-    MODULE_ORDER.forEach(function (id) {
-        if (order.indexOf(id) < 0) order.push(id);
-    });
-
-    const ai = Object.assign({ baseUrl: '', model: '', apiKey: '' }, raw.ai || {});
-    settings = {
-        modules: modules,
-        order: order,
-        ui: Object.assign({}, DEFAULT_SETTINGS.ui, raw.ui || {}),
-        ai: ai,
-        export: Object.assign({}, DEFAULT_SETTINGS.export, raw.export || {})
-    };
+    settings = migrate(safeParse(localStorage.getItem(KEY_SETTINGS), null));
     return settings;
 }
 
@@ -72,8 +92,10 @@ function persistRecords() {
 function persistSettings() {
     try {
         localStorage.setItem(KEY_SETTINGS, JSON.stringify(settings));
+        return true;
     } catch (err) {
         console.error('[ellipse] 设置写入失败：', err);
+        return false;
     }
 }
 
@@ -84,12 +106,21 @@ export function setSettings(patch) {
     if (patch.modules) s.modules = Object.assign({}, s.modules, patch.modules);
     if (patch.order) s.order = patch.order.slice();
     if (patch.ui) s.ui = Object.assign({}, s.ui, patch.ui);
-    if (patch.ai) s.ai = Object.assign({}, s.ai, patch.ai);
     if (patch.export) s.export = Object.assign({}, s.export, patch.export);
+    if (patch.mods) {
+        const next = Object.assign({}, s.mods);
+        Object.keys(patch.mods).forEach(function (id) {
+            next[id] = Object.assign({}, next[id] || {}, patch.mods[id]);
+        });
+        s.mods = next;
+    }
     persistSettings();
     emit({ type: 'settings' });
     return s;
 }
+
+/** 某个模块自己的配置（模块的作者自己决定里面有什么） */
+export function getModuleSettings(id) { return loadSettings().mods[id] || {}; }
 
 export function resetSettings() {
     settings = null;
@@ -99,10 +130,37 @@ export function resetSettings() {
     return settings;
 }
 
-/** 已启用的模块 id（按用户自定义顺序） */
-export function enabledOrder() {
+/**
+ * 注册表在模块注册时调用：给新模块补上默认开关与顺序位置。
+ * 已有设置原样不动，所以升级不会打乱用户自己排的顺序。
+ */
+export function ensureModuleSettings(id, enabledByDefault) {
     const s = loadSettings();
-    return s.order.filter(function (id) { return s.modules[id] !== false; });
+    let changed = false;
+    if (s.modules[id] === undefined) {
+        s.modules[id] = enabledByDefault !== false;
+        changed = true;
+    }
+    if (s.order.indexOf(id) < 0) {
+        s.order.push(id);
+        changed = true;
+    }
+    if (changed) {
+        persistSettings();
+        emit({ type: 'settings' });
+    }
+    return changed;
+}
+
+/** 彻底忘掉一个模块的设置与顺序（卸载模块时用） */
+export function forgetModule(id) {
+    const s = loadSettings();
+    const at = s.order.indexOf(id);
+    if (at >= 0) s.order.splice(at, 1);
+    delete s.modules[id];
+    delete s.mods[id];
+    persistSettings();
+    emit({ type: 'settings' });
 }
 
 export function isValidKey(key) { return /^\d{4}-\d{2}-\d{2}$/.test(String(key)); }
@@ -137,30 +195,22 @@ export function setField(key, moduleId, field, value) {
     emit({ type: 'record', key: key, module: moduleId, field: field });
 }
 
-export function patchModule(key, moduleId, patch) {
-    if (!isValidKey(key) || !patch) return;
+/** 丢掉某一天里某个模块的全部数据（卸载模块时可选） */
+export function dropModuleData(moduleId) {
     const all = loadRecords();
-    const rec = all[key] || (all[key] = { data: {} });
-    if (!rec.data || typeof rec.data !== 'object') rec.data = {};
-    rec.data[moduleId] = Object.assign({}, rec.data[moduleId] || {}, patch);
-    Object.keys(rec.data[moduleId]).forEach(function (k) {
-        const v = rec.data[moduleId][k];
-        if (v === null || v === undefined || v === '') delete rec.data[moduleId][k];
+    let touched = 0;
+    Object.keys(all).forEach(function (key) {
+        const rec = all[key];
+        if (rec && rec.data && rec.data[moduleId] !== undefined) {
+            delete rec.data[moduleId];
+            touched++;
+        }
     });
-    rec.updatedAt = Date.now();
-    persistRecords();
-    emit({ type: 'record', key: key, module: moduleId });
-}
-
-/** 某个模块在最近 keys 上的取值数组，缺记录处为 null */
-export function seriesFor(module, metric, keys) {
-    return keys.map(function (key) {
-        const data = getRecordData(key);
-        const m = data[module.id];
-        if (!m) return null;
-        const v = module.metricValue(metric, m);
-        return typeof v === 'number' && Number.isFinite(v) ? v : null;
-    });
+    if (touched) {
+        persistRecords();
+        emit({ type: 'bulk' });
+    }
+    return touched;
 }
 
 /** 所有有记录的日期（升序） */
@@ -168,20 +218,38 @@ export function allRecordKeys() {
     return Object.keys(loadRecords()).sort();
 }
 
-export function recordCount() {
-    return Object.keys(loadRecords()).length;
+/* ---------------- 备份 ---------------- */
+
+export function getModsRaw() { return safeParse(localStorage.getItem(KEY_MODS), null) || {}; }
+
+export function setModsRaw(all) {
+    try {
+        localStorage.setItem(KEY_MODS, JSON.stringify(all));
+        return true;
+    } catch (err) {
+        console.error('[ellipse] 模块源码写入失败：', err);
+        return false;
+    }
 }
 
-export function exportAll() {
-    return {
+/**
+ * 备份内容
+ * @param {object} opts { includeMods: 是否带上已装模块的源码 }
+ */
+export function exportAll(opts) {
+    const o = opts || {};
+    const payload = {
         app: 'ellipse',
-        version: 1,
+        version: 2,
         exportedAt: new Date().toISOString(),
         settings: loadSettings(),
         records: loadRecords()
     };
+    if (o.includeMods) payload.mods = getModsRaw();
+    return payload;
 }
 
+/** 导入备份：合并或覆盖。返回 { records, mods } 各导入了多少 */
 export function importAll(payload, mode) {
     if (!payload || typeof payload !== 'object' || !payload.records) {
         throw new Error('文件内容不是有效的 ellipse 备份');
@@ -194,13 +262,28 @@ export function importAll(payload, mode) {
     });
     records = all;
     persistRecords();
+
     if (payload.settings) {
         settings = null;
-        localStorage.setItem(KEY_SETTINGS, JSON.stringify(payload.settings));
+        try {
+            localStorage.setItem(KEY_SETTINGS, JSON.stringify(payload.settings));
+        } catch (err) { /* 设置写不进去不该让记录也导不进来 */ }
         loadSettings();
     }
+
+    let mods = 0;
+    if (payload.mods && typeof payload.mods === 'object') {
+        const merged = mode === 'replace' ? {} : getModsRaw();
+        Object.keys(payload.mods).forEach(function (id) {
+            merged[id] = payload.mods[id];
+            mods++;
+        });
+        setModsRaw(merged);
+    }
+
     emit({ type: 'settings' });
     emit({ type: 'bulk' });
+    return { records: Object.keys(incoming).length, mods: mods };
 }
 
 export function clearRecords() {
@@ -209,15 +292,8 @@ export function clearRecords() {
     emit({ type: 'bulk' });
 }
 
-export function getMeta() { return safeParse(localStorage.getItem(KEY_META), {}) || {}; }
-
-export function setMeta(patch) {
-    const meta = Object.assign({}, getMeta(), patch);
-    try { localStorage.setItem(KEY_META, JSON.stringify(meta)); } catch (err) { /* 忽略 */ }
-    return meta;
-}
-
 /* ---------------- 订阅 ---------------- */
+
 export function subscribe(fn) {
     listeners.add(fn);
     return function unsubscribe() { listeners.delete(fn); };
@@ -228,3 +304,5 @@ function emit(evt) {
         try { fn(evt); } catch (err) { console.error('[ellipse] 订阅回调出错：', err); }
     });
 }
+
+export { DEFAULT_SETTINGS, SETTINGS_VERSION, KEY_RECORDS, KEY_SETTINGS, KEY_MODS };

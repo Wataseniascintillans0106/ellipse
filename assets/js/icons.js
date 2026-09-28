@@ -1,4 +1,4 @@
-/* 图标：沿用 demo.html 的线性描边风格（viewBox 24，stroke 1.5，圆头圆角） */
+/* 图标：沿用 docs/demo.html 的线性描边风格（viewBox 24，stroke 1.5，圆头圆角） */
 
 const ATTR = 'xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" ' +
     'stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"';

@@ -26,7 +26,7 @@
         <p style="padding:24px">本应用需要开启 JavaScript。</p>
     </noscript>
 
-    <!-- ======================= 主页（与 demo.html 一致） ======================= -->
+    <!-- ======================= 主页（与 docs/demo.html 一致） ======================= -->
     <main class="view home" id="viewHome">
         <div class="home-block">
             <p class="wordmark">ellipse</p>
@@ -108,8 +108,12 @@
 
     <section class="boot-note" id="bootNote" hidden>
         <h2>页面没有正常启动</h2>
-        <p>如果是从文件管理器直接双击打开的，某些浏览器会拦截本地模块加载。</p>
-        <p>在项目目录里执行 <code>node scripts/serve.mjs 5173</code>，再访问 <code>http://localhost:5173/index.html</code> 即可。</p>
+        <p>如果是从文件管理器直接双击打开的：<code>file://</code> 下 Chrome / Edge / Firefox 都会拦掉模块加载，
+            这条路走不通。双击项目里的 <code>启动预览.bat</code>（或在项目目录里执行 <code>node scripts/serve.mjs 5173</code>），
+            再访问 <code>http://localhost:5173/index.html</code> 即可。</p>
+        <p>如果是刚装了一个自制模块之后才打不开的：在地址后面加上 <code>?nomods=1</code>
+            （即 <code>http://localhost:5173/index.html?nomods=1</code>）就能跳过所有自制模块先启动，
+            进去之后在设置 → 模块里把那一条删掉。</p>
         <pre id="bootDetail"></pre>
     </section>
 
