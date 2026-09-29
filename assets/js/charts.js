@@ -33,7 +33,7 @@ function nice(max) {
  * 绘制一张波状图
  * @param {object} opts
  *   keys    日期 key 数组（升序，可含缺记录的日子）
- *   values  与 keys 对应的数值数组（null 表示未记录）
+ *   values  与 keys 对应的数值数组（null 表示未记录，画在最低处、不画圆点）
  *   metric  {label, unit, min, max}
  *   plotH   绘图区高度（默认 78）
  */
@@ -97,39 +97,33 @@ export function renderChart(opts) {
         return { svg: parts.join(''), points: [] };
     }
 
-    /* 有记录的日期在时间轴上均匀排布 */
-    const slotX = function (index) {
-        if (present.length <= 1) return PAD_L + plotW / 2;
-        return PAD_L + (index / (present.length - 1)) * plotW;
+    /* 横轴按真实日期均分：没记录的日子同样占一格。
+       它们按「最低」参与画线，于是折线在那些天一路贴到底部再抬起来 ——
+       整条线是连续的，也能一眼看出哪一段是空着的。 */
+    const xOf = function (index) {
+        if (keys.length <= 1) return PAD_L + plotW / 2;
+        return PAD_L + (index / (keys.length - 1)) * plotW;
     };
 
     let solid = '';
-    let dashed = '';
     let prev = null;
-    present.forEach(function (p, idx) {
-        const x = slotX(idx).toFixed(1);
-        const y = yOf(p.v).toFixed(1);
-        if (prev) {
-            const seg = 'M' + prev.x + ' ' + prev.y + 'L' + x + ' ' + y;
-            if (p.i - prev.i <= 1) solid += seg;
-            else dashed += seg;
-        }
+    values.forEach(function (v, i) {
+        const recorded = v !== null && v !== undefined && Number.isFinite(v);
+        const x = xOf(i).toFixed(1);
+        const y = yOf(recorded ? v : lo).toFixed(1);
+        if (prev) solid += 'M' + prev.x + ' ' + prev.y + 'L' + x + ' ' + y;
         prev = { x: x, y: y };
     });
 
-    if (dashed) {
-        parts.push('<path d="' + dashed + '" fill="none" stroke="#df9068" stroke-width="1.6" ' +
-            'stroke-dasharray="2 4" stroke-linecap="round" opacity="0.7"/>');
-    }
     if (solid) {
         parts.push('<path d="' + solid + '" fill="none" stroke="#df9068" stroke-width="1.8" ' +
             'stroke-linecap="round" stroke-linejoin="round"/>');
     }
 
-    /* 数据点 */
+    /* 数据点：只画真有记录的那几天（没记录的点不出数值，就不画） */
     const points = [];
     present.forEach(function (p, idx) {
-        const x = slotX(idx);
+        const x = xOf(p.i);
         const y = yOf(p.v);
         const last = idx === present.length - 1;
         points.push({ x: x, y: y, i: p.i, v: p.v });

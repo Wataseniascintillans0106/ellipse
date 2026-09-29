@@ -105,6 +105,25 @@ ok('无记录时没有数据点', empty.points.length === 0);
 const one = renderChart({ keys: keys, values: [null, 8], metric: mood.metrics[0] });
 ok('单点也能画', one.points.length === 1);
 
+/* 没记录的日子：照样占一格、按最低值画、但不画圆点 */
+const gapKeys = [shiftKey(today, -2), shiftKey(today, -1), today];
+const gap = renderChart({ keys: gapKeys, values: [7, null, 3], metric: mood.metrics[0] });
+const gapD = (gap.svg.match(/<path d="([^"]*)"/) || [])[1] || '';
+const gapYs = [];
+gapD.replace(/[ML]([\d.]+) ([\d.]+)/g, function (all, x, y) { gapYs.push(Number(y)); return all; });
+ok('没记录的日子也在时间轴上占一格（折线连起来）', gapYs.length === 4, gapD);
+ok('没记录的日子画在最低处', gapYs.length === 4 && gapYs[1] === Math.max.apply(null, gapYs),
+    JSON.stringify(gapYs));
+ok('没记录的日子不画圆点', gap.points.length === 2, String(gap.points.length));
+/* 0 分和「没记录」都贴在最底下，靠圆点区分：真有记录的 0 分照样画点 */
+const zero = renderChart({ keys: gapKeys, values: [0, null, 0], metric: getModule('pain').metrics[0] });
+ok('记成 0 分的那天照画圆点', zero.points.length === 2, String(zero.points.length));
+
+const full = renderChart({ keys: gapKeys, values: [7, 5, 3], metric: mood.metrics[0] });
+ok('某天在横轴上的位置，不受邻居有没有记录影响',
+    full.points[0].x === gap.points[0].x && full.points[2].x === gap.points[1].x,
+    JSON.stringify([full.points.map((p) => p.x), gap.points.map((p) => p.x)]));
+
 /* ---------- 4. md 导出 ---------- */
 console.log('\n[4] md 导出');
 const md = dayMarkdown(today);
@@ -154,6 +173,8 @@ ok('出图模块为 4 个（日记除外）', registry.chartModules(enabledOrder
 ok('关闭情绪后少一个', registry.chartModules(enabledOrder().filter((id) => id !== 'mood')).length === 3);
 ok('关掉 AI 模块，它的工具按钮就查不到了',
     registry.tool('ai') !== null && registry.tool('nope') === null);
+ok('语音转写的工具已经删掉了', registry.tool('voice') === null);
+ok('日记不再挂任何工具按钮', !getModule('diary').fields.some((f) => f.tools));
 
 /* ---------- 7. PWA 资源 ---------- */
 console.log('\n[7] PWA 资源');

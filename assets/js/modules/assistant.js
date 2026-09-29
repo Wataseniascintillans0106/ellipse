@@ -1,12 +1,10 @@
-/* AI 助手：一个「服务型」模块 —— 它不产生记录卡片，只贡献三样东西：
+/* AI 助手：一个「服务型」模块 —— 它不产生记录卡片，只贡献两样东西：
      1. 设置里的「AI 辅助」分区（连同测试连接、清除密钥按钮）
-     2. 两项能力：ai.polish（整理文段）、ai.transcribe（录音转写），别的模块可以取用
-     3. 日记栏里的「语音转写」「整理成日记」两个工具按钮
+     2. 一项能力：ai.polish（整理文段），别的模块可以取用
 
-   关掉它，上面三样一起消失 —— 日记里的按钮会自己不见。 */
+   关掉它，上面两样一起消失。 */
 
-import { isConfigured, isTrustedEndpoint, getAiConfig, polishText, transcribeAudio } from '../ai.js';
-import { openVoiceFlow } from '../voice.js';
+import { isConfigured, isTrustedEndpoint, getAiConfig, polishText } from '../ai.js';
 
 /* 打开「整理成日记」面板时记住是哪个字段，等点了「整理」再用 */
 let pending = null;
@@ -19,7 +17,7 @@ function row(title, desc, inner) {
 }
 
 function statusText() {
-    if (!isConfigured()) return '当前状态：未配置，语音将使用浏览器内置识别。';
+    if (!isConfigured()) return '当前状态：未配置。';
     if (!isTrustedEndpoint()) return '当前状态：已填写密钥，但接口地址不在可信列表内，浏览器可能拒绝请求。';
     return '当前状态：已配置（' + getAiConfig().baseUrl + '）。';
 }
@@ -42,9 +40,6 @@ function sectionHtml(api) {
         row('模型', '用于整理文段，默认 gpt-4o-mini',
             '<input class="set-input" type="text" data-ai="model" placeholder="gpt-4o-mini" ' +
             'value="' + esc(ai.model || '') + '">') +
-        row('转写模型', '用于语音转写，需要 /audio/transcriptions 接口',
-            '<input class="set-input" type="text" data-ai="transcribeModel" placeholder="whisper-1" ' +
-            'value="' + esc(ai.transcribeModel || '') + '">') +
         '<div class="set-actions">' +
         '<button class="btn" type="button" data-set="ai-test">测试连接</button>' +
         '<button class="btn" type="button" data-set="ai-clear">清除密钥</button>' +
@@ -70,19 +65,7 @@ function testConnection(api, btn, root) {
         });
 }
 
-/* ---------------- 两个工具按钮 ---------------- */
-
-function runVoice(ctx) {
-    const api = ctx.api;
-    openVoiceFlow({
-        body: api.sheet.body(),
-        foot: api.sheet.foot(),
-        close: api.sheet.close,
-        onClose: api.sheet.onClose
-    }, function (text) {
-        ctx.setValue(text);      /* 语音面板自己会 toast 并关掉面板 */
-    });
-}
+/* ---------------- 工具按钮 ---------------- */
 
 function runPolish(ctx) {
     const api = ctx.api;
@@ -107,7 +90,7 @@ ellipse.define({
     kind: 'service',
     name: 'AI 助手',
     icon: 'spark',
-    desc: '语音转写与文段整理；关掉它，设置里的 AI 分区和日记里的两个按钮会一起消失',
+    desc: '文段整理；关掉它，设置里的 AI 分区一起消失',
     secrets: ['apiKey', 'baseUrl'],
 
     services: {
@@ -115,13 +98,11 @@ ellipse.define({
             isConfigured: isConfigured,
             isTrustedEndpoint: isTrustedEndpoint,
             getConfig: getAiConfig,
-            polish: polishText,
-            transcribe: transcribeAudio
+            polish: polishText
         }
     },
 
     tools: [
-        { id: 'voice', icon: 'mic', label: '语音转写', run: runVoice },
         { id: 'ai', icon: 'spark', label: '整理成日记', run: runPolish }
     ],
 
@@ -182,6 +163,7 @@ ellipse.define({
                 const name = btn.getAttribute('data-set');
                 if (name === 'ai-test') { testConnection(api, btn, root); return; }
                 if (name === 'ai-clear') {
+                    /* transcribeModel 是删掉语音转写之前留下的键，一并清掉 */
                     api.settings.set('assistant', { apiKey: '', baseUrl: '', model: '', transcribeModel: '' });
                     ctx.rerender();
                     api.toast('已清除 AI 配置');

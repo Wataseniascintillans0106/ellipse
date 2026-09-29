@@ -1,5 +1,5 @@
-/* 日记：纯文本。语音转写与 AI 整理两个按钮由「AI 助手」模块提供 ——
-   那个模块被关掉时，这里的按钮会自己消失。 */
+/* 日记：纯文本。不挂任何工具按钮 —— AI 一侧的框架还没接进来，
+   等接上了再在这里声明 tools 即可（按钮由提供它的模块实现）。 */
 
 ellipse.define({
     apiVersion: 1,
@@ -12,7 +12,6 @@ ellipse.define({
         {
             key: 'text', type: 'textarea', label: '', rows: 4, maxlength: 2000,
             placeholder: '今天发生了什么，身体和心情有哪些变化…',
-            tools: ['voice', 'ai'],
             foot: '纯文本，保存在本机',
             counter: true
         }

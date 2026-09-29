@@ -412,7 +412,7 @@ function handleSliderCommit(evt) {
     setField(state.key, card.dataset.module, target.dataset.field, value);
 }
 
-/** 字段旁边的工具按钮（语音转写 / 整理成日记…）：功能由提供它的模块实现 */
+/** 字段旁边的工具按钮（如「整理成日记」）：功能由提供它的模块实现 */
 function runTool(def, btn) {
     const toolId = btn.getAttribute('data-tool');
     const field = btn.getAttribute('data-field');
@@ -545,7 +545,7 @@ function dispatchSheetAction(name, target) {
             toast('操作失败：' + msg(err).slice(0, 40));
         }
     }
-    /* 没人认领就安静放过：面板里的输入控件（比如语音面板）自己挂着自己的监听 */
+    /* 没人认领就安静放过：面板里的输入控件自己挂着自己的监听 */
 }
 
 document.getElementById('sheetClose').addEventListener('click', function () { sheet.close(); });
@@ -787,7 +787,7 @@ function installGroup() {
         '<div class="set-row">' +
         '<span class="set-row-main">' +
         '<span class="set-row-title">当成一个 App 用</span>' +
-        '<span class="set-row-desc">装到主屏后全屏打开、断网也能用；录音转写要的麦克风授权也只发给装好的应用</span>' +
+        '<span class="set-row-desc">装到主屏后全屏打开、断网也能用</span>' +
         '</span>' +
         '</div>' +
         '<div class="set-actions">' +

@@ -1,4 +1,4 @@
-/* 底部面板：导出预览、语音、AI 整理都用它。模块通过 api.sheet 使用。
+/* 底部面板：导出预览、AI 整理都用它。模块通过 api.sheet 使用。
 
    刻意不认识记录页 —— 面板关掉之后要重画的话，模块自己调 api.refresh()。
    元素全部惰性查找，这样 Node 里 import 本文件不会因为 document 是替身就炸。 */
@@ -61,7 +61,7 @@ export function close() {
     }
 }
 
-/** 面板下次关闭时执行一次。语音流程用它停掉录音。 */
+/** 面板下次关闭时执行一次。 */
 export function onClose(fn) { onCloseFn = fn; }
 
 export function body() { return node('sheetBody'); }

@@ -132,11 +132,10 @@ body.is-locked { overflow: hidden; }
     color: var(--ink-2);
 }
 
-/* 日期条：两侧箭头都在左边，右侧整条留给竖栏 */
+/* 日期条：左「前一天」、右「后一天」，中间是当天日期 */
 .date-bar {
+    /* 左「前一天」、右「后一天」：时间由左至右，今天在轴的右端 */
     display: flex;
-    flex-direction: row-reverse;
-    justify-content: flex-end;
     align-items: center;
     gap: 6px;
     margin-top: 12px;
@@ -1054,55 +1053,6 @@ body.is-locked .corner-btn { pointer-events: none; }
 }
 .pick-item:last-child { border-bottom: none; }
 .pick-item .pick-meta { font-size: 11px; letter-spacing: 0.6px; color: var(--ink-3); }
-
-/* 录音界面 */
-.rec-stage { display: flex; flex-direction: column; align-items: center; padding: 8px 0 4px; }
-
-.rec-btn {
-    width: 92px;
-    height: 92px;
-    padding: 0;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    background: rgba(255, 255, 255, 0.7);
-    border: 1px solid var(--line);
-    border-radius: 50%;
-    color: var(--accent);
-    cursor: pointer;
-    transition: background 0.2s ease, transform 0.2s ease;
-}
-.rec-btn svg { width: 34px; height: 34px; display: block; }
-.rec-btn:hover { background: #fff; }
-.rec-btn:active { transform: scale(0.96); }
-.rec-btn.on {
-    background: var(--accent);
-    border-color: var(--accent);
-    color: #fff;
-    animation: rec-pulse 1.6s ease-in-out infinite;
-}
-@keyframes rec-pulse {
-    0%, 100% { box-shadow: 0 0 0 0 rgba(223, 144, 104, 0.38); }
-    50% { box-shadow: 0 0 0 12px rgba(223, 144, 104, 0); }
-}
-
-.rec-state { margin: 14px 0 0; font-size: 12px; letter-spacing: 2.2px; color: var(--ink-2); }
-
-.rec-live {
-    width: 100%;
-    margin: 14px 0 0;
-    padding: 13px;
-    min-height: 74px;
-    background: rgba(43, 43, 40, 0.035);
-    border-radius: 12px;
-    font-size: 13.5px;
-    line-height: 1.72;
-    letter-spacing: 0.4px;
-    color: var(--ink);
-    white-space: pre-wrap;
-    word-break: break-word;
-}
-.rec-live:empty::before { content: "等待语音…"; color: var(--ink-3); }
 
 .sheet-note {
     margin: 12px 0 0;

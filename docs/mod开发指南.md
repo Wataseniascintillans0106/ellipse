@@ -118,7 +118,7 @@ ellipse.define({
 
 // textarea：多行，可以挂工具按钮（见第五节）
 { key: 'text', type: 'textarea', label: '日记', rows: 6, counter: true,
-  foot: '写完可以让我整理一下', tools: ['voice', 'ai'] }
+  foot: '写完可以让我整理一下', tools: ['ai'] }
 ```
 
 > **空值也照实写。** 没填的字段在 md 里是 `- 标签：—`，但 `text` 类型空着就整行不写。
@@ -146,7 +146,8 @@ metrics: [
 ]
 ```
 
-`value(m)` 返回 `null` 表示这天没数据，曲线会在那里断开。
+`value(m)` 返回 `null` 表示这天没数据：那天**不画圆点**，但在横轴上照样占一格，
+折线按 `min`（也就是图的最低处）画过去，所以整条线是连续的。
 
 ---
 
@@ -227,7 +228,7 @@ ellipse.settings.global()                // 全站设置，只读
 // 底部面板
 ellipse.sheet.open(标题, 正文HTML, 底部按钮HTML)
 ellipse.sheet.close() / isOpen()
-ellipse.sheet.onClose(fn)                // 关面板时跑一次（停录音用）
+ellipse.sheet.onClose(fn)                // 关面板时跑一次
 ellipse.sheet.body() / foot()            // 取面板元素，自己挂监听
 
 // 图表与表单控件工具包
@@ -244,7 +245,7 @@ ellipse.copy(text)                 // 复制到剪贴板
 
 | 键 | 形状 | 作用 |
 | --- | --- | --- |
-| `services` | `{ ai: { polish, transcribe } }` | 把能力暴露给别的模块，`ellipse.services.get('ai')` 取 |
+| `services` | `{ ai: { polish } }` | 把能力暴露给别的模块，`ellipse.services.get('ai')` 取 |
 | `tools` | `[{ id, icon, label, run(ctx) }]` | 字段声明 `tools:['ai']` 时才出现的按钮 |
 | `settingsSections` | `[{ id, title, note, html(ctx), bind(root, ctx) }]` | 设置页里的一整个分区 |
 | `actions` | `{ 'my-act': function (ctx) {} }` | 认领界面上 `data-act="my-act"` 的按钮 |
@@ -350,7 +351,7 @@ http://localhost:5173/index.html?nomods=1
   - `sleep.js` —— 两种数值字段
   - `pain.js` —— `slider` + `text`
   - `exercise.js` —— `number` + 快捷按钮 + `enum`
-  - `diary.js` —— `textarea` + 工具按钮
+  - `diary.js` —— `textarea`（纯文本，目前不挂工具按钮）
   - `trend.js` —— `panel` 型样板
   - `assistant.js` —— `service` 型样板（服务 / 工具 / 设置分区 / 动作，四样占全）
 - **逻辑回归**：改完核心代码跑 `node scripts/smoke.mjs`；浏览器交互自检看

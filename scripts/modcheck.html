@@ -55,18 +55,19 @@
                     qa('[data-module-row="assistant"] [data-order]').length === 0 &&
                     qa('[data-module-row="assistant"] [data-toggle]').length === 1);
 
-                t('AI 分区有四个输入框', qa('#settingsBody [data-ai]').length === 4, String(qa('#settingsBody [data-ai]').length));
+                t('AI 分区有三个输入框（接口 / 密钥 / 模型）',
+                    qa('#settingsBody [data-ai]').length === 3, String(qa('#settingsBody [data-ai]').length));
                 t('AI 状态显示未配置', /^当前状态：未配置/.test((q('#aiStatus') || {}).textContent || ''));
                 t('趋势分区有三个区间按钮', qa('#settingsBody [data-default-range]').length === 3);
                 const cb = d.getElementById('backupSecrets');
                 t('备份默认不带 AI 密钥', !!cb && cb.checked === false);
 
-                say('== 关掉 AI 助手，日记里的按钮一起消失 ==');
+                say('== 日记不挂工具按钮 / 关掉 AI 助手，AI 分区跟着消失 ==');
                 click(d.getElementById('settingsClose'));
                 await sleep(250);
                 click(q('#rail [data-act="record"]'));
                 await sleep(300);
-                t('日记里有语音与 AI 两个按钮', texts('#moduleStack .tool-btn').join(',') === '语音转写,整理成日记',
+                t('日记里没有任何工具按钮', qa('#moduleStack .tool-btn').length === 0,
                     texts('#moduleStack .tool-btn').join(','));
 
                 click(d.getElementById('backHomeBtn'));
@@ -80,7 +81,7 @@
                 await sleep(250);
                 click(q('#rail [data-act="record"]'));
                 await sleep(300);
-                t('日记里的两个按钮也一起消失', qa('#moduleStack .tool-btn').length === 0);
+                t('日记里依然没有工具按钮', qa('#moduleStack .tool-btn').length === 0);
 
                 click(d.getElementById('backHomeBtn'));
                 await sleep(250);
