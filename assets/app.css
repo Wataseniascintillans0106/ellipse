@@ -967,6 +967,34 @@ body.is-locked .corner-btn { pointer-events: none; }
 }
 .chart-tip.on { opacity: 1; }
 
+/* 柱状图的查看卡片：白底圆角的小卡，上面一行是日期 + 数值，
+   下面一行是「颜色块 + 指标名 + 数值」—— 跟折线图那个深色小药丸是两回事，
+   所以另起一个 --card 修饰类，折线图不受影响。 */
+.chart-tip--card {
+    transform: translate(-50%, -112%);
+    display: block;
+    padding: 8px 11px;
+    background: #fff;
+    color: var(--ink);
+    border-radius: 10px;
+    box-shadow: 0 6px 18px rgba(43, 43, 40, 0.16);
+    font-size: 11px;
+    letter-spacing: 0.3px;
+}
+.chart-tip--card .chart-tip-row { display: flex; align-items: center; gap: 10px; }
+.chart-tip--card .chart-tip-row + .chart-tip-row { margin-top: 5px; }
+.chart-tip--card .chart-tip-date { color: var(--ink); }
+.chart-tip--card .chart-tip-series { color: var(--ink-2); }
+.chart-tip--card .chart-tip-swatch {
+    flex: 0 0 auto;
+    width: 8px;
+    height: 8px;
+    border-radius: 2px;
+    background: var(--accent-deep);
+}
+.chart-tip--card .chart-tip-name { white-space: nowrap; }
+.chart-tip--card .chart-tip-num { margin-left: auto; color: var(--ink); }
+
 /* ---------------- 底部面板 ---------------- */
 .sheet {
     position: fixed;

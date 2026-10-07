@@ -5,7 +5,7 @@
    ⚠️ 改完本文件的内容，记得把下面的 CACHE 版本号 +1，否则旧缓存不会被清掉。
       详见 docs/PWA部署与安装.md。 */
 
-const CACHE = 'ellipse-cache-v3';
+const CACHE = 'ellipse-cache-v4';
 
 const NAV_TIMEOUT = 20000;   /* 页面：最多等 20 秒 */
 const ASSET_TIMEOUT = 9000;  /* 其它资源：最多等 9 秒 */

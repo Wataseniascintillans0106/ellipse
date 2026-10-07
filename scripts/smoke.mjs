@@ -124,6 +124,39 @@ ok('某天在横轴上的位置，不受邻居有没有记录影响',
     full.points[0].x === gap.points[0].x && full.points[2].x === gap.points[1].x,
     JSON.stringify([full.points.map((p) => p.x), gap.points.map((p) => p.x)]));
 
+/* ---------- 3b. 柱状图（运动模块） ---------- */
+console.log('\n[3b] 柱状图');
+const exercise = getModule('exercise');
+ok('运动时长声明成柱状图', exercise.metrics.length === 1 && exercise.metrics[0].style === 'bar',
+    JSON.stringify(exercise.metrics));
+
+const exKeys = [shiftKey(today, -2), shiftKey(today, -1), today];
+const exMetric = exercise.metrics[0];
+const exChart = renderChart({ keys: exKeys, values: [30, 45, null], metric: exMetric });
+ok('柱状图也生成 svg', exChart.svg.startsWith('<svg') && exChart.svg.endsWith('</svg>'));
+ok('返回值里带着图的样子', exChart.style === 'bar', String(exChart.style));
+ok('纵轴顶到「最长的那次 45 分钟」，不再是输入框上限 600',
+    exChart.svg.indexOf('>45<') > 0 && exChart.svg.indexOf('>600<') < 0);
+/* PAD_T = 12：45 是最大值，纵轴上限正好 45，所以最高那根柱子的顶端落在 12 —— 顶到最上面一条线 */
+ok('最长的那根柱子顶到最上面一条线', exChart.points[1].y === 12, String(exChart.points[1].y));
+ok('矮的那根比它低', exChart.points[0].y > exChart.points[1].y);
+ok('柱子是填充色的路径', exChart.svg.indexOf('fill="#de7b49"') > 0);
+ok('每根柱子都垫了一块透明的命中区（手指好点）',
+    (exChart.svg.match(/data-point="/g) || []).length === 2);
+ok('没记录的日子不出柱子', exChart.points.length === 2, String(exChart.points.length));
+
+const exZero = renderChart({ keys: exKeys, values: [0, 30, null], metric: exMetric });
+ok('记成 0 分钟的那天照样出一根（跟「没记录」区分开）', exZero.points.length === 2,
+    String(exZero.points.length));
+
+const exEmpty = renderChart({ keys: exKeys, values: [null, null, null], metric: exMetric });
+ok('柱状图没记录时也是空态文案',
+    exEmpty.svg.indexOf('该区间还没有记录') > 0 && exEmpty.points.length === 0);
+
+/* 折线图不受影响：同样的数据、不声明 style，还是老样子 */
+const lineStill = renderChart({ keys: exKeys, values: [30, 45, null], metric: { label: '对照', min: 0 } });
+ok('不声明 style 就还是折线图', lineStill.style === 'line' && lineStill.svg.indexOf('<circle') > 0);
+
 /* ---------- 4. md 导出 ---------- */
 console.log('\n[4] md 导出');
 const md = dayMarkdown(today);
