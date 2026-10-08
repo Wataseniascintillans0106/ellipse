@@ -47,6 +47,23 @@
                 say('情绪 SVG 数=' + moodSvgs);
                 t('情绪至少 3 张图', moodSvgs >= 3);
 
+                /* 收起时那行小字要夹在「标题栏横线」和「卡片底边」正中间。
+                   只用量到的矩形 + padding，不去解析 line-height（'normal' 算不出来）。
+                   这里是浏览器层才量得到的，所以放在 flowcheck 而不是 smoke。 */
+                const offCenter = cards.filter((card) => {
+                    const prev = card.querySelector('.module-preview');
+                    if (!prev) return false;
+                    const hr = card.querySelector('.module-head').getBoundingClientRect();
+                    const pr = prev.getBoundingClientRect();
+                    const cr = card.getBoundingClientRect();
+                    const pcs = w.getComputedStyle(prev);
+                    const border = parseFloat(w.getComputedStyle(card).borderBottomWidth) || 0;
+                    const above = (pr.top + parseFloat(pcs.paddingTop)) - hr.bottom;
+                    const below = (cr.bottom - border) - (pr.bottom - parseFloat(pcs.paddingBottom));
+                    return Math.abs(above - below) > 1;
+                }).map((c) => c.dataset.module);
+                t('收起的小字上下留白一致（垂直居中）', offCenter.length === 0, offCenter.join(','));
+
                 /* 先测面板自带的关闭按钮，排除历史记录的干扰 */
                 d.querySelector('.export-card').click();
                 await sleep(300);

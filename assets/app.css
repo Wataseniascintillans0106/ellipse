@@ -279,7 +279,12 @@ body.is-locked { overflow: hidden; }
 
 .module-preview {
     margin: 0;
-    padding: 0 16px 13px;
+    /* 收起时这行小字要夹在「标题栏那条横线」和「卡片底边」正中间。
+       行高 16 + 上 6 + 下 6 = 28，跟原来（行高 normal≈15 + 下 13）一样高 ——
+       卡片总高不变，只是小字从贴着横线挪到了正中间。
+       别把 padding 改回 0/13：那样小字会重新贴到上面的横线上。 */
+    line-height: 16px;
+    padding: 6px 16px;
     font-size: 12px;
     letter-spacing: 0.6px;
     color: var(--ink-3);
