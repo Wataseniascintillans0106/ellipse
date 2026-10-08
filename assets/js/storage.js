@@ -11,7 +11,7 @@ const SETTINGS_VERSION = 2;
 
 /* 只有核心概念在这里给默认值；每个模块自己的配置由模块自己声明（settings.mods[id]） */
 const DEFAULT_SETTINGS = {
-    ui: { expandAll: true, openModule: null, panels: {} },
+    ui: { expandAll: true, openModule: null, panels: {}, groups: {} },
     export: { frontmatter: true, includeSummary: true }
 };
 
@@ -49,7 +49,8 @@ function migrate(raw) {
         order: Array.isArray(src.order) ? src.order.slice() : [],
         ui: Object.assign({}, DEFAULT_SETTINGS.ui, src.ui || {}, {
             /* 嵌套的对象要另开一份，否则会写到 DEFAULT_SETTINGS 身上去 */
-            panels: Object.assign({}, (src.ui && src.ui.panels) || {})
+            panels: Object.assign({}, (src.ui && src.ui.panels) || {}),
+            groups: Object.assign({}, (src.ui && src.ui.groups) || {})
         }),
         export: Object.assign({}, DEFAULT_SETTINGS.export, src.export || {}),
         mods: (src.mods && typeof src.mods === 'object') ? Object.assign({}, src.mods) : {}

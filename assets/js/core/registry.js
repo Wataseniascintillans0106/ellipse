@@ -138,15 +138,6 @@ export function pageModules() {
     });
 }
 
-/** 设置页的模块清单：启用的在前，关掉的在后，服务型排最后 */
-export function manageList() {
-    const cards = orderedIds().filter(isCard);
-    const enabled = cards.filter(isEnabled);
-    const disabled = cards.filter(function (id) { return !isEnabled(id); });
-    const services = orderedIds().filter(function (id) { return !isCard(id); });
-    return enabled.concat(disabled, services).map(get).filter(Boolean);
-}
-
 export function enabledCardCount() {
     return cardOrder().filter(function (id) {
         return defs.get(id).kind === 'record';

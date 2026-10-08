@@ -774,6 +774,34 @@ body.is-locked .corner-btn { pointer-events: none; }
     padding-bottom: 8px;
     border-bottom: 1px solid var(--line);
 }
+
+/* 可展开 / 收起的栏：标题条整条可点，左边的箭头朝下=开着、朝右=收着 */
+.set-group--fold { margin-top: 18px; }
+.set-group--fold .set-group-head {
+    width: 100%;
+    padding: 0 0 8px;
+    background: none;
+    border: none;
+    border-bottom: 1px solid var(--line);
+    font: inherit;
+    color: inherit;
+    text-align: left;
+    cursor: pointer;
+    align-items: center;
+}
+.fold-chev {
+    flex: 0 0 auto;
+    display: flex;
+    align-items: center;
+    color: var(--ink-3);
+    transition: transform 0.2s ease;
+}
+.fold-chev svg { width: 16px; height: 16px; display: block; }
+.set-group--fold.is-folded .fold-chev { transform: rotate(-90deg); }
+.set-group--fold .set-group-title { letter-spacing: 2.4px; }
+
+/* 栏与栏之间不再叠一层外边距：它们同属「模块」这一组 */
+.set-group--fold + .set-group--fold { margin-top: 18px; }
 .set-group-title {
     margin: 0;
     font-size: 14px;

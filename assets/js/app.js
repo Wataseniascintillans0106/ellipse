@@ -838,12 +838,54 @@ function problemRow(p) {
     return row;
 }
 
-function modulesGroup() {
-    const cards = registry.orderedIds().filter(function (id) { return registry.isCard(id); });
-    const enabled = cards.filter(registry.isEnabled);
-    const firstId = enabled[0] || null;
-    const lastId = enabled[enabled.length - 1] || null;
+/**
+ * 可展开 / 收起的栏：点标题条收起，再点展开。
+ * 收起状态存在 settings.ui.groups 里，下次打开设置还是上次的样子（默认展开）。
+ * 返回 {box, body}：box 是整栏，box 里的行都往 body 里塞。
+ */
+function foldGroup(id, title) {
+    const groups = getSettings().ui.groups || {};
+    const open = groups[id] !== false;
 
+    const box = document.createElement('section');
+    box.className = 'set-group set-group--fold' + (open ? '' : ' is-folded');
+    box.dataset.group = id;
+
+    const head = document.createElement('button');
+    head.type = 'button';
+    head.className = 'set-group-head';
+    head.setAttribute('data-fold', id);
+    head.setAttribute('aria-expanded', open ? 'true' : 'false');
+    head.innerHTML = '<span class="fold-chev">' + icon('chevron') + '</span>' +
+        '<span class="set-group-title">' + escapeHtml(title) + '</span>';
+
+    const body = document.createElement('div');
+    body.className = 'set-group-body';
+    body.hidden = !open;
+
+    box.appendChild(head);
+    box.appendChild(body);
+    return { box: box, body: body };
+}
+
+/* 一栏里的顺序：还开着的排在上面，关掉的沉到下面（各自保持原来的先后）。
+   上下箭头的边界按「开启块」「关闭块」分别算 —— 换行换了也看不出动静的箭头，
+   干脆按灰掉，免得点了没反应。 */
+function rowsInOrder(ids, box) {
+    const isOn = registry.isEnabled;
+    const blocks = [
+        ids.filter(isOn),
+        ids.filter(function (id) { return !isOn(id); })
+    ];
+    blocks.forEach(function (block) {
+        block.forEach(function (id, i) {
+            const def = registry.get(id);
+            if (def) box.appendChild(moduleRow(def, i === 0, i === block.length - 1));
+        });
+    });
+}
+
+function modulesGroup() {
     const box = group('模块', registry.enabledCount() + ' / ' + registry.all().length + ' 已开启');
     box.appendChild(html(
         '<div class="set-actions">' +
@@ -852,8 +894,33 @@ function modulesGroup() {
         '<input type="file" accept=".js,text/javascript" id="modFile" hidden>' +
         '</div>'));
 
-    registry.manageList().forEach(function (def) {
-        box.appendChild(moduleRow(def, def.id === firstId, def.id === lastId));
+    const ordered = registry.orderedIds();
+    const kindOf = function (id) {
+        const def = registry.get(id);
+        return def ? def.kind : '';
+    };
+
+    /* 「数值图」：页面型模块（现在只有「状态波动图」），各占主页竖栏一个入口 */
+    const pages = ordered.filter(function (id) { return kindOf(id) === 'page'; });
+    if (pages.length) {
+        const fold = foldGroup('chart', '数值图');
+        rowsInOrder(pages, fold.body);
+        box.appendChild(fold.box);
+    }
+
+    /* 「状态记录」：记录型 + 面板型，就是记录页上的那些卡片 */
+    const cards = ordered.filter(function (id) { return registry.isCard(id); });
+    if (cards.length) {
+        const fold = foldGroup('record', '状态记录');
+        rowsInOrder(cards, fold.body);
+        box.appendChild(fold.box);
+    }
+
+    /* 服务型（AI 助手）不分栏，照旧单独一行跟在最后 */
+    ordered.filter(function (id) {
+        return !registry.isCard(id) && kindOf(id) !== 'page';
+    }).forEach(function (id) {
+        box.appendChild(moduleRow(registry.get(id), false, false));
     });
 
     registry.problems().forEach(function (p) {
@@ -920,6 +987,15 @@ function renderSettings() {
 }
 
 el.settingsBody.addEventListener('click', function (evt) {
+    const fold = evt.target.closest('[data-fold]');
+    if (fold) {
+        const id = fold.getAttribute('data-fold');
+        const groups = Object.assign({}, getSettings().ui.groups || {});
+        groups[id] = groups[id] === false;      /* 收着的点开、开着的收起 */
+        setSettings({ ui: { groups: groups } });  /* 会触发设置页重渲染 */
+        return;
+    }
+
     const toggle = evt.target.closest('[data-toggle]');
     if (toggle) { toggleModule(toggle.getAttribute('data-toggle')); return; }
 
