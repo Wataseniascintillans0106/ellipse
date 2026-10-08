@@ -785,17 +785,20 @@ function moduleSection(sec) {
 /* ---------------- 设置面板：模块分组 ---------------- */
 
 const CUSTOM_BADGE = '<em class="set-badge">自装</em>';
+const OFF_BADGE = '<em class="set-badge set-badge--off">已关闭</em>';
 
 function moduleRow(def, first, last) {
     const on = registry.isEnabled(def.id);
     const isCard = registry.isCard(def.id);
     const row = document.createElement('div');
-    row.className = 'set-row';
+    /* 关掉的模块整行变淡（见 app.css 的 .set-row.is-off），扫一眼就能分出开没开 */
+    row.className = 'set-row' + (on ? '' : ' is-off');
     row.dataset.moduleRow = def.id;
     row.innerHTML =
         '<span class="module-mark">' + icon(def.icon) + '</span>' +
         '<span class="set-row-main">' +
-        '<span class="set-row-title">' + escapeHtml(def.name) + (def.builtin ? '' : CUSTOM_BADGE) + '</span>' +
+        '<span class="set-row-title">' + escapeHtml(def.name) +
+        (on ? '' : OFF_BADGE) + (def.builtin ? '' : CUSTOM_BADGE) + '</span>' +
         '<span class="set-row-desc">' + escapeHtml(def.desc || '') +
         (isCard ? '' : (def.kind === 'page' ? '；入口在主页右侧栏' : '；不占记录页的位置')) + '</span>' +
         '<span class="set-row-tools">' +
@@ -812,7 +815,9 @@ function moduleRow(def, first, last) {
             : '') +
         '<button class="switch' + (on ? ' on' : '') + '" type="button" role="switch" ' +
         'aria-checked="' + (on ? 'true' : 'false') + '" aria-label="开启或关闭' + escapeHtml(def.name) + '" ' +
-        'data-toggle="' + def.id + '"></button>' +
+        'data-toggle="' + def.id + '">' +
+        '<span class="switch-label" aria-hidden="true">' + (on ? '开' : '关') + '</span>' +
+        '</button>' +
         '</span>';
     return row;
 }
