@@ -7,7 +7,7 @@ ellipse.define({
     id: 'micro',
     name: '微成就',
     icon: 'spark',
-    desc: '记下今天做到的小事，转行可一行一条',
+    desc: '记下今天做到的小事，换行可一行一条',
 
     fields: [
         {
