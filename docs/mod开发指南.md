@@ -134,6 +134,23 @@ markdown: function (m) {
 }
 ```
 
+**一行一条的写法**（内置的「微成就」就是这么做的）：让患者在一个 `textarea` 里一行写一条，
+导出时切成列表项。空行和只有空格的行顺手丢掉，免得留下一条空的 `-`：
+
+```js
+markdown: function (m) {
+    const text = m && m.text ? String(m.text).trim() : '';
+    if (!text) return [];
+    return text.split('\n')
+        .map(function (line) { return line.trim(); })
+        .filter(Boolean)
+        .map(function (line) { return '- ' + line; });
+}
+```
+
+> 顺带一提：`textarea` 在自动导出里走的是独立分支，**`label` 不会被写进 md**。
+> 所以把说明性的句子放在 `label`（框上面）或 `foot`（框下面）都是安全的，不会污染导出。
+
 ### 想自己定义图表指标？
 
 不写 `metrics` 时，全部数值型字段各成一条曲线。想合并（比如「日内变化 ＝ 睡前 − 醒后」）就自己声明：
@@ -370,6 +387,7 @@ http://localhost:5173/index.html?nomods=1
   - `sleep.js` —— 两种数值字段
   - `pain.js` —— `slider` + `text`
   - `exercise.js` —— `number` + 快捷按钮 + `enum`
+  - `micro.js` —— `textarea` + 自定义 `markdown`（一行一条，导出成列表）
   - `diary.js` —— `textarea`（纯文本，目前不挂工具按钮）
   - `trend.js` —— `panel` 型样板
   - `assistant.js` —— `service` 型样板（服务 / 工具 / 设置分区 / 动作，四样占全）

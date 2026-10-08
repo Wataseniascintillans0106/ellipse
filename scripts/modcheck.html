@@ -48,9 +48,9 @@
 
                 const rows = qa('#settingsBody [data-module-row]').map((n) => n.dataset.moduleRow);
                 say('模块行: ' + rows.join(','));
-                t('七个模块都在同一个列表里', rows.length === 7, String(rows.length));
+                t('八个模块都在同一个列表里', rows.length === 8, String(rows.length));
                 t('内置模块不提供卸载', qa('#settingsBody [data-uninstall]').length === 0);
-                t('每个模块都能导出源码', qa('#settingsBody [data-export-mod]').length === 7);
+                t('每个模块都能导出源码', qa('#settingsBody [data-export-mod]').length === 8);
                 t('服务型模块不占位置、不给排序按钮',
                     qa('[data-module-row="assistant"] [data-order]').length === 0 &&
                     qa('[data-module-row="assistant"] [data-toggle]').length === 1);
@@ -172,10 +172,10 @@
                 for (let i = 0; i < 40; i++) {
                     await sleep(80);
                     cards2 = Array.from(d2.querySelectorAll('#moduleStack .module')).map((n) => n.dataset.module);
-                    if (cards2.length >= 6) break;
+                    if (cards2.length >= 7) break;
                 }
                 say('栏: ' + cards2.join(','));
-                t('内置模块照常', cards2.join(',') === 'mood,sleep,pain,exercise,diary,trend', cards2.join(','));
+                t('内置模块照常', cards2.join(',') === 'mood,sleep,pain,exercise,micro,diary,trend', cards2.join(','));
                 t('跳过了自装模块的求值', cards2.indexOf('weight') < 0);
                 f2.remove();
 

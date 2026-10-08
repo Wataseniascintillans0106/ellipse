@@ -164,6 +164,7 @@ B 和 C 都得重新走一遍打包和安装。**先把 A 跑通，真需要上�
 | 睡眠 | 睡眠质量 1–10，睡眠时长（小时） | 质量、时长两条 |
 | 疼痛 | 疼痛程度 0–10，部位/备注 | 疼痛程度一条 |
 | 运动 | 运动时长（分钟，可手填或用快捷键），是否不适 | 运动时长一条 |
+| 微成就 | 今天做到的小事，一行一条 | 无（纯文字模块不生成图表） |
 | 日记 | 纯文本 | 无（纯文字模块不生成图表） |
 | 状态波动图 | 不出记录，只把上面各模块的评分汇成曲线 | 默认展开；可在设置里关闭 |
 
@@ -234,7 +235,7 @@ B 和 C 都得重新走一遍打包和安装。**先把 A 跑通，真需要上�
 date: 2026-09-27
 weekday: 周日
 tags: [ellipse, 状态记录]
-modules: [mood, sleep, pain, exercise, diary]
+modules: [mood, sleep, pain, exercise, micro, diary]
 ---
 
 # 2026年09月27日 周日
@@ -248,6 +249,11 @@ modules: [mood, sleep, pain, exercise, diary]
 
 - 睡眠质量：6 / 10
 - 睡眠时长：7.5 小时
+
+## 微成就
+
+- 多走了五分钟
+- 把药按时吃完了
 
 ## 日记
 
@@ -290,7 +296,7 @@ assets/js/core/            ← 模块系统的引擎，不认识任何具体模�
   sheet.js                   底部面板
 assets/js/modules/         ← 具体模块；内置的和用户装的是同一种东西
   index.js                   内置清单，一行一个 import
-  mood.js sleep.js pain.js exercise.js diary.js
+  mood.js sleep.js pain.js exercise.js micro.js diary.js
   trend.js                   状态波动图（panel 型范例）
   assistant.js               AI 助手（service 型范例）
 

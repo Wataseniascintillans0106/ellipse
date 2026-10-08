@@ -22,6 +22,7 @@ const { setField, getRecordData, getSettings, getModuleSettings } = await import
 const { renderChart, metricSeries, RANGES, rangeById } = await import('../assets/js/charts.js');
 const { dayMarkdown, rangeMarkdown, allMarkdown, suggestFilename } = await import('../assets/js/export.js');
 const { toKey, todayKey, shiftKey } = await import('../assets/js/util.js');
+const { renderFields } = await import('../assets/js/core/fields.js');
 
 /* 模块系统：装好全局的 ellipse，再像浏览器那样把内置模块拉进来 */
 const { installGlobal } = await import('../assets/js/core/api.js');
@@ -55,6 +56,8 @@ setField(today, 'pain', 'note', '左侧膝关节');
 setField(today, 'exercise', 'minutes', 30);
 setField(today, 'exercise', 'discomfort', false);
 setField(today, 'diary', 'text', '今天去公园走了两圈，膝盖没有明显不适。');
+/* 微成就：故意在中间夹一个空行、一个只有空格的行，验证它们不留空列表项 */
+setField(today, 'micro', 'text', '今天多走了五分钟\n\n   \n今天把药按时吃完了');
 setField(yesterday, 'mood', 'morning', 5);
 setField(yesterday, 'pain', 'level', 3);
 
@@ -70,12 +73,16 @@ setField(today, 'mood', 'morning', 7);
 
 /* ---------- 2. 模块与默认顺序 ---------- */
 console.log('\n[2] 模块定义');
-ok('默认五个记录模块', MODULES.length === 5, MODULES.map((m) => m.id).join(','));
-ok('默认顺序 情绪/睡眠/疼痛/运动/日记',
-    enabledOrder().join(',') === 'mood,sleep,pain,exercise,diary', enabledOrder().join(','));
+ok('默认六个记录模块', MODULES.length === 6, MODULES.map((m) => m.id).join(','));
+ok('默认顺序 情绪/睡眠/疼痛/运动/微成就/日记',
+    enabledOrder().join(',') === 'mood,sleep,pain,exercise,micro,diary', enabledOrder().join(','));
 ok('每个模块都有图标与说明', MODULES.every((m) => m.icon && m.desc));
 ok('四个模块有波状图指标', MODULES.filter((m) => m.metrics.length > 0).length === 4);
 ok('日记没有数值指标', getModule('diary').metrics.length === 0);
+ok('微成就是记录型模块，排在日记上面', getModule('micro').kind === 'record'
+    && enabledOrder().indexOf('micro') === enabledOrder().indexOf('diary') - 1);
+ok('微成就没有数值指标（纯文字，不进波状图）', getModule('micro').metrics.length === 0,
+    JSON.stringify(getModule('micro').metrics));
 
 const ranges = RANGES.map((r) => r.id).join(',');
 ok('区间为 7d/30d/90d', ranges === '7d,30d,90d', ranges);
@@ -161,7 +168,7 @@ ok('不声明 style 就还是折线图', lineStill.style === 'line' && lineStill
 console.log('\n[4] md 导出');
 const md = dayMarkdown(today);
 ok('含 frontmatter', md.startsWith('---\ndate: ' + today));
-ok('frontmatter 列出模块', md.indexOf('modules: [mood, sleep, pain, exercise, diary]') > 0,
+ok('frontmatter 列出模块', md.indexOf('modules: [mood, sleep, pain, exercise, micro, diary]') > 0,
     md.split('\n').find((l) => l.startsWith('modules')));
 ok('标题为中文日期 + 星期', /^# \d{4}年\d{2}月\d{2}日 周./m.test(md));
 ok('情绪段落', md.indexOf('## 情绪') > 0 && md.indexOf('- 醒后：7 / 10') > 0);
@@ -184,6 +191,56 @@ ok('区间汇总含表格', range.indexOf('| 日期 |') > 0 && range.indexOf('| 
 const all = allMarkdown();
 ok('全部记录包含两天', all.indexOf(yesterday) > 0 && all.indexOf(today) > 0);
 ok('文件名按日期', suggestFilename('day', today) === today + '.md');
+
+/* ---------- 4b. 微成就 ---------- */
+console.log('\n[4b] 微成就');
+const microMd = dayMarkdown(today);
+const microLines = microMd.split('\n');
+const microStart = microLines.indexOf('## 微成就');
+ok('导出里有「微成就」一节', microStart > 0);
+/* 一节的正文 = 直到下一个 ## 之间 */
+const microBody = microLines.slice(microStart + 1, microLines.indexOf('## 日记', microStart) > 0
+    ? microLines.indexOf('## 日记', microStart) : undefined);
+ok('两行各自成一条 md 列表项',
+    microBody.filter((l) => l.trim() === '- 今天多走了五分钟').length === 1
+    && microBody.filter((l) => l.trim() === '- 今天把药按时吃完了').length === 1,
+    JSON.stringify(microBody));
+ok('中间的空行 / 只有空格的行不留空列表项',
+    microBody.filter((l) => l.trim() === '-').length === 0
+    && microBody.filter((l) => l.trim().startsWith('- ')).length === 2,
+    JSON.stringify(microBody));
+ok('鼓励语没有被写进 md', microMd.indexOf('记录一些微小的成就') < 0);
+ok('微成就正文不是裸文本（日记那种）', microBody.every((l) => !l.trim() || l.trim().startsWith('- ')),
+    JSON.stringify(microBody));
+
+/* 放在日记上面：顺序上确实在 ## 日记 之前 */
+ok('导出顺序里微成就排在日记前面', microStart < microLines.indexOf('## 日记'));
+
+/* 没有内容的日子，整节都不出现 */
+const everything = allMarkdown();
+const blankDay = shiftKey(today, -30);
+ok('那天没写微成就，当天 md 里就没有这一节',
+    dayMarkdown(blankDay).indexOf('## 微成就') < 0);
+ok('但写过的那天在全部 md 里有', everything.indexOf('## 微成就') > 0);
+
+/* 界面长什么样：renderFields 是纯拼字符串、不碰 DOM 的，所以这里能验 */
+const microDef = getModule('micro');
+const microHtml = renderFields(microDef.fields, { text: '今天多走了五分钟' }, {});
+const labelAt = microHtml.indexOf('记录一些微小的成就');
+const boxAt = microHtml.indexOf('<textarea');
+ok('框上面有那句鼓励语', labelAt > 0 && labelAt < boxAt,
+    '鼓励语在 ' + labelAt + '，文本框在 ' + boxAt);
+ok('鼓励语是字段标题（.field-label）',
+    microHtml.indexOf('<div class="field-label"><span>记录一些微小的成就') > 0);
+ok('是个多行文本框', microHtml.indexOf('<textarea class="textarea"') > 0);
+ok('框里有今天写的内容', microHtml.indexOf('今天多走了五分钟</textarea>') > 0);
+ok('框下面有一行一条的说明', microHtml.indexOf('一行一条；只保存在这台设备上') > boxAt);
+
+/* 全空 / 全是空行时，markdown() 返回空数组，而不是一条空的列表项 */
+ok('空内容返回空数组', microDef.markdown({}).length === 0
+    && microDef.markdown({ text: '   \n\n  ' }).length === 0);
+ok('单行也带列表符号', JSON.stringify(microDef.markdown({ text: ' 今天多走了五分钟 ' }))
+    === JSON.stringify(['- 今天多走了五分钟']), JSON.stringify(microDef.markdown({ text: ' 今天多走了五分钟 ' })));
 
 /* ---------- 5. 设置 ---------- */
 console.log('\n[5] 设置');
