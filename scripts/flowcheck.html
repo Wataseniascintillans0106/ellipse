@@ -55,6 +55,19 @@
                 const recordHeadLeft = recordHead.left;
                 const recordHeadTop = recordHead.top;
 
+                /* 返回按钮在页头顶栏的左边、和标题同一行（手机上的返回就长这样） */
+                const recordBack = d.getElementById('backHomeBtn').getBoundingClientRect();
+                t('返回按钮在标题左边',
+                    recordBack.right <= recordHead.left + 1,
+                    recordBack.right + ' vs ' + recordHead.left);
+                t('返回按钮和标题在同一行',
+                    Math.abs(recordBack.top + recordBack.height / 2 -
+                        (recordHead.top + recordHead.height / 2)) <= 2,
+                    (recordBack.top + recordBack.height / 2) + ' vs ' +
+                        (recordHead.top + recordHead.height / 2));
+                t('返回按钮是页头里的按钮（不是浮在上面的圆形角标）',
+                    !!d.querySelector('#viewRecord .head-row > #backHomeBtn'));
+
                 const cards = Array.from(d.querySelectorAll('#moduleStack .module'));
                 say('栏: ' + cards.map((c) => c.dataset.module).join(','));
                 t('记录页最后一张是日记', cards.length > 0 &&
@@ -146,11 +159,17 @@
                     rangeRow.top + ' vs ' + pageHead.bottom);
                 t('小字排在所有图的下面', noteRect.top >= lastChart.bottom - 1,
                     noteRect.top + ' vs ' + lastChart.bottom);
-                /* 内容左右与标题同一条边线（整页不额外缩进） */
+                /* 正文一条左边线：区间按钮、曲线都从这儿开始。
+                   （标题搬到顶栏、跟在返回箭头后面了，不再站在这条线上） */
                 const firstChart = charts[0].getBoundingClientRect();
-                t('曲线块与标题左右对齐',
-                    Math.abs(firstChart.left - pageHead.left) <= 1,
-                    firstChart.left + ' vs ' + pageHead.left);
+                t('曲线块与区间按钮左右对齐',
+                    Math.abs(firstChart.left - rangeRow.left) <= 1,
+                    firstChart.left + ' vs ' + rangeRow.left);
+                t('返回按钮在这一页也在标题左边、同一行',
+                    d.getElementById('backHomeBtn').getBoundingClientRect().right <= pageHead.left + 1 &&
+                    Math.abs(d.getElementById('backHomeBtn').getBoundingClientRect().top +
+                        d.getElementById('backHomeBtn').getBoundingClientRect().height / 2 -
+                        (pageHead.top + pageHead.height / 2)) <= 2);
 
                 /* 换页时页面本身要能滚：内容比一屏高 */
                 t('这一页比一屏高、能上下滑',

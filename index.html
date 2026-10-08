@@ -37,7 +37,14 @@
     <!-- ======================= 状态记录（主页的下一层） ======================= -->
     <main class="view record" id="viewRecord" hidden>
         <header class="page-head">
-            <p class="head-line">状态记录</p>
+            <!-- 顶栏：返回在左、标题在右，和手机上的返回一样。
+                 返回按钮是全局唯一的那一个，切到模块页时由 app.js 挪去那边的顶栏。 -->
+            <div class="head-row">
+                <button class="page-back" id="backHomeBtn" type="button" aria-label="返回主页" title="返回主页">
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><polyline points="14.5 18.5 8 12 14.5 5.5"></polyline><line x1="18.5" y1="12" x2="8.5" y2="12"></line></svg>
+                </button>
+                <p class="head-line">状态记录</p>
+            </div>
 
             <div class="date-bar">
                 <button class="date-nav" id="datePrev" type="button" aria-label="前一天" title="前一天">
@@ -70,7 +77,10 @@
          再加一个页面型模块，这里一个字都不用改。 -->
     <main class="view page-view" id="viewPage" hidden>
         <header class="page-head">
-            <p class="head-line" id="pageTitle"></p>
+            <!-- 这一行空着等返回按钮搬进来（见 app.js 的 placeBackBtn） -->
+            <div class="head-row">
+                <p class="head-line" id="pageTitle"></p>
+            </div>
         </header>
 
         <section class="page-body" id="pageBody" aria-label="模块内容"></section>
@@ -81,10 +91,8 @@
     <!-- ======================= 右侧竖排栏（只在主页显示） ======================= -->
     <nav class="rail" id="rail" aria-label="功能栏" hidden></nav>
 
-    <!-- 记录页右上角：返回主页（导出面板打开时变成关闭面板） -->
-    <button class="corner-btn corner-btn--top" id="backHomeBtn" type="button" aria-label="返回主页" title="返回主页">
-        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><polyline points="14.5 18.5 8 12 14.5 5.5"></polyline><line x1="18.5" y1="12" x2="8.5" y2="12"></line></svg>
-    </button>
+    <!-- 返回按钮不在这儿了：它在「状态记录」页的顶栏里，
+         切到模块页时由 app.js 挪过去（导出面板打开时原位隐藏）。 -->
 
     <!-- 右下角：设置（只在主页显示） -->
     <button class="corner-btn corner-btn--bottom" id="settingsBtn" type="button" aria-label="设置" title="设置" aria-expanded="false">

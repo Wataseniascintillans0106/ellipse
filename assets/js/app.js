@@ -83,7 +83,7 @@ function syncOverlays() {
     const sheetOpen = sheet.isOpen();
     const panelOpen = el.settingsPanel.classList.contains('open');
 
-    /* 右上角按钮：平时是「返回主页」；面板打开时收起，免得挡住面板自己的关闭按钮 */
+    /* 页头顶栏左边的「返回主页」；导出面板打开时收起，让面板自己管关闭 */
     el.backHomeBtn.hidden = sheetOpen || state.page === 'home';
     el.backHomeBtn.setAttribute('aria-label', '返回主页');
     el.backHomeBtn.setAttribute('title', '返回主页');
@@ -287,6 +287,14 @@ function renderPage() {
     }
 }
 
+/* 把返回按钮搬进当前这一页的顶栏（左边第一个位置），和手机上的返回一样。
+   主页没有顶栏，也就用不着它。 */
+function placeBackBtn() {
+    const view = state.page === 'record' ? el.viewRecord : el.viewPage;
+    const row = view.querySelector('.head-row');
+    if (el.backHomeBtn.parentNode !== row) row.insertBefore(el.backHomeBtn, row.firstChild);
+}
+
 function render() {
     /* 站在某个模块页上，而它被关掉或卸载了：退回主页。
        模块装载完之前（state.booted 还是 false）先不判，免得把深链接当成失效。 */
@@ -306,6 +314,10 @@ function render() {
     el.viewRecord.hidden = !record;
     el.viewPage.hidden = home || record;
     el.settingsBtn.hidden = !home;       /* 设置只在主页 */
+
+    /* 返回按钮全局只有一个：哪一页露着脸，就把它挪到那一页顶栏的左边。
+       只搬 DOM 节点、不重建，所以 hidden 状态和挂上的事件都跟着它走。 */
+    if (!home) placeBackBtn();
 
     if (home) {
         /* 回到主页时收掉导出面板，避免盖住主页 */

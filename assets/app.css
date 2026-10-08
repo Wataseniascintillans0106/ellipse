@@ -109,12 +109,43 @@ body.is-locked { overflow: hidden; }
     padding: calc(28px + env(safe-area-inset-top)) 26px calc(40px + env(safe-area-inset-bottom)) 26px;
 }
 
-/* 整页模块：标题下面紧接内容（区间按钮之类），所以不要 .page-head 那 20px 的底距。
-   内容左右不额外缩进，与标题对齐在同一条边线上。 */
+/* 整页模块：顶栏下面紧接内容（区间按钮之类），所以不要 .page-head 那 20px 的底距。
+   正文一条左边线：区间按钮、曲线都从 --main-pad 开始；
+   标题不在这条线上 —— 它在顶栏里，跟在返回箭头后面。 */
 .page-view .page-head { margin-bottom: 0; }
 
-/* 记录页页头：字标在左上，右侧整条让给返回按钮与竖栏 */
+/* 页头顶栏：返回箭头在左、标题跟着它，跟手机上的返回一样 */
 .page-head { margin-bottom: 20px; }
+
+.head-row {
+    display: flex;
+    align-items: center;
+    gap: 2px;
+    min-height: 44px;                      /* 手指点得到的顶栏高度 */
+    /* 往左探出正文的边距，让箭头贴着屏幕边（正文仍从 --main-pad 开始） */
+    margin: -6px 0 -6px calc(8px - var(--main-pad));
+}
+
+/* 返回：一个干净的箭头，不要圆底 —— 只有按上去 / 悬停时浮一层浅色 */
+.page-back {
+    flex: 0 0 auto;
+    width: 44px;
+    height: 44px;
+    padding: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: none;
+    border: none;
+    border-radius: 50%;
+    color: var(--ink-2);
+    cursor: pointer;
+    transition: background 0.2s ease, transform 0.2s ease;
+}
+.page-back svg { display: block; width: 22px; height: 22px; transition: transform 0.25s ease; }
+.page-back:hover { background: rgba(43, 43, 40, 0.06); }
+.page-back:hover svg { transform: translateX(-2px); }
+.page-back:active { transform: scale(0.92); }
 
 .head-line {
     margin: 0;
@@ -658,13 +689,17 @@ body.is-locked { overflow: hidden; }
     transition: background 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease;
 }
 /* 面板打开时，浮在面板上的角落按钮不再吃点击 */
-body.is-locked .corner-btn { pointer-events: none; }
+body.is-locked .corner-btn,
+body.is-locked .page-back { pointer-events: none; }
 
 .corner-btn[hidden],
 .rail[hidden],
 .view[hidden] { display: none !important; }
+
+/* 返回按钮收起时（导出面板打开）不撤走位置，只是看不见 ——
+   它一走，顶栏里的标题就会「跳」到最左边。宽度留着，标题就稳稳待着。 */
+.page-back[hidden] { display: flex !important; visibility: hidden; }
 .corner-btn--bottom { bottom: calc(var(--edge) + env(safe-area-inset-bottom)); }
-.corner-btn--top { top: calc(var(--edge) + env(safe-area-inset-top)); }
 .corner-btn:hover {
     background: rgba(255, 255, 255, 0.9);
     box-shadow: 0 4px 16px rgba(0, 0, 0, 0.14);
@@ -673,7 +708,6 @@ body.is-locked .corner-btn { pointer-events: none; }
 .corner-btn:active { transform: scale(0.96); }
 .corner-btn svg { display: block; width: 26px; height: 26px; transition: transform 0.3s ease; }
 .corner-btn--bottom:hover svg { transform: rotate(45deg); }
-.corner-btn--top:hover svg { transform: translateX(-3px); }
 
 /* ---------------- 通用按钮 ---------------- */
 .icon-btn {
