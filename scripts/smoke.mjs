@@ -24,6 +24,12 @@ const { dayMarkdown, rangeMarkdown, allMarkdown, suggestFilename } = await impor
 const { toKey, todayKey, shiftKey } = await import('../assets/js/util.js');
 const { renderFields } = await import('../assets/js/core/fields.js');
 
+/* 读仓库里的文件（后面好几节都要用，所以放在这儿） */
+const { readFileSync, existsSync, statSync, readdirSync } = await import('node:fs');
+const path = await import('node:path');
+const root = path.resolve(import.meta.dirname, '..');
+const at = (rel) => path.join(root, rel);
+
 /* 模块系统：装好全局的 ellipse，再像浏览器那样把内置模块拉进来 */
 const { installGlobal } = await import('../assets/js/core/api.js');
 const registry = await import('../assets/js/core/registry.js');
@@ -232,6 +238,16 @@ ok('框上面有那句鼓励语', labelAt > 0 && labelAt < boxAt,
     '鼓励语在 ' + labelAt + '，文本框在 ' + boxAt);
 ok('鼓励语是字段标题（.field-label）',
     microHtml.indexOf('<div class="field-label"><span>记录一些微小的成就') > 0);
+/* 鼓励语分两行写。HTML 默认会把 \n 折成一个空格，全靠 app.css 里那句
+   white-space: pre-line —— 两边少一个，鼓励语就悄悄并回一行了 */
+ok('鼓励语分两行（label 里有换行）',
+    microHtml.indexOf('<span>记录一些微小的成就\n哪怕是多吃一口饭 多喝一口水</span>') > 0,
+    JSON.stringify(microDef.fields[0].label));
+const cssSrc = readFileSync(at('assets/app.css'), 'utf8');
+const labelRule = cssSrc.slice(cssSrc.indexOf('.field-label {'),
+    cssSrc.indexOf('}', cssSrc.indexOf('.field-label {')));
+ok('.field-label 开了换行（写在 label 里的换行符才真的断行）',
+    labelRule.indexOf('white-space: pre-line') >= 0, labelRule.replace(/\s+/g, ' '));
 ok('是个多行文本框', microHtml.indexOf('<textarea class="textarea"') > 0);
 ok('框里有今天写的内容', microHtml.indexOf('今天多走了五分钟</textarea>') > 0);
 ok('框下面有一行一条的说明', microHtml.indexOf('一行一条；只保存在这台设备上') > boxAt);
@@ -268,10 +284,6 @@ ok('日记不再挂任何工具按钮', !getModule('diary').fields.some((f) => f
 
 /* ---------- 7. PWA 资源 ---------- */
 console.log('\n[7] PWA 资源');
-const { readFileSync, existsSync, statSync, readdirSync } = await import('node:fs');
-const path = await import('node:path');
-const root = path.resolve(import.meta.dirname, '..');
-const at = (rel) => path.join(root, rel);
 
 let manifest = null;
 try {

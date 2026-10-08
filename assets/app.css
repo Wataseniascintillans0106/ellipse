@@ -300,6 +300,9 @@ body.is-locked { overflow: hidden; }
     font-size: 12px;
     letter-spacing: 1.8px;
     color: var(--ink-2);
+    /* 标题里写 \n 就真的换行（默认会被 HTML 折成一个空格）。
+       「微成就」的鼓励语就靠它分两行写。 */
+    white-space: pre-line;
 }
 .field-value { font-size: 12px; letter-spacing: 0.5px; color: var(--ink-3); }
 

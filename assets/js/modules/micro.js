@@ -7,12 +7,13 @@ ellipse.define({
     id: 'micro',
     name: '微成就',
     icon: 'spark',
-    desc: '记下今天做到的小事，一行一条',
+    desc: '记下今天做到的小事，转行可一行一条',
 
     fields: [
         {
             key: 'text', type: 'textarea',
-            label: '记录一些微小的成就，哪怕是多吃一口饭、多喝一口水',
+            /* label 里的 \n 是一个换行（app.css 给 .field-label 开了 white-space: pre-line） */
+            label: '记录一些微小的成就\n哪怕是多吃一口饭 多喝一口水',
             rows: 4, maxlength: 2000,
             placeholder: '一行一条，例如：今天多走了五分钟',
             foot: '一行一条；只保存在这台设备上',
