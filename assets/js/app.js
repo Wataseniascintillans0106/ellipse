@@ -33,19 +33,27 @@ import {
 /* mod 契约的唯一入口：装到全局的 ellipse，也是模块拿到的那份 api */
 const api = installGlobal();
 
+/* 整页模块没自己写底注时，用这一句兜底（模块写了 def.note 就用它的） */
+const DEFAULT_PAGE_NOTE = '这一页只读，不会改动任何记录';
+
 /* ---------------- 状态 ---------------- */
 
 const state = {
-    page: 'home',                 // 'home' | 'record'
+    page: 'home',                 // 'home' | 'record' | 页面型模块的 id（如 'trend'）
     key: todayKey(),
     openModule: null,             // 展开的那条记录型模块（同时只开一条）
     settingsOpen: false,
-    installPrompt: null           // 浏览器给的安装事件，只在本次会话有效，用完即弃
+    installPrompt: null,          // 浏览器给的安装事件，只在本次会话有效，用完即弃
+    booted: false                 // 模块装载完之前，别把地址里的深链接当成失效
 };
 
 const el = {
     viewHome: document.getElementById('viewHome'),
     viewRecord: document.getElementById('viewRecord'),
+    viewPage: document.getElementById('viewPage'),
+    pageTitle: document.getElementById('pageTitle'),
+    pageBody: document.getElementById('pageBody'),
+    pageNote: document.getElementById('pageNote'),
     stack: document.getElementById('moduleStack'),
     exportZone: document.getElementById('exportZone'),
     rail: document.getElementById('rail'),
@@ -76,7 +84,7 @@ function syncOverlays() {
     const panelOpen = el.settingsPanel.classList.contains('open');
 
     /* 右上角按钮：平时是「返回主页」；面板打开时收起，免得挡住面板自己的关闭按钮 */
-    el.backHomeBtn.hidden = sheetOpen || state.page !== 'record';
+    el.backHomeBtn.hidden = sheetOpen || state.page === 'home';
     el.backHomeBtn.setAttribute('aria-label', '返回主页');
     el.backHomeBtn.setAttribute('title', '返回主页');
     el.backHomeBtn.innerHTML = icon('back');
@@ -91,13 +99,31 @@ function closeTopOverlay() {
     return false;
 }
 
-history.replaceState({ ellipse: 'home' }, '', '#home');
+/* ---------------- 地址里的页面 ----------------
+   主页 #home、记录页 #record、模块自己的页面 #page/<模块 id>。
+   #page/ 这层前缀是必要的：模块 id 允许叫 record 或 home（见 validate.js 的 ID_RE），
+   裸写成 #<id> 会和这两种页面撞名。 */
+function hashForPage(page) {
+    if (page === 'record' || page === 'home') return '#' + page;
+    return '#page/' + page;
+}
+
+function pageFromHash(hash) {
+    if (hash === '#record') return 'record';
+    if (hash.indexOf('#page/') === 0) return hash.slice('#page/'.length);
+    return 'home';
+}
+
+/* 先读地址、再规范化 —— 这个先后顺序是必须的。
+   旧版把 replaceState('#home') 写在读 hash 之前，于是等后面读到的时候
+   地址早被冲成 #home 了，index.html#record 从来就进不去记录页。 */
+const startPage = pageFromHash(location.hash);
+history.replaceState({ ellipse: startPage }, '', hashForPage(startPage));
+
 window.addEventListener('popstate', function (evt) {
     if (closeTopOverlay()) return;
     const st = evt.state;
-    if (!st || st.ellipse !== 'record') {
-        if (state.page === 'record') setPage('home');
-    }
+    setPage(st && st.ellipse ? st.ellipse : 'home');
 });
 
 /* ---------------- 渲染：日期 ---------------- */
@@ -222,44 +248,102 @@ function renderExport() {
         '</button>';
 }
 
+/* 竖栏：上面是每个「页面型」模块自己的入口，最底下永远是「状态记录」。
+   .rail 是 bottom 锚定的纵向 flex，所以先写进去的排在更上面 —— 顺序就是这里决定的。
+   一个页面型模块都没开时，竖栏只剩「状态记录」，和以前一样。 */
 function renderRail() {
     el.rail.className = 'rail rail--home';
-    el.rail.hidden = state.page === 'record';
-    el.rail.innerHTML =
-        '<button class="rail-item" type="button" data-act="record" ' +
+    el.rail.hidden = state.page !== 'home';
+
+    let htmlText = '';
+    registry.pageModules().forEach(function (id) {
+        const def = registry.get(id);
+        if (!def) return;
+        htmlText += '<button class="rail-item" type="button" data-rail-page="' + escapeHtml(id) + '" ' +
+            'aria-label="' + escapeHtml(def.name) + '" title="' + escapeHtml(def.name) + '">' +
+            icon(def.icon) + '</button>';
+    });
+    htmlText += '<button class="rail-item" type="button" data-act="record" ' +
         'aria-label="状态记录" title="状态记录">' + icon('log') + '</button>';
+    el.rail.innerHTML = htmlText;
+}
+
+/* 整页模块：内容来源与记录页的卡片一样，都是模块自己 mount 一整块。
+   只是这里没有卡片外壳，也不需要展开/收起。 */
+function renderPage() {
+    const def = registry.get(state.page);
+    if (!def) return;
+    el.pageTitle.textContent = def.name;
+    /* 底注由模块自己写（def.note），没写就用外壳的默认句 */
+    el.pageNote.textContent = def.note || DEFAULT_PAGE_NOTE;
+    el.pageBody.dataset.module = def.id;
+    el.pageBody.innerHTML = '';
+    if (typeof def.mount !== 'function') return;
+    try {
+        def.mount(el.pageBody, { api: api, date: state.key, module: def });
+    } catch (err) {
+        console.error('[ellipse] 模块页「' + def.id + '」渲染出错：', err);
+        el.pageBody.innerHTML = '<p class="empty-note">这个页面画不出来：' + escapeHtml(msg(err)) + '</p>';
+    }
 }
 
 function render() {
-    const home = state.page !== 'record';
+    /* 站在某个模块页上，而它被关掉或卸载了：退回主页。
+       模块装载完之前（state.booted 还是 false）先不判，免得把深链接当成失效。 */
+    if (state.booted && state.page !== 'home' && state.page !== 'record') {
+        const def = registry.get(state.page);
+        if (!def || def.kind !== 'page' || !registry.isEnabled(state.page)) {
+            history.replaceState({ ellipse: 'home' }, '', '#home');
+            state.page = 'home';
+        }
+    }
+
+    const page = state.page;
+    const home = page === 'home';
+    const record = page === 'record';
 
     el.viewHome.hidden = !home;
-    el.viewRecord.hidden = home;
+    el.viewRecord.hidden = !record;
+    el.viewPage.hidden = home || record;
     el.settingsBtn.hidden = !home;       /* 设置只在主页 */
 
     if (home) {
         /* 回到主页时收掉导出面板，避免盖住主页 */
         if (sheet.isOpen()) sheet.close();
-    } else {
+    } else if (record) {
         renderHead();
         renderStack();
         renderExport();
+    } else {
+        renderPage();
     }
     renderRail();
     syncOverlays();
 }
 
 /* 模块写完自己的数据后调 api.refresh()，走的就是这里 */
-install({ refresh: function () { renderStack(); renderExport(); } });
+install({
+    refresh: function () {
+        renderStack();
+        renderExport();
+        if (state.page !== 'home' && state.page !== 'record') renderPage();
+    }
+});
 
-/* ---------------- 两层页面切换 ---------------- */
+/* ---------------- 页面切换：主页 / 记录页 / 模块自己的页面 ---------------- */
+
+function viewForPage(page) {
+    if (page === 'record') return el.viewRecord;
+    if (page === 'home') return el.viewHome;
+    return el.viewPage;
+}
 
 function setPage(page) {
-    const next = page === 'record' ? 'record' : 'home';
+    const next = page || 'home';
     const changed = next !== state.page;
     state.page = next;
 
-    const view = next === 'record' ? el.viewRecord : el.viewHome;
+    const view = viewForPage(next);
     if (changed) {
         view.classList.remove('fade-in');
         void view.offsetWidth;            /* 重排一次，让动画能重复触发 */
@@ -269,7 +353,7 @@ function setPage(page) {
 }
 
 function pushPage(page) {
-    history.pushState({ ellipse: page }, '', page === 'record' ? '#record' : '#home');
+    history.pushState({ ellipse: page }, '', hashForPage(page));
     setPage(page);
 }
 
@@ -283,33 +367,49 @@ const saveDebounced = debounce(function (key, moduleId, field, value) {
     saveText(key, moduleId, field, value);
 }, 420);
 
+/** 把一个 data-act 按钮派发给认领它的模块。记录页的卡片与整页模块共用这一段。 */
+function dispatchModuleAction(evt, def, card) {
+    const actEl = evt.target.closest('[data-act]');
+    if (!actEl) return false;
+
+    const name = actEl.getAttribute('data-act');
+    /* 展开 / 收起和字段旁的小工具按钮都是记录页卡片才有的东西。
+       整页模块里没有卡片可翻，写错了就当没写 —— 否则会去动背后那张隐藏的卡片 */
+    if (name === 'toggle') { if (registry.isCard(def.id)) toggleCard(def); return true; }
+    if (name === 'tool') { if (registry.isCard(def.id)) runTool(def, actEl); return true; }
+
+    const handler = registry.action(name);
+    if (typeof handler === 'function') {
+        try {
+            handler({ api: api, def: def, date: state.key, target: actEl, card: card });
+        } catch (err) {
+            console.error('[ellipse] 动作「' + name + '」出错：', err);
+            toast('操作失败：' + msg(err).slice(0, 40));
+        }
+        return true;
+    }
+    console.warn('[ellipse] 没有模块认领这个按钮：' + name);
+    return true;
+}
+
 function handleStackClick(evt) {
     const card = evt.target.closest('.module');
     if (!card) return;
     const def = registry.get(card.dataset.module);
     if (!def) return;
 
-    const actEl = evt.target.closest('[data-act]');
-    if (actEl) {
-        const name = actEl.getAttribute('data-act');
-        if (name === 'toggle') { toggleCard(def); return; }
-        if (name === 'tool') { runTool(def, actEl); return; }
-        const handler = registry.action(name);
-        if (typeof handler === 'function') {
-            try {
-                handler({ api: api, def: def, date: state.key, target: actEl, card: card });
-            } catch (err) {
-                console.error('[ellipse] 动作「' + name + '」出错：', err);
-                toast('操作失败：' + msg(err).slice(0, 40));
-            }
-            return;
-        }
-        console.warn('[ellipse] 没有模块认领这个按钮：' + name);
-        return;
-    }
+    if (dispatchModuleAction(evt, def, card)) return;
 
     const ctrl = evt.target.closest('[data-field]');
     if (ctrl) handleValueClick(def, ctrl);
+}
+
+/* 整页模块里没有 .module 外壳，模块 id 直接从 state.page 拿。
+   card 只是为了让 ctx 的形状与卡片那条完全一致。 */
+function handlePageClick(evt) {
+    const def = registry.get(state.page);
+    if (!def) return;
+    dispatchModuleAction(evt, def, el.pageBody);
 }
 
 function toggleCard(def) {
@@ -593,10 +693,14 @@ function goDate(key) {
 /* ---------------- 右侧栏与导出区 ---------------- */
 
 el.rail.addEventListener('click', function (evt) {
-    const btn = evt.target.closest('[data-act]');
+    const btn = evt.target.closest('button');
     if (!btn) return;
-    if (btn.getAttribute('data-act') === 'record') pushPage('record');
+    if (btn.getAttribute('data-act') === 'record') { pushPage('record'); return; }
+    const page = btn.getAttribute('data-rail-page');
+    if (page) pushPage(page);
 });
+
+el.pageBody.addEventListener('click', handlePageClick);
 
 el.exportZone.addEventListener('click', function (evt) {
     if (evt.target.closest('[data-act="export-day"]')) openExportSheet();
@@ -693,7 +797,7 @@ function moduleRow(def, first, last) {
         '<span class="set-row-main">' +
         '<span class="set-row-title">' + escapeHtml(def.name) + (def.builtin ? '' : CUSTOM_BADGE) + '</span>' +
         '<span class="set-row-desc">' + escapeHtml(def.desc || '') +
-        (isCard ? '' : '；不占记录页的位置') + '</span>' +
+        (isCard ? '' : (def.kind === 'page' ? '；入口在主页右侧栏' : '；不占记录页的位置')) + '</span>' +
         '<span class="set-row-tools">' +
         '<button class="btn" type="button" data-export-mod="' + def.id + '">导出源码</button>' +
         (def.builtin ? '' : '<button class="btn danger" type="button" data-uninstall="' + def.id + '">卸载</button>') +
@@ -1084,12 +1188,11 @@ function settleOpenModule() {
     state.openModule = registry.enabledOrder()[0] || null;
 }
 
-const startPage = location.hash === '#record' ? 'record' : 'home';
-if (startPage === 'record') history.replaceState({ ellipse: 'record' }, '', '#record');
-
 el.backHomeBtn.addEventListener('click', function () {
     if (sheet.isOpen()) { sheet.close(); return; }
-    if (history.state && history.state.ellipse === 'record') history.back();
+    /* 是「进」来的（不是直接敲的地址）就退回去，否则直接回主页 */
+    const st = history.state;
+    if (st && st.ellipse && st.ellipse === state.page && state.page !== 'home') history.back();
     else setPage('home');
 });
 
@@ -1116,13 +1219,18 @@ const skipMods = new URLSearchParams(location.search).get('nomods') === '1';
         }
         render();
     }
+
+    /* 模块全装完了，这时才谈得上判断地址里那个 #page/<id> 到底认不认、开没开 */
+    state.booted = true;
+    render();
 })();
 
-/* ---------------- 本地预览钩子：?panel=settings|export|record、?scroll=像素 ---------------- */
+/* ---------------- 本地预览钩子：?panel=settings|export|record|trend、?scroll=像素 ---------------- */
 (function applyPreviewPanel() {
     const q = new URLSearchParams(location.search);
     const panel = q.get('panel');
-    if (panel === 'record' || panel === 'trend') pushPage('record');
+    if (panel === 'record') pushPage('record');
+    else if (panel === 'trend') pushPage('trend');
     if (panel === 'settings') openSettings();
     else if (panel === 'export') openExportSheet();
 

@@ -130,6 +130,14 @@ export function cardOrder() {
     });
 }
 
+/** 主页竖栏里的入口：独立页面型、已启用的模块，按顺序（记录页的入口由外壳自己排在最后） */
+export function pageModules() {
+    return orderedIds().filter(function (id) {
+        const def = defs.get(id);
+        return !!def && def.kind === 'page' && isEnabled(id);
+    });
+}
+
 /** 设置页的模块清单：启用的在前，关掉的在后，服务型排最后 */
 export function manageList() {
     const cards = orderedIds().filter(isCard);

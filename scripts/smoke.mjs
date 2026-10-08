@@ -23,6 +23,7 @@ const { renderChart, metricSeries, RANGES, rangeById } = await import('../assets
 const { dayMarkdown, rangeMarkdown, allMarkdown, suggestFilename } = await import('../assets/js/export.js');
 const { toKey, todayKey, shiftKey } = await import('../assets/js/util.js');
 const { renderFields } = await import('../assets/js/core/fields.js');
+const { validateDefinition } = await import('../assets/js/core/validate.js');
 
 /* 读仓库里的文件（后面好几节都要用，所以放在这儿） */
 const { readFileSync, existsSync, statSync, readdirSync } = await import('node:fs');
@@ -262,16 +263,23 @@ ok('单行也带列表符号', JSON.stringify(microDef.markdown({ text: ' 今天
 console.log('\n[5] 设置');
 const s = getSettings();
 ok('默认全部开启', Object.keys(s.modules).every((k) => s.modules[k] === true));
-ok('状态波动图栏默认开启', s.modules.trend === true);
-ok('状态波动图不算记录模块', enabledOrder().indexOf('trend') < 0, enabledOrder().join(','));
+ok('状态波动图默认开启', s.modules.trend === true);
+ok('状态波动图不算记录模块（不进 md 导出、不占卡片位）',
+    enabledOrder().indexOf('trend') < 0 && registry.cardOrder().indexOf('trend') < 0);
 ok('AI 默认未配置', !getModuleSettings('assistant').apiKey && !getModuleSettings('assistant').baseUrl);
 ok('AI 密钥被声明成敏感字段（备份默认不带出去）',
     registry.secretFields('assistant').indexOf('apiKey') >= 0);
 
-/* ---------- 6. 面板型与服务型模块 ---------- */
-console.log('\n[6] 面板型与服务型模块');
+/* ---------- 6. 面板型 / 页面型 / 服务型模块 ---------- */
+console.log('\n[6] 面板型 / 页面型 / 服务型模块');
 const trend = getModule('trend');
-ok('波状图栏是个面板型模块', !!trend && trend.kind === 'panel' && !!trend.name);
+ok('波状图是个页面型模块', !!trend && trend.kind === 'page' && !!trend.name);
+ok('页面型模块要 mount（校验器拦得住没 mount 的）',
+    validateDefinition({ apiVersion: 1, id: 'x', name: 'X', kind: 'page' }).ok === false);
+ok('页面型模块不占记录页的卡片位', registry.cardOrder().indexOf('trend') < 0,
+    registry.cardOrder().join(','));
+ok('它是主页竖栏里的一个入口', registry.pageModules().join(',') === 'trend',
+    registry.pageModules().join(','));
 ok('AI 助手是个服务型模块', getModule('assistant').kind === 'service');
 ok('服务型模块不占记录页的位置', registry.cardOrder().indexOf('assistant') < 0);
 ok('出图模块为 4 个（日记除外）', registry.chartModules(enabledOrder()).length === 4,
@@ -393,6 +401,9 @@ const html = readFileSync(at('index.html'), 'utf8');
 ok('index.html 挂了 manifest', /rel="manifest"/.test(html));
 ok('index.html 有 apple-touch-icon', /rel="apple-touch-icon"/.test(html));
 ok('index.html 有 apple-mobile-web-app-capable', /apple-mobile-web-app-capable/.test(html));
+/* 模块自己的整页要有个容器等着，app.js 里的 viewPage / pageBody / pageTitle 才找得到 */
+ok('index.html 有整页模块的容器',
+    /id="viewPage"/.test(html) && /id="pageBody"/.test(html) && /id="pageTitle"/.test(html));
 
 /* ---------- 9. 启动预览.bat ---------- */
 /* 这是唯一一个"坏了不报错、只是双击后一声不响"的文件：cmd 按 GBK 读、按 CR 定位行，

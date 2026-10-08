@@ -107,6 +107,7 @@ function buildFacade() {
             has: registry.has,
             isEnabled: registry.isEnabled,
             cardOrder: registry.cardOrder,
+            pageModules: registry.pageModules,
             enabledOrder: registry.enabledOrder,
             chartModules: registry.chartModules,
             tools: registry.tools,

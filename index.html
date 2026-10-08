@@ -65,7 +65,20 @@
         <p class="foot-note">记录仅保存在本机浏览器中</p>
     </main>
 
-    <!-- ======================= 右侧竖排栏（主页 / 记录页各有各的） ======================= -->
+    <!-- ======================= 模块自己的页面（主页竖栏点进来的，比如「状态波动图」） =======================
+         这一层是通用的：标题取模块的 name，内容由模块的 mount() 画，底注取模块的 note。
+         再加一个页面型模块，这里一个字都不用改。 -->
+    <main class="view page-view" id="viewPage" hidden>
+        <header class="page-head">
+            <p class="head-line" id="pageTitle"></p>
+        </header>
+
+        <section class="page-body" id="pageBody" aria-label="模块内容"></section>
+
+        <p class="foot-note" id="pageNote"></p>
+    </main>
+
+    <!-- ======================= 右侧竖排栏（只在主页显示） ======================= -->
     <nav class="rail" id="rail" aria-label="功能栏" hidden></nav>
 
     <!-- 记录页右上角：返回主页（导出面板打开时变成关闭面板） -->
@@ -122,10 +135,10 @@
         window.addEventListener('error', function (evt) {
             const note = document.getElementById('bootNote');
             if (!note || note.hidden === false) return;
-            const home = document.getElementById('viewHome');
-            const record = document.getElementById('viewRecord');
-            if (home) home.style.display = 'none';
-            if (record) record.style.display = 'none';
+            ['viewHome', 'viewRecord', 'viewPage'].forEach(function (id) {
+                const view = document.getElementById(id);
+                if (view) view.style.display = 'none';
+            });
             const detail = document.getElementById('bootDetail');
             if (detail && evt && evt.message) detail.textContent = evt.message;
             note.hidden = false;

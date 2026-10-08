@@ -115,8 +115,8 @@
             display: none;
         }
 
-        /* 按下区域横向撑满内框、纵向也取内框宽度 —— 只有一个图标时
-           内框、按下区域、按下反馈三者同尺寸同形状，正好是正方形 */
+        /* 按下区域横向撑满内框、纵向也取内框宽度 —— 每个图标都是正方形，
+           上下叠起来就是一根等宽的竖条（内框宽度始终是 --rail-w） */
         .tabbar-item {
             flex: 0 0 auto;
             height: var(--rail-w);
@@ -264,8 +264,16 @@
         <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" class="feather feather-settings"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
     </button>
 
-    <!-- 右侧竖排标签栏：一个图标一项，按顺序往下加 -->
+    <!-- 右侧竖排标签栏：一个图标一项，按顺序往下加。
+         最下面一项永远是「状态记录」，它上面是各页面型模块的入口（如「状态波动图」）。 -->
     <nav class="tabbar" aria-label="侧栏">
+        <button class="tabbar-item" type="button" aria-label="状态波动图" title="状态波动图">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M3.4 3.4v17.2h17.2"></path>
+                <path d="M7 15.2l3.4-4.6 3 2.6 4.6-6.2"></path>
+            </svg>
+        </button>
+
         <button class="tabbar-item" id="statusLogBtn" type="button" aria-label="状态记录" title="状态记录">
             <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
                 <!-- 纸：在后，被笔压住右上角 -->

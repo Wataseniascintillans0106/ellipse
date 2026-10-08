@@ -60,7 +60,7 @@ ellipse.define({
 | `apiVersion` | ✅ | 现在填 `1`。填比核心更高的数字会被拒绝，并提示「此模块需要更新的 ellipse」 |
 | `id` | ✅ | 小写字母开头，只含 `a-z 0-9 - _`，最长 32 位。**它是数据的归属**，改 id 等于换一个模块 |
 | `name` | ✅ | 记录页上显示的栏名 |
-| `kind` | | `record`（默认，收集字段）/ `panel`（自己画一整块）/ `service`（只提供能力，不占位置） |
+| `kind` | | `record`（默认，收集字段）/ `panel`（在记录页上自己画一整块）/ `page`（自己在主页竖栏占一个入口，点开是一整页）/ `service`（只提供能力，不占位置） |
 | `icon` | | 图标名，见 `assets/js/icons.js`；不写用 `chart` |
 | `desc` | | 一句话说明，设置的模块列表里会显示 |
 | `fields` | | 字段声明数组，`record` 型的主要工作都在这里 |
@@ -197,11 +197,12 @@ metrics: [
 
 ---
 
-## 四、另外两种模块
+## 四、另外三种模块
 
-### `panel`：自己画一整块
+### `panel`：在记录页上自己画一整块
 
-「状态波动图」就是这种。它不收集数据，只把别的模块的评分汇成曲线。
+它不收集数据，只把别的东西画成一块内容，和「情绪」「睡眠」一样在记录页上占一条，
+可以展开 / 收起。
 
 ```js
 ellipse.define({
@@ -219,6 +220,33 @@ ellipse.define({
 - 必须提供 `mount(body, ctx)`。它在该栏展开时被调用，**每次展开都会重新调用一次**。
 - 面板型模块**不产生数据**，也不进 md 导出，但会出现在设置页的模块列表里，可以被关掉。
 - `ctx.api` 就是第五节的 API 门面。
+
+### `page`：自己占一整页
+
+「状态波动图」就是这种。它和 `panel` 一样是「自己画一块内容」，但**不占记录页的位置**：
+在主页右侧竖栏里，「状态记录」图标的**正上方**多出它自己的一个入口，点开是一整页。
+
+```js
+ellipse.define({
+    apiVersion: 1, id: 'mypage', kind: 'page', name: '我的页面',
+    desc: '点开是它自己的一整页',
+    note: '最下面那行小字，不写就用默认句',   // 可选
+    mount: function (body, ctx) {            // 和 panel 完全一样
+        const p = document.createElement('p');
+        p.textContent = '今天一共 ' + ctx.api.records.allKeys().length + ' 天有记录';
+        body.appendChild(p);
+    }
+});
+```
+
+- 也必须提供 `mount(body, ctx)`，签名和 `panel` 一模一样。
+- 外壳替你搭好框架：**标题取 `name`**、右上角返回按钮、整页可上下滑、
+  最下面一行小字取 `note`（不写就用默认句）。左右内边距与记录页一致，你不用自己排版。
+- 页面**比一屏高就自己滚动**，不需要你写滚动容器。
+- 在设置里关掉它，竖栏里那个入口就消失 —— 和别的模块一样，不用额外做任何事。
+- 页面里的按钮用 `data-act="名字"` 标注，再在 `actions` 里认领它
+  （和 `panel` 的 `actions` 是同一套，见第六节）。
+- 它同样**不产生数据**，也不进 md 导出。
 
 ### `service`：只提供能力
 
@@ -391,7 +419,7 @@ http://localhost:5173/index.html?nomods=1
   `ellipse-mod-<你的文件>` 这样的名字，一眼能认出是谁。
 - **改一行看一行**：设置 → 模块 → 导出 → 改 → 重新导入（同 id 即更新）→ 重新打开记录页。
   比重新装一遍快。
-- **想抄内置模块**：内置的 7 个模块就是最好的范例，同样可以在设置里导出源码
+- **想抄内置模块**：内置的 8 个模块就是最好的范例，同样可以在设置里导出源码
   （需要从 `http://localhost:5173` 打开页面才取得到）。
   - `mood.js` —— `scale` 评分格 + 派生指标（日内变化）
   - `sleep.js` —— 两种数值字段
@@ -399,7 +427,7 @@ http://localhost:5173/index.html?nomods=1
   - `exercise.js` —— `number` + 快捷按钮 + `enum`
   - `micro.js` —— `textarea` + 自定义 `markdown`（一行一条，导出成列表）
   - `diary.js` —— `textarea`（纯文本，目前不挂工具按钮）
-  - `trend.js` —— `panel` 型样板
+  - `trend.js` —— `page` 型样板（自己在竖栏占入口、点开一整页）
   - `assistant.js` —— `service` 型样板（服务 / 工具 / 设置分区 / 动作，四样占全）
 - **逻辑回归**：改完核心代码跑 `node scripts/smoke.mjs`；浏览器交互自检看
   `http://localhost:5173/scripts/flowcheck.html` 和 `.../modcheck.html`。

@@ -5,7 +5,7 @@ import { FIELD_TYPES } from './fields.js';
 /** 核心接口版本。以后只加字段不改签名就 +1；模块声明更高的版本会被拒绝加载。 */
 export const CORE_API_VERSION = 1;
 
-export const KINDS = ['record', 'panel', 'service'];
+export const KINDS = ['record', 'panel', 'page', 'service'];
 
 const ID_RE = /^[a-z][a-z0-9_-]{0,31}$/;
 
@@ -69,6 +69,9 @@ export function validateDefinition(def, opts) {
     }
     if (kind === 'panel' && typeof def.mount !== 'function') {
         errors.push('面板型模块要提供 mount(body, ctx) 函数');
+    }
+    if (kind === 'page' && typeof def.mount !== 'function') {
+        errors.push('独立页面型模块要提供 mount(body, ctx) 函数');
     }
     if (def.fields !== undefined && !Array.isArray(def.fields)) {
         errors.push('fields 必须是数组');

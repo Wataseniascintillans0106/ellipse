@@ -21,8 +21,23 @@
                 t('主页可见', !d.getElementById('viewHome').hidden);
                 t('设置按钮在主页显示', !d.getElementById('settingsBtn').hidden);
                 t('返回按钮隐藏', d.getElementById('backHomeBtn').hidden);
-                t('竖栏只有状态记录', d.querySelectorAll('#rail .rail-item').length === 1
-                    && !!d.querySelector('#rail [data-act="record"]'));
+
+                /* 竖栏里两个入口：波状图在上、状态记录在下 */
+                const railItems = Array.from(d.querySelectorAll('#rail .rail-item'));
+                t('竖栏两个入口（波状图 + 状态记录）', railItems.length === 2,
+                    String(railItems.length));
+                t('上面那个是波状图、下面是状态记录',
+                    railItems.length === 2 &&
+                    railItems[0].getAttribute('data-rail-page') === 'trend' &&
+                    railItems[1].getAttribute('data-act') === 'record');
+                if (railItems.length === 2) {
+                    /* DOM 顺序不够，还要真的量：竖栏是 bottom 锚定的纵向 flex，
+                       先写进去的应该排在上面 */
+                    const a = railItems[0].getBoundingClientRect();
+                    const b = railItems[1].getBoundingClientRect();
+                    t('波状图入口确实压在状态记录上方', a.bottom <= b.top + 1,
+                        a.bottom + ' vs ' + b.top);
+                }
                 t('竖栏无导出按钮', !d.querySelector('#rail [data-act="export-sheet"]'));
 
                 d.querySelector('#rail [data-act="record"]').click();
@@ -33,19 +48,19 @@
                 t('设置按钮仍隐藏', d.getElementById('settingsBtn').hidden);
                 t('竖栏隐藏', d.getElementById('rail').hidden);
                 t('返回按钮可见', !d.getElementById('backHomeBtn').hidden);
+
+                /* 记下记录页的「左边线」和顶部留白，稍后拿来跟整页比 ——
+                   用户要的是「框架一致」，光看两边都有标题不够，得量同一根边线 */
+                const recordHead = d.querySelector('#viewRecord .head-line').getBoundingClientRect();
+                const recordHeadLeft = recordHead.left;
+                const recordHeadTop = recordHead.top;
+
                 const cards = Array.from(d.querySelectorAll('#moduleStack .module'));
                 say('栏: ' + cards.map((c) => c.dataset.module).join(','));
-                t('趋势栏在最后', cards.length > 0 && cards[cards.length - 1].dataset.module === 'trend');
-                t('趋势栏默认展开', cards.length > 0 && cards[cards.length - 1].classList.contains('is-open'));
-                const trend = d.querySelector('.module[data-module="trend"]');
-                t('趋势栏有区间切换', trend.querySelectorAll('.range-btn').length === 3);
-                const charts = trend.querySelectorAll('.chart-block');
-                t('出图 4 个模块', charts.length === 4);
-                say('图: ' + Array.from(charts).map((c) => c.dataset.module + '(' +
-                    c.querySelectorAll('svg').length + ')').join(' '));
-                const moodSvgs = trend.querySelector('.chart-block[data-module="mood"]').querySelectorAll('svg').length;
-                say('情绪 SVG 数=' + moodSvgs);
-                t('情绪至少 3 张图', moodSvgs >= 3);
+                t('记录页最后一张是日记', cards.length > 0 &&
+                    cards[cards.length - 1].dataset.module === 'diary');
+                /* 波状图搬去主页竖栏了，不该再占记录页的卡片位 */
+                t('记录页里没有波状图卡片', cards.every((c) => c.dataset.module !== 'trend'));
 
                 /* 收起时那行小字要夹在「标题栏横线」和「卡片底边」正中间。
                    只用量到的矩形 + padding，不去解析 line-height（'normal' 算不出来）。
@@ -71,7 +86,7 @@
                 await sleep(400);
                 t('面板自身关闭按钮有效', !d.getElementById('sheet').classList.contains('open'));
 
-                /* 栏的展开 / 收起：点标题栏翻一次，再点一次回到原状 */
+                /* 卡片的展开 / 收起：点标题栏翻一次，再点一次回到原状 */
                 const card = (id) => d.querySelector('.module[data-module="' + id + '"]');
                 const isOpen = (id) => !!card(id) && card(id).classList.contains('is-open');
                 const clickHead = (id) => card(id).querySelector('.module-head').click();
@@ -84,27 +99,79 @@
                 await sleep(200);
                 t('再点一次回到原状', isOpen('mood') === moodWas);
 
-                /* 停成「情绪展开」，波状图栏不该因此被收起 */
-                if (!isOpen('mood')) { clickHead('mood'); await sleep(200); }
-                t('展开情绪后趋势仍展开', isOpen('trend'));
+                say('== 波状图页（从主页竖栏进） ==');
+                d.getElementById('backHomeBtn').click();
+                await sleep(400);
+                t('回到主页', !d.getElementById('viewHome').hidden);
 
-                /* 波状图栏收起后，展开别的模块不该把趋势带开 */
-                if (isOpen('mood')) { clickHead('mood'); await sleep(200); }  /* 先收起情绪，下一步好展开 */
-                clickHead('trend');
-                await sleep(200);
-                t('趋势栏可收起', !isOpen('trend'));
-                clickHead('mood');
-                await sleep(200);
-                t('趋势收起后展开情绪，趋势保持收起', isOpen('mood') && !isOpen('trend'));
-                clickHead('trend');
-                await sleep(200);
-                t('趋势可重新展开', isOpen('trend'));
+                d.querySelector('#rail [data-rail-page="trend"]').click();
+                await sleep(300);
+                t('hash=#page/trend', w.location.hash === '#page/trend', w.location.hash);
+                t('波状图页可见', !d.getElementById('viewPage').hidden);
+                t('记录页已隐藏', d.getElementById('viewRecord').hidden);
+                t('主页已隐藏', d.getElementById('viewHome').hidden);
+                t('竖栏隐藏', d.getElementById('rail').hidden);
+                t('返回按钮可见', !d.getElementById('backHomeBtn').hidden);
+                t('设置按钮隐藏（设置只在主页）', d.getElementById('settingsBtn').hidden);
 
-                d.querySelector('.module[data-module="trend"] .range-btn').click();
-                await sleep(150);
-                t('切到 7 天后仍选中', d.querySelector('.module[data-module="trend"] .range-btn').classList.contains('on'));
+                const pageBody = d.getElementById('pageBody');
+                t('标题是「状态波动图」', d.getElementById('pageTitle').textContent === '状态波动图',
+                    d.getElementById('pageTitle').textContent);
+                t('三个区间按钮', pageBody.querySelectorAll('.range-btn').length === 3);
+                const charts = pageBody.querySelectorAll('.chart-block');
+                t('出图 4 个模块', charts.length === 4);
+                say('图: ' + Array.from(charts).map((c) => c.dataset.module + '(' +
+                    c.querySelectorAll('svg').length + ')').join(' '));
+                const moodSvgs = pageBody.querySelector('.chart-block[data-module="mood"]')
+                    .querySelectorAll('svg').length;
+                say('情绪 SVG 数=' + moodSvgs);
+                t('情绪至少 3 张图', moodSvgs >= 3);
+                t('最下面有一行小字说明', (d.getElementById('pageNote').textContent || '').length > 4,
+                    d.getElementById('pageNote').textContent);
+
+                /* 框架与记录页一致：标题落在同一根左边线、同一个顶部位置上 */
+                const pageHead = d.getElementById('pageTitle').getBoundingClientRect();
+                t('标题的左边缘和记录页标题对齐',
+                    Math.abs(pageHead.left - recordHeadLeft) <= 1,
+                    pageHead.left + ' vs ' + recordHeadLeft);
+                t('标题的顶边和记录页标题对齐（同样的顶部留白）',
+                    Math.abs(pageHead.top - recordHeadTop) <= 1,
+                    pageHead.top + ' vs ' + recordHeadTop);
+
+                /* 顺序：标题 → 区间按钮 → 图 → 小字 */
+                const rangeRow = pageBody.querySelector('.range-row').getBoundingClientRect();
+                const lastChart = charts[charts.length - 1].getBoundingClientRect();
+                const noteRect = d.getElementById('pageNote').getBoundingClientRect();
+                t('区间按钮排在标题下面', rangeRow.top >= pageHead.bottom - 1,
+                    rangeRow.top + ' vs ' + pageHead.bottom);
+                t('小字排在所有图的下面', noteRect.top >= lastChart.bottom - 1,
+                    noteRect.top + ' vs ' + lastChart.bottom);
+                /* 内容左右与标题同一条边线（整页不额外缩进） */
+                const firstChart = charts[0].getBoundingClientRect();
+                t('曲线块与标题左右对齐',
+                    Math.abs(firstChart.left - pageHead.left) <= 1,
+                    firstChart.left + ' vs ' + pageHead.left);
+
+                /* 换页时页面本身要能滚：内容比一屏高 */
+                t('这一页比一屏高、能上下滑',
+                    d.getElementById('viewPage').scrollHeight > w.innerHeight,
+                    d.getElementById('viewPage').scrollHeight + ' vs ' + w.innerHeight);
+
+                const beforeRange = pageBody.querySelector('.range-btn.on').textContent;
+                pageBody.querySelectorAll('.range-btn')[0].click();
+                await sleep(200);
+                t('点区间按钮后选中态跟着切',
+                    pageBody.querySelector('.range-btn.on').textContent !== beforeRange,
+                    beforeRange + ' -> ' + pageBody.querySelector('.range-btn.on').textContent);
+                t('切完还是同一个页面', !d.getElementById('viewPage').hidden);
+
+                d.getElementById('backHomeBtn').click();
+                await sleep(400);
+                t('从波状图页返回主页', !d.getElementById('viewHome').hidden);
 
                 say('== 导出面板 ==');
+                d.querySelector('#rail [data-act="record"]').click();
+                await sleep(300);
                 d.querySelector('.export-card').click();
                 await sleep(300);
                 t('面板已打开', d.getElementById('sheet').classList.contains('open'));
@@ -125,18 +192,22 @@
                 t('再点返回回到主页', !d.getElementById('viewHome').hidden);
                 t('主页上设置按钮恢复', !d.getElementById('settingsBtn').hidden);
 
-                say('== 设置里关闭趋势栏 ==');
+                say('== 设置里关闭波状图 ==');
                 d.getElementById('settingsBtn').click();
                 await sleep(200);
                 const trendRow = d.querySelector('[data-module-row="trend"] [data-toggle]');
-                t('设置里有趋势栏开关', !!trendRow);
+                t('设置里有波状图开关', !!trendRow);
+                t('页面型模块不给排序按钮，也说明了入口在哪',
+                    d.querySelectorAll('[data-module-row="trend"] [data-order]').length === 0 &&
+                    /入口在主页右侧栏/.test(
+                        d.querySelector('[data-module-row="trend"] .set-row-desc').textContent));
                 trendRow.click();
                 await sleep(200);
                 d.getElementById('settingsClose').click();
                 await sleep(250);
-                d.querySelector('#rail [data-act="record"]').click();
-                await sleep(250);
-                t('关闭后趋势栏消失', !d.querySelector('.module[data-module="trend"]'));
+                t('关掉后竖栏里的波状图入口消失',
+                    !d.querySelector('#rail [data-rail-page="trend"]'));
+                t('状态记录入口还在', !!d.querySelector('#rail [data-act="record"]'));
                 say('DONE');
             } catch (err) {
                 say('ERROR ' + err.message);

@@ -101,11 +101,17 @@ body.is-locked { overflow: hidden; }
     color: var(--ink-2);
 }
 
-/* 状态记录：左右内边距相等，内容在屏幕中居中 */
-.record {
+/* 状态记录：左右内边距相等，内容在屏幕中居中。
+   模块自己的整页（.page-view，比如「状态波动图」）用的是同一套外框 —— 框架一致。 */
+.record,
+.page-view {
     min-height: 100%;
     padding: calc(28px + env(safe-area-inset-top)) 26px calc(40px + env(safe-area-inset-bottom)) 26px;
 }
+
+/* 整页模块：标题下面紧接内容（区间按钮之类），所以不要 .page-head 那 20px 的底距。
+   内容左右不额外缩进，与标题对齐在同一条边线上。 */
+.page-view .page-head { margin-bottom: 0; }
 
 /* 记录页页头：字标在左上，右侧整条让给返回按钮与竖栏 */
 .page-head { margin-bottom: 20px; }
@@ -594,11 +600,21 @@ body.is-locked { overflow: hidden; }
     max-height: calc(100vh - var(--edge) - var(--btn-size) - 32px);
 }
 
-/* ---------------- 面板型模块（自己画一整块内容，比如波状图栏） ---------------- */
-.module[data-kind="panel"] .module-body { padding-top: 12px; }
-.module[data-kind="panel"] .range-row { margin-bottom: 14px; }
-.module[data-kind="panel"] .chart-block { padding: 0 0 18px; border-bottom: none; }
-.module[data-kind="panel"] .chart-block + .chart-block {
+/* ---------------- 自己画一整块内容的模块 ----------------
+   卡片型（panel）和整页型（page）画的是同一种东西，只是外壳不同：
+   一个装在记录页的卡片里，一个装在主页竖栏点进来的整页里。
+   所以下面这四条的「外壳部分」写成两个选择器，内容部分共用 —— 少写一套就不会长歪。 */
+.module[data-kind="panel"] .module-body,
+.page-body { padding-top: 12px; }
+
+.module[data-kind="panel"] .range-row,
+.page-body .range-row { margin-bottom: 14px; }
+
+.module[data-kind="panel"] .chart-block,
+.page-body .chart-block { padding: 0 0 18px; border-bottom: none; }
+
+.module[data-kind="panel"] .chart-block + .chart-block,
+.page-body .chart-block + .chart-block {
     padding-top: 18px;
     border-top: 1px solid var(--line-2);
 }
