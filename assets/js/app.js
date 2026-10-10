@@ -36,7 +36,6 @@ const state = {
 
 const el = {
     viewHome: document.getElementById('viewHome'),
-    homeDock: document.getElementById('homeDock'),
     viewRecord: document.getElementById('viewRecord'),
     viewPage: document.getElementById('viewPage'),
     pageTitle: document.getElementById('pageTitle'),
@@ -215,25 +214,40 @@ function renderExport() {
         '</button>';
 }
 
+function railKnown() {
+    const out = registry.pageModules().slice();
+    if (registry.cardOrder().length) out.push('record');
+    return out;
+}
+
+function railTokens() {
+    const known = railKnown();
+    const saved = getSettings().ui.railOrder;
+    if (!Array.isArray(saved) || !saved.length) {
+        const seeded = registry.mergeOrder(
+            getSettings().ui.railRecordFirst === true ? ['record'] : null, known);
+        return seeded;
+    }
+    return registry.mergeOrder(saved, known);
+}
+
+function railTokenHtml(token) {
+    if (token === 'record') {
+        return '<button class="rail-item" type="button" data-act="record" ' +
+            'aria-label="状态记录" title="状态记录">' + icon('log') + '</button>';
+    }
+    const def = registry.get(token);
+    if (!def) return '';
+    return '<button class="rail-item" type="button" data-rail-page="' + escapeHtml(token) + '" ' +
+        'aria-label="' + escapeHtml(def.name) + '" title="' + escapeHtml(def.name) + '">' +
+        icon(def.icon) + '</button>';
+}
+
 function renderRail() {
     el.rail.className = 'rail rail--home';
 
-    const recordBtn = registry.cardOrder().length
-        ? '<button class="rail-item" type="button" data-act="record" ' +
-          'aria-label="状态记录" title="状态记录">' + icon('log') + '</button>'
-        : '';
-
-    let pageBtns = '';
-    registry.pageModules().forEach(function (id) {
-        const def = registry.get(id);
-        if (!def) return;
-        pageBtns += '<button class="rail-item" type="button" data-rail-page="' + escapeHtml(id) + '" ' +
-            'aria-label="' + escapeHtml(def.name) + '" title="' + escapeHtml(def.name) + '">' +
-            icon(def.icon) + '</button>';
-    });
-
-    const recordFirst = getSettings().ui.railRecordFirst === true;
-    const htmlText = recordFirst ? recordBtn + pageBtns : pageBtns + recordBtn;
+    let htmlText = '';
+    railTokens().forEach(function (token) { htmlText += railTokenHtml(token); });
 
     el.rail.innerHTML = htmlText;
     el.rail.hidden = state.page !== 'home' || !htmlText;
@@ -243,9 +257,14 @@ function pageHeadRow() {
     return el.viewPage.querySelector('.head-row');
 }
 
+let pageClass = '';
+
 function renderPage() {
     const def = registry.get(state.page);
     if (!def) return;
+    if (pageClass) el.viewPage.classList.remove(pageClass);
+    pageClass = def.pageClass || '';
+    if (pageClass) el.viewPage.classList.add(pageClass);
     el.pageTitle.textContent = def.name;
     el.pageNote.textContent = def.note || DEFAULT_PAGE_NOTE;
     el.pageBody.dataset.module = def.id;
@@ -261,35 +280,6 @@ function renderPage() {
         console.error('[ellipse] 模块页「' + def.id + '」渲染出错：', err);
         el.pageBody.innerHTML = '<p class="empty-note">这个页面画不出来：' + escapeHtml(msg(err)) + '</p>';
     }
-}
-
-let homeSig = null;
-
-function renderHome() {
-    const blocks = registry.homeBlocks();
-    const sig = blocks.map(function (d) { return d.id; }).join(',');
-    if (sig === homeSig) return;
-    homeSig = sig;
-    el.homeDock.innerHTML = '';
-    if (!blocks.length) {
-        el.homeDock.hidden = true;
-        el.viewHome.classList.remove('home--docked');
-        return;
-    }
-    el.homeDock.hidden = false;
-    el.viewHome.classList.add('home--docked');
-    blocks.forEach(function (def) {
-        const box = document.createElement('div');
-        box.className = 'home-dock-block';
-        box.dataset.homeBlock = def.id;
-        el.homeDock.appendChild(box);
-        try {
-            def.homeBlock.mount(box, { api: api, page: state.page });
-        } catch (err) {
-            console.error('[ellipse] 主页区块「' + def.id + '」渲染出错：', err);
-            box.innerHTML = '<p class="empty-note">这块没能画出来：' + escapeHtml(msg(err)) + '</p>';
-        }
-    });
 }
 
 function placeBackBtn() {
@@ -325,7 +315,6 @@ function render() {
 
     if (home) {
         if (sheet.isOpen()) sheet.close();
-        renderHome();
     } else if (record) {
         renderHead();
         renderStack();
@@ -341,8 +330,7 @@ install({
     refresh: function () {
         renderStack();
         renderExport();
-        if (state.page === 'home') renderHome();
-        else if (state.page !== 'record') renderPage();
+        if (state.page !== 'home' && state.page !== 'record') renderPage();
     }
 });
 
@@ -781,7 +769,6 @@ function rowWhere(def) {
     if (registry.isCard(def.id)) return '';
     if (def.kind === 'page') return '；入口在主页右侧栏';
     if (def.kind === 'event') return '；在「日历及健康」里安排';
-    if (def.homeBlock) return '；就住在主页上半屏';
     return '；不占记录页的位置';
 }
 
@@ -831,23 +818,67 @@ function problemRow(p) {
     return row;
 }
 
+function railTokenName(token) {
+    if (token === 'record') return '状态记录';
+    const def = registry.get(token);
+    return def ? def.name : token;
+}
+
+function railTokenMark(token) {
+    if (token === 'record') return icon('log');
+    const def = registry.get(token);
+    return icon(def ? def.icon : 'chart');
+}
+
 function railOrderRow() {
-    const recordFirst = getSettings().ui.railRecordFirst === true;
-    const row = document.createElement('div');
-    row.className = 'set-row';
-    row.dataset.railOrderRow = '';
-    row.innerHTML =
+    const wrap = document.createElement('div');
+    wrap.className = 'rail-order';
+    wrap.dataset.railOrderRow = '';
+
+    const head = document.createElement('div');
+    head.className = 'set-row';
+    head.innerHTML =
         '<span class="set-row-main">' +
         '<span class="set-row-title">主页右侧栏顺序</span>' +
-        '<span class="set-row-desc">主页右侧栏里，「状态记录」和「状态波动图」谁在上面</span>' +
-        '<span class="seg">' +
-        '<button class="seg-item' + (recordFirst ? ' on' : '') + '" type="button" ' +
-        'data-rail-order="record">状态记录在上</button>' +
-        '<button class="seg-item' + (recordFirst ? '' : ' on') + '" type="button" ' +
-        'data-rail-order="chart">状态记录在下</button>' +
-        '</span>' +
+        '<span class="set-row-desc">从上到下就是它们在主页右侧栏里的顺序。</span>' +
         '</span>';
-    return row;
+    wrap.appendChild(head);
+
+    const tokens = railTokens();
+    tokens.forEach(function (token, i) {
+        const name = railTokenName(token);
+        const row = document.createElement('div');
+        row.className = 'set-row set-row--rail';
+        row.dataset.railItem = token;
+        row.innerHTML =
+            '<span class="module-mark">' + railTokenMark(token) + '</span>' +
+            '<span class="set-row-main">' +
+            '<span class="set-row-title">' + escapeHtml(name) + '</span>' +
+            '</span>' +
+            '<span class="set-row-side">' +
+            '<button class="order-btn" type="button" data-rail-move="up"' +
+            (i > 0 ? '' : ' disabled') + ' aria-label="把' + escapeHtml(name) + '往上移">' +
+            icon('up') + '</button>' +
+            '<button class="order-btn" type="button" data-rail-move="down"' +
+            (i < tokens.length - 1 ? '' : ' disabled') + ' aria-label="把' + escapeHtml(name) + '往下移">' +
+            icon('down') + '</button>' +
+            '</span>';
+        wrap.appendChild(row);
+    });
+    return wrap;
+}
+
+function moveRail(id, dir) {
+    const tokens = railTokens();
+    const i = tokens.indexOf(id);
+    const j = i + dir;
+    if (i < 0 || j < 0 || j >= tokens.length) return;
+    const tmp = tokens[i];
+    tokens[i] = tokens[j];
+    tokens[j] = tmp;
+    setSettings({ ui: { railOrder: tokens, railRecordFirst: tokens[0] === 'record' } });
+    renderSettings();
+    renderRail();
 }
 
 function foldGroup(id, title) {
@@ -1152,11 +1183,11 @@ el.settingsBody.addEventListener('click', function (evt) {
         return;
     }
 
-    const railBtn = evt.target.closest('[data-rail-order]');
-    if (railBtn) {
-        setSettings({ ui: { railRecordFirst: railBtn.getAttribute('data-rail-order') === 'record' } });
-        renderSettings();
-        render();
+    const railMove = evt.target.closest('[data-rail-move]');
+    if (railMove && !railMove.disabled) {
+        const row = railMove.closest('[data-rail-item]');
+        const id = row && row.getAttribute('data-rail-item');
+        if (id) moveRail(id, railMove.getAttribute('data-rail-move') === 'up' ? -1 : 1);
         return;
     }
 

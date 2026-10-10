@@ -63,30 +63,33 @@
                 t('弦音状态显示未配置', /^当前状态：还没配置/.test((q('#aiStatus') || {}).textContent || ''));
                 t('弦音分区能导出聊天 md', !!q('#settingsBody [data-set="ai-export-chat"]'));
                 t('弦音分区能清空聊天', !!q('#settingsBody [data-set="ai-clear-chat"]'));
-                t('模块行上写明它就住主页上半屏',
+                t('模块行上写明它的入口在主页右侧栏',
                     ((q('[data-module-row="assistant"] .set-row-desc') || {}).textContent || '')
-                        .indexOf('就住在主页上半屏') > 0);
+                        .indexOf('入口在主页右侧栏') > 0);
                 t('趋势分区有三个区间按钮', qa('#settingsBody [data-default-range]').length === 3);
                 const cb = d.getElementById('backupSecrets');
                 t('备份默认不带 AI 密钥', !!cb && cb.checked === false);
 
-                say('== 弦音开着时主页上半屏有聊天框 ==');
+                say('== 弦音开着时，从竖栏进它那一页 ==');
                 click(d.getElementById('settingsClose'));
                 await sleep(250);
-                t('主页插槽露出来了', !!d.getElementById('homeDock') &&
-                    d.getElementById('homeDock').hidden === false);
-                t('主页切到了「上下两半」模式',
-                    d.getElementById('viewHome').classList.contains('home--docked'));
-                t('聊天框画出来了', !!d.querySelector('#homeDock #chordList') &&
-                    !!d.querySelector('#homeDock #chordInput'));
-                t('输入框下面常驻一行免责小字',
-                    /弦音不是医生/.test((d.querySelector('#homeDock .chord-disclaimer') || {}).textContent || ''));
-                t('免责小字只有这一行', qa('#homeDock .chord-disclaimer').length === 1);
-                t('下半屏的字标一个都没动',
+                t('主页上不再有弦音那块', !d.getElementById('homeDock'));
+                t('主页还是原样（字标没动）',
                     ((d.querySelector('#viewHome .wordmark') || {}).textContent || '') === 'ellipse' &&
                     !!d.querySelector('#viewHome .org-line'));
+                t('竖栏里有弦音入口', !!q('#rail [data-rail-page="assistant"]'));
+                click(q('#rail [data-rail-page="assistant"]'));
+                await sleep(300);
+                t('进了弦音那一页', !d.getElementById('viewPage').hidden &&
+                    d.getElementById('pageTitle').textContent === '弦音');
+                t('聊天框画出来了', !!q('#viewPage #chordList') && !!q('#viewPage #chordInput'));
+                t('输入框下面常驻一行免责小字',
+                    /弦音不是医生/.test((q('#viewPage .chord-disclaimer') || {}).textContent || ''));
+                t('免责小字只有这一行', qa('#viewPage .chord-disclaimer').length === 1);
 
-                say('== 日记不挂工具按钮 / 关掉弦音，聊天框和 AI 分区一起消失 ==');
+                say('== 日记不挂工具按钮 / 关掉弦音，入口和 AI 分区一起消失 ==');
+                click(d.getElementById('backHomeBtn'));
+                await sleep(250);
                 click(q('#rail [data-act="record"]'));
                 await sleep(300);
                 t('日记里没有任何工具按钮', qa('#moduleStack .tool-btn').length === 0,
@@ -101,9 +104,9 @@
                 t('弦音分区跟着消失', !q('#settingsBody [data-section="ai"]'));
                 click(d.getElementById('settingsClose'));
                 await sleep(250);
-                t('聊天框跟着消失', d.getElementById('homeDock').hidden === true);
-                t('主页退回原样', !d.getElementById('viewHome').classList.contains('home--docked') &&
-                    !d.querySelector('#homeDock .chord'));
+                t('竖栏里的弦音入口跟着消失', !q('#rail [data-rail-page="assistant"]'));
+                t('主页还是原样', !!q('#viewHome .wordmark') &&
+                    !d.getElementById('viewHome').classList.contains('home--docked'));
                 click(q('#rail [data-act="record"]'));
                 await sleep(300);
                 t('日记里依然没有工具按钮', qa('#moduleStack .tool-btn').length === 0);
@@ -117,8 +120,7 @@
                 t('重新打开后弦音分区回来', !!q('#settingsBody [data-section="ai"]'));
                 click(d.getElementById('settingsClose'));
                 await sleep(250);
-                t('聊天框也回来', d.getElementById('homeDock').hidden === false &&
-                    !!d.querySelector('#homeDock .chord'));
+                t('弦音入口也回来', !!q('#rail [data-rail-page="assistant"]'));
 
                 click(d.getElementById('settingsBtn'));
                 await sleep(250);

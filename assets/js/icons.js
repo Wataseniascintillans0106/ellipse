@@ -151,6 +151,17 @@ export const ICONS = {
     back: wrap(
         '<polyline points="14.5 18.5 8 12 14.5 5.5"></polyline>' +
         '<line x1="18.5" y1="12" x2="8.5" y2="12"></line>'
+    ),
+
+    photo: wrap(
+        '<rect x="3.2" y="4.6" width="17.6" height="14.8" rx="2.4"></rect>' +
+        '<circle cx="8.6" cy="9.4" r="1.8"></circle>' +
+        '<path d="M4 17.8l4.9-4.6 3.3 3.1 2.9-2.5 5 4.2"></path>'
+    ),
+
+    close: wrap(
+        '<line x1="6.6" y1="6.6" x2="17.4" y2="17.4"></line>' +
+        '<line x1="17.4" y1="6.6" x2="6.6" y2="17.4"></line>'
     )
 };
 

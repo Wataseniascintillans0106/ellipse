@@ -227,15 +227,15 @@ ellipse.define({
 
 ### `page`：自己占一整页
 
-「状态波动图」就是这种。它和 `panel` 一样是「自己画一块内容」，但**不占记录页的位置**：
-在主页右侧竖栏里多出它自己的一个入口（默认压在「状态记录」图标上面，
-设置里的「主页右侧栏顺序」可以把两者对调），点开是一整页。
+「状态波动图」「日历及健康」「弦音」都是这种。它和 `panel` 一样是「自己画一块内容」，
+但**不占记录页的位置**：在主页右侧竖栏里多出它自己的一个入口，点开是一整页。
 
 ```js
 ellipse.define({
     apiVersion: 1, id: 'mypage', kind: 'page', name: '我的页面',
     desc: '点开是它自己的一整页',
     note: '最下面那行小字，不写就用默认句',   // 可选
+    pageClass: 'page--chat',                 // 可选：整页额外挂一个 class（见下）
     mount: function (body, ctx) {            // 和 panel 完全一样
         const p = document.createElement('p');
         p.textContent = '今天一共 ' + ctx.api.records.allKeys().length + ' 天有记录';
@@ -249,9 +249,16 @@ ellipse.define({
   最下面一行小字取 `note`（不写就用默认句）。左右内边距与记录页一致，你不用自己排版。
 - 页面**比一屏高就自己滚动**，不需要你写滚动容器。
 - 在设置里关掉它，竖栏里那个入口就消失 —— 和别的模块一样，不用额外做任何事。
+- 在竖栏里排第几，由用户在设置 → 模块 →「主页右侧栏顺序」里自己排（每个入口一行、
+  后面跟着「上移 / 下移」）。你不用管这个顺序，也别指望它和注册顺序一致。
 - 页面里的按钮用 `data-act="名字"` 标注，再在 `actions` 里认领它
   （和 `panel` 的 `actions` 是同一套，见第六节）。
 - 它同样**不产生数据**，也不进 md 导出。
+- `pageClass` 是可选的字符串。写了，这一页的外层容器就多一个 class，
+  你可以在自己的样式里把它撑成一个整屏布局 —— 「弦音」用的 `page--chat` 就是这样
+  （`height: 100%` + 一整条 flex 链，让只有消息列表滚、输入条钉在底部）。
+  注意**整条链上每一层都要 `min-height: 0`**，否则 flex 子元素不肯收缩，
+  里面的列表不会滚。核心只负责把这个 class 挂上、离开这一页时摘掉。
 - `mount(body, ctx)` 的 `ctx` 里还有一个 **`ctx.head`**：页头那一行。想往页头右边挂个
   自己的按钮，就 `appendChild` 进去，并给它加上 `data-head-extra` 属性 ——
   核心每次重画这一页时会先把上次挂的清掉，不会越堆越多。
@@ -283,15 +290,15 @@ ellipse.define({
 
 ### `service`：只提供能力
 
-「弦音」是这种。它不占记录页的位置，但可以：
+它不占记录页的位置，也不占竖栏，但可以：
 
 - 向别的模块暴露能力（`services`），
 - 往日记这类字段旁边挂按钮（`tools`），
 - 往设置页塞一整个分区（`settingsSections`），
-- 往**主页上半屏**挂一整块（`homeBlock`，见第五节），
 - 认领面板上的按钮（`actions`）。
 
-**关掉它，这五样东西一起消失**——这正是「弦音也是一个模块」的意思。
+**关掉它，这四样东西一起消失**——这正是「它也是一个模块」的意思。
+（「弦音」在 v0.5.0 之前是这种，现在已经改成 `page` 型了。）
 
 ---
 
@@ -362,7 +369,6 @@ ellipse.copy(text)                 // 复制到剪贴板
 | `services` | `{ ai: { polish } }` | 把能力暴露给别的模块，`ellipse.services.get('ai')` 取 |
 | `tools` | `[{ id, icon, label, run(ctx) }]` | 字段声明 `tools:['ai']` 时才出现的按钮 |
 | `settingsSections` | `[{ id, title, note, html(ctx), bind(root, ctx) }]` | 设置页里的一整个分区 |
-| `homeBlock` | `{ order, mount(box, ctx) }` | 在**主页上半屏**挂一整块（见下） |
 | `actions` | `{ 'my-act': function (ctx) {} }` | 认领界面上 `data-act="my-act"` 的按钮 |
 
 `tools[].run(ctx)` 拿到的 `ctx`：
@@ -388,38 +394,6 @@ ellipse.copy(text)                 // 复制到剪贴板
 ```js
 { api, rerender }       // rerender() 让设置页整个重画一遍
 ```
-
-`homeBlock.mount(box, ctx)` 拿到的 `ctx`：
-
-```js
-{ api, page }           // page 是当前在哪一层（'home' / 'record' / 'page'）
-```
-
-#### `homeBlock`：主页上半屏
-
-主页默认是「上下居中一整块字标」。一个模块想在上半屏放东西，就声明 `homeBlock`：
-
-```js
-ellipse.define({
-    apiVersion: 1, id: 'clock', name: '时钟', kind: 'service',
-    homeBlock: {
-        order: 20,                 // 数字小的排在上面；同时有好几个时按它排
-        mount(box, ctx) {          // box 是给你的一块空 div（已经套好 .home-dock-block），自己往里画
-            box.textContent = '这里是上半屏';
-        }
-    }
-});
-```
-
-- `mount` 只在**真的需要画**的时候被调用：切回主页、模块开关变动、`ellipse.refresh()`。
-  平时从主页切到记录页再切回来**不会重画**，所以你画在里面的东西（滚动位置、
-  输入到一半的字、正在进行的请求）都留着。
-- 一个模块**只能有一个** `homeBlock`。形状不对（不是对象、`mount` 不是函数）会被当成
-  「没有」，不会让页面崩。
-- 挂上之后，主页会切成「上下两半」的样子，上半屏那块从 `hidden` 变成可见；
-  模块被关掉时整块被清空并重新隐藏，主页回到一字不差的原样。
-- **下半屏不是你的**：字标、设置按钮、右侧竖栏在任何情况下都由核心掌管，别去动它们。
-  上半屏的右边留了 56px 给右侧竖栏（窄屏 52px），自己排版时别把内容顶到那儿去。
 
 ---
 

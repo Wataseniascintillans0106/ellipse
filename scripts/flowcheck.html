@@ -24,7 +24,7 @@
                 }
                 return null;
             };
-            const chordText = (sel) => Array.from(d.querySelectorAll(sel || '#homeDock'))
+            const chordText = (sel) => Array.from(d.querySelectorAll(sel || '#viewPage'))
                 .map((n) => n.textContent).join('\n');
             try {
                 for (let i = 0; i < 60 && !d.querySelector('#rail .rail-item'); i++) await sleep(50);
@@ -35,22 +35,22 @@
                 t('返回按钮隐藏', d.getElementById('backHomeBtn').hidden);
 
                 const railItems = Array.from(d.querySelectorAll('#rail .rail-item'));
-                t('竖栏三个入口（波状图 + 日历及健康 + 状态记录）', railItems.length === 3,
+                t('竖栏四个入口（波状图 + 日历及健康 + 弦音 + 状态记录）', railItems.length === 4,
                     String(railItems.length));
-                t('从上到下是波状图、日历及健康、状态记录',
-                    railItems.length === 3 &&
+                t('从上到下是波状图、日历及健康、弦音、状态记录',
+                    railItems.length === 4 &&
                     railItems[0].getAttribute('data-rail-page') === 'trend' &&
                     railItems[1].getAttribute('data-rail-page') === 'calendar' &&
-                    railItems[2].getAttribute('data-act') === 'record');
-                if (railItems.length === 3) {
-                    const a = railItems[0].getBoundingClientRect();
-                    const b = railItems[1].getBoundingClientRect();
-                    const c = railItems[2].getBoundingClientRect();
-                    t('日历入口夹在波状图和状态记录中间', a.bottom <= b.top + 1 && b.bottom <= c.top + 1,
-                        a.bottom + ' / ' + b.top + ' / ' + b.bottom + ' / ' + c.top);
-                    t('三个入口一样大',
-                        Math.abs(a.height - b.height) <= 1 && Math.abs(b.height - c.height) <= 1,
-                        a.height + ' / ' + b.height + ' / ' + c.height);
+                    railItems[2].getAttribute('data-rail-page') === 'assistant' &&
+                    railItems[3].getAttribute('data-act') === 'record');
+                if (railItems.length === 4) {
+                    const boxes = railItems.map((n) => n.getBoundingClientRect());
+                    t('四个入口从上到下依次排开',
+                        boxes[0].bottom <= boxes[1].top + 1 && boxes[1].bottom <= boxes[2].top + 1 &&
+                        boxes[2].bottom <= boxes[3].top + 1,
+                        boxes.map((b) => b.top + '~' + b.bottom).join(' / '));
+                    t('四个入口一样大', boxes.every((b) => Math.abs(b.height - boxes[0].height) <= 1),
+                        boxes.map((b) => b.height).join(' / '));
                 }
                 t('竖栏无导出按钮', !d.querySelector('#rail [data-act="export-sheet"]'));
 
@@ -215,52 +215,71 @@
                 t('再点返回回到主页', !d.getElementById('viewHome').hidden);
                 t('主页上设置按钮恢复', !d.getElementById('settingsBtn').hidden);
 
-                say('== 设置里切换主页栏顺序 ==');
+                say('== 设置里挪主页栏的顺序 ==');
                 d.getElementById('settingsBtn').click();
                 await sleep(200);
                 const orderRow = d.querySelector('[data-rail-order-row]');
-                t('设置里有主页栏顺序这一行', !!orderRow);
-                t('默认选中「状态记录在下」', !!orderRow &&
-                    orderRow.querySelector('[data-rail-order="chart"]').classList.contains('on') &&
-                    !orderRow.querySelector('[data-rail-order="record"]').classList.contains('on'));
+                t('设置里有主页栏顺序这一块', !!orderRow);
+                const railRows = Array.from(orderRow.querySelectorAll('[data-rail-item]'));
+                t('四个入口各占一行、顺序和竖栏一致',
+                    railRows.map((n) => n.getAttribute('data-rail-item')).join(',') ===
+                    'trend,calendar,assistant,record',
+                    railRows.map((n) => n.getAttribute('data-rail-item')).join(','));
+                t('每行都能往上往下挪',
+                    railRows.every((n) => n.querySelectorAll('[data-rail-move]').length === 2));
+                t('第一行不能上移、最后一行不能下移',
+                    railRows[0].querySelector('[data-rail-move="up"]').disabled &&
+                    railRows[railRows.length - 1].querySelector('[data-rail-move="down"]').disabled);
+                t('中间那两行两头都能挪',
+                    !railRows[1].querySelector('[data-rail-move="up"]').disabled &&
+                    !railRows[1].querySelector('[data-rail-move="down"]').disabled);
 
-                orderRow.querySelector('[data-rail-order="record"]').click();
+                railRows[2].querySelector('[data-rail-move="up"]').click();
                 await sleep(200);
+                const afterRows = Array.from(d.querySelectorAll('[data-rail-order-row] [data-rail-item]'));
+                t('点完「上移」，设置里弦音就跑到日历前面',
+                    afterRows.map((n) => n.getAttribute('data-rail-item')).join(',') ===
+                    'trend,assistant,calendar,record',
+                    afterRows.map((n) => n.getAttribute('data-rail-item')).join(','));
                 d.getElementById('settingsClose').click();
                 await sleep(250);
                 const railAfter = Array.from(d.querySelectorAll('#rail .rail-item'));
-                t('切完「状态记录」跑到两个页面入口上面',
-                    railAfter.length === 3 &&
-                    railAfter[0].getAttribute('data-act') === 'record' &&
-                    railAfter[1].getAttribute('data-rail-page') === 'trend' &&
-                    railAfter[2].getAttribute('data-rail-page') === 'calendar');
-                if (railAfter.length === 3) {
-                    const ra = railAfter[0].getBoundingClientRect();
-                    const rb = railAfter[1].getBoundingClientRect();
-                    const rc = railAfter[2].getBoundingClientRect();
-                    t('画出来也是「状态记录」压在上面且两个页面入口顺序不变',
-                        ra.bottom <= rb.top + 1 && rb.bottom <= rc.top + 1,
-                        ra.bottom + ' vs ' + rb.top + ' vs ' + rc.top);
+                t('回主页，竖栏里弦音真的上去了',
+                    railAfter.length === 4 &&
+                    railAfter[0].getAttribute('data-rail-page') === 'trend' &&
+                    railAfter[1].getAttribute('data-rail-page') === 'assistant' &&
+                    railAfter[2].getAttribute('data-rail-page') === 'calendar' &&
+                    railAfter[3].getAttribute('data-act') === 'record');
+                if (railAfter.length === 4) {
+                    const boxes = railAfter.map((n) => n.getBoundingClientRect());
+                    t('画出来也是这个顺序',
+                        boxes[0].bottom <= boxes[1].top + 1 && boxes[1].bottom <= boxes[2].top + 1 &&
+                        boxes[2].bottom <= boxes[3].top + 1,
+                        boxes.map((b) => b.top + '~' + b.bottom).join(' / '));
                 }
+                t('这个顺序存进设置里了',
+                    JSON.parse(w.localStorage.getItem('ellipse.v1.settings')).ui.railOrder.join(',') ===
+                    'trend,assistant,calendar,record');
 
                 d.getElementById('settingsBtn').click();
                 await sleep(200);
-                d.querySelector('[data-rail-order="chart"]').click();
+                d.querySelector('[data-rail-item="assistant"] [data-rail-move="down"]').click();
                 await sleep(200);
                 d.getElementById('settingsClose').click();
                 await sleep(250);
                 const railBack = Array.from(d.querySelectorAll('#rail .rail-item'));
-                t('切回默认后顺序又回到波状图、日历、状态记录',
-                    railBack.length === 3 &&
+                t('再挪回来，顺序又回到波状图、日历、弦音、状态记录',
+                    railBack.length === 4 &&
                     railBack[0].getAttribute('data-rail-page') === 'trend' &&
                     railBack[1].getAttribute('data-rail-page') === 'calendar' &&
-                    railBack[2].getAttribute('data-act') === 'record');
-                if (railBack.length === 3) {
-                    const ba = railBack[0].getBoundingClientRect();
-                    const bb = railBack[1].getBoundingClientRect();
-                    const bc = railBack[2].getBoundingClientRect();
-                    t('画出来也回到原位', ba.bottom <= bb.top + 1 && bb.bottom <= bc.top + 1,
-                        ba.bottom + ' vs ' + bb.top + ' vs ' + bc.top);
+                    railBack[2].getAttribute('data-rail-page') === 'assistant' &&
+                    railBack[3].getAttribute('data-act') === 'record');
+                if (railBack.length === 4) {
+                    const boxes = railBack.map((n) => n.getBoundingClientRect());
+                    t('画出来也回到原位',
+                        boxes[0].bottom <= boxes[1].top + 1 && boxes[1].bottom <= boxes[2].top + 1 &&
+                        boxes[2].bottom <= boxes[3].top + 1,
+                        boxes.map((b) => b.top + '~' + b.bottom).join(' / '));
                 }
 
                 say('== 设置里关闭波状图 ==');
@@ -530,8 +549,8 @@
                 await sleep(300);
                 const foldKeys = Array.from(d.querySelectorAll('#settingsBody .set-group--fold'))
                     .map((n) => n.dataset.group);
-                t('模块栏分成三栏：数值图 → 日历及健康 → 状态记录',
-                    foldKeys.join(',') === 'chart,calendar,record', foldKeys.join(','));
+                t('模块栏分成四折：数值图 → 日历及健康 → 弦音 → 状态记录',
+                    foldKeys.join(',') === 'chart,calendar,assistant,record', foldKeys.join(','));
                 const calFold = d.querySelector('#settingsBody [data-group="calendar"]');
                 t('日历这一栏在', !!calFold);
                 t('栏里有四个日程类型开关 + 日历自己那一个',
@@ -654,10 +673,14 @@
                 await sleep(300);
                 groupMaster('calendar').click();
                 await sleep(300);
+                d.querySelector('[data-module-row="assistant"] [data-toggle]').click();
+                await sleep(300);
                 d.getElementById('settingsClose').click();
                 await sleep(300);
                 t('关掉日历这一栏，竖栏里的日历入口消失',
                     !d.querySelector('#rail [data-rail-page="calendar"]'));
+                t('关掉弦音，它的入口也没了',
+                    !d.querySelector('#rail [data-rail-page="assistant"]'));
                 t('没有别的入口时整条竖栏收起', d.getElementById('rail').hidden);
 
                 d.getElementById('settingsBtn').click();
@@ -666,10 +689,13 @@
                 await sleep(300);
                 groupMaster('calendar').click();
                 await sleep(300);
+                d.querySelector('[data-module-row="assistant"] [data-toggle]').click();
+                await sleep(300);
                 d.getElementById('settingsClose').click();
                 await sleep(300);
-                t('再打开，两个入口都回来',
+                t('再打开，三个入口都回来',
                     !!d.querySelector('#rail [data-rail-page="calendar"]') &&
+                    !!d.querySelector('#rail [data-rail-page="assistant"]') &&
                     !!d.querySelector('#rail [data-act="record"]'));
 
                 say('== 弦音：流式回话、确认卡、同意后真的写进去 ==');
@@ -706,39 +732,48 @@
                     return Promise.resolve(sse(['data: ']));
                 };
 
-                t('主页上有弦音那块', !!d.querySelector('#homeDock .chord'));
-                t('没填密钥时先说没接上', /还没接上/.test(chordText('#homeDock .chord-empty')));
+                t('主页上不再有弦音那块', !d.querySelector('#homeDock'));
+                t('主页还是老样子（字标还居中）', !!d.querySelector('#viewHome .wordmark'));
 
-                const dockEdge = d.getElementById('homeDock').getBoundingClientRect();
-                const railEl = d.getElementById('rail');
-                const railEdge = railEl.getBoundingClientRect();
-                const homeBox = d.getElementById('viewHome').getBoundingClientRect();
-                const markEdge = d.querySelector('#viewHome .wordmark').getBoundingClientRect();
-                const barEdge = d.querySelector('#homeDock .chord-bar').getBoundingClientRect();
-                const listEdge = d.querySelector('#homeDock #chordList').getBoundingClientRect();
-                const noteEdge = d.querySelector('#homeDock .chord-disclaimer').getBoundingClientRect();
-                t('聊天区占了上半屏，字标在下半屏',
-                    dockEdge.bottom <= markEdge.top + 1 && markEdge.top <= homeBox.bottom + 1,
-                    dockEdge.bottom + ' / ' + markEdge.top + ' / ' + homeBox.bottom);
-                t('聊天区确实占了半屏（不是细条）',
-                    dockEdge.height >= homeBox.height * 0.4,
-                    dockEdge.height + ' / ' + homeBox.height);
-                if (!railEl.hidden) {
-                    t('消息列表和输入条都没被右侧栏压住',
-                        Math.max(listEdge.right, barEdge.right) <= railEdge.left + 1,
-                        listEdge.right + ' / ' + barEdge.right + ' / ' + railEdge.left);
-                }
-                t('输入条在聊天区里，消息列表在它上面',
-                    barEdge.bottom <= dockEdge.bottom + 1 && listEdge.bottom <= barEdge.top + 1,
-                    barEdge.bottom + ' / ' + dockEdge.bottom + ' / ' + listEdge.bottom + ' / ' + barEdge.top);
-                t('免责小字在输入条下面、还在聊天区里',
-                    noteEdge.top >= barEdge.bottom - 1 && noteEdge.bottom <= dockEdge.bottom + 1,
-                    noteEdge.top + ' / ' + barEdge.bottom + ' / ' + noteEdge.bottom + ' / ' + dockEdge.bottom);
+                t('竖栏里有弦音入口', !!d.querySelector('#rail [data-rail-page="assistant"]'));
+                d.querySelector('#rail [data-rail-page="assistant"]').click();
+                await sleep(300);
+                say('== 弦音页：整屏聊天 ==');
+                t('进到弦音页了',
+                    !d.getElementById('viewPage').hidden && w.location.hash === '#page/assistant');
+                t('页标题写着弦音', d.getElementById('pageTitle').textContent === '弦音');
+                t('页里画出了聊天框', !!d.querySelector('#viewPage .chord'));
+                t('进了页面竖栏就收起来', d.getElementById('rail').hidden === true);
+                t('没填密钥时先说没接上', /还没接上/.test(chordText('#viewPage .chord-empty')));
+
+                const pageEdge = d.getElementById('viewPage').getBoundingClientRect();
+                const barEdge = d.querySelector('#viewPage .chord-bar').getBoundingClientRect();
+                const listEdge = d.querySelector('#viewPage #chordList').getBoundingClientRect();
+                const noteEdge = d.querySelector('#viewPage .chord-disclaimer').getBoundingClientRect();
+                const footNode = d.querySelector('#viewPage .foot-note');
+                t('聊天页占满整屏（不是一小条）',
+                    pageEdge.height >= 800 && pageEdge.height <= 846,
+                    pageEdge.height + ' cls=' + d.getElementById('viewPage').className +
+                    ' body=' + d.querySelector('#pageBody').getBoundingClientRect().height);
+                t('消息列表在上、输入条在下',
+                    listEdge.bottom <= barEdge.top + 1, listEdge.bottom + ' / ' + barEdge.top);
+                t('消息列表拿到了真正的空间（不是零高）',
+                    listEdge.height >= 200, listEdge.height);
+                t('免责小字在输入条下面',
+                    noteEdge.top >= barEdge.bottom - 1, noteEdge.top + ' / ' + barEdge.bottom);
+                t('免责小字就落在页面最底下',
+                    noteEdge.bottom <= pageEdge.bottom + 1 && noteEdge.bottom >= pageEdge.bottom - 40,
+                    noteEdge.bottom + ' / ' + pageEdge.bottom);
+                t('页脚那句「这一页只读」在这页藏起来了（弦音是会写记录的，说反了）',
+                    w.getComputedStyle(footNode).display === 'none');
+                t('输入条被钉在页面底部附近',
+                    barEdge.bottom >= pageEdge.bottom - 120,
+                    barEdge.bottom + ' / ' + pageEdge.bottom);
 
                 w.ellipse.settings.set('assistant', { apiKey: 'test-key', baseUrl: 'https://api.openai.com/v1' });
                 await sleep(250);
                 t('填上密钥后「还没接上」就收起来',
-                    !/还没接上/.test(chordText('#homeDock .chord-empty')));
+                    !/还没接上/.test(chordText('#viewPage .chord-empty')));
 
                 function typeIn(text) {
                     const box = d.getElementById('chordInput');
@@ -762,34 +797,34 @@
                 const before = JSON.stringify(w.ellipse.records.dataOf(day));
 
                 typeIn('昨晚睡了 6 个半小时');
-                for (let i = 0; i < 80 && !d.querySelector('#homeDock [data-chord="yes"]'); i++) await sleep(50);
+                for (let i = 0; i < 80 && !d.querySelector('#viewPage [data-chord="yes"]'); i++) await sleep(50);
 
                 t('我的话出现在气泡里',
-                    /昨晚睡了 6 个半小时/.test((d.querySelector('#homeDock .chord-msg--me') || {}).textContent || ''));
-                const said = Array.from(d.querySelectorAll('#homeDock .chord-msg--ai .chord-bubble'))
+                    /昨晚睡了 6 个半小时/.test((d.querySelector('#viewPage .chord-msg--me') || {}).textContent || ''));
+                const said = Array.from(d.querySelectorAll('#viewPage .chord-msg--ai .chord-bubble'))
                     .map((n) => n.textContent).join('\n');
                 t('弦音的话显示出来了', /记下了/.test(said));
-                t('没配置的提示已经收起来', !d.querySelector('#homeDock .chord-empty'));
+                t('没配置的提示已经收起来', !d.querySelector('#viewPage .chord-empty'));
                 t('指令块从没以文字形式露出来',
                     said.indexOf('`') < 0 && said.indexOf('ellipse') < 0 &&
                     said.indexOf('set-field') < 0 && said.indexOf('"do"') < 0,
                     said);
                 t('整个聊天区里都没有裸露的围栏',
-                    (d.querySelector('#homeDock #chordList').textContent || '').indexOf('`') < 0);
-                t('确认卡弹出来了', !!d.querySelector('#homeDock [data-chord="yes"]'));
+                    (d.querySelector('#viewPage #chordList').textContent || '').indexOf('`') < 0);
+                t('确认卡弹出来了', !!d.querySelector('#viewPage [data-chord="yes"]'));
                 t('卡上写清楚要填什么',
-                    /睡眠/.test((d.querySelector('#homeDock .chord-card') || {}).textContent || '') &&
-                    /6.5/.test((d.querySelector('#homeDock .chord-card') || {}).textContent || ''));
+                    /睡眠/.test((d.querySelector('#viewPage .chord-card') || {}).textContent || '') &&
+                    /6.5/.test((d.querySelector('#viewPage .chord-card') || {}).textContent || ''));
                 t('没点同意之前，一个字都没写进去',
                     JSON.stringify(w.ellipse.records.dataOf(day)) === before);
 
-                d.querySelector('#homeDock [data-chord="yes"]').click();
+                d.querySelector('#viewPage [data-chord="yes"]').click();
                 await sleep(250);
                 t('点了同意才真的写进记录', w.ellipse.records.dataOf(day).sleep.hours === 6.5,
                     String((w.ellipse.records.dataOf(day).sleep || {}).hours));
                 t('卡上留下「已执行」的痕迹',
-                    /已执行/.test((d.querySelector('#homeDock .chord-card') || {}).textContent || ''));
-                t('同意按钮收起来了', !d.querySelector('#homeDock [data-chord="yes"]'));
+                    /已执行/.test((d.querySelector('#viewPage .chord-card') || {}).textContent || ''));
+                t('同意按钮收起来了', !d.querySelector('#viewPage [data-chord="yes"]'));
 
                 say('== 弦音：读到记录前先请示，关着就直说 ==');
                 w.fetch = function (url) {
@@ -801,9 +836,9 @@
                 };
                 const asksBeforeRead = asks;
                 typeIn('我最近睡得怎么样');
-                await waitFor(() => /设置 · 弦音/.test(chordText('#homeDock .chord-card-done')));
+                await waitFor(() => /设置 · 弦音/.test(chordText('#viewPage .chord-card-done')));
                 t('读取开关关着时，卡上说清楚去哪儿开',
-                    /设置 · 弦音/.test(chordText('#homeDock .chord-card-done')));
+                    /设置 · 弦音/.test(chordText('#viewPage .chord-card-done')));
                 t('只花了拿到回话的那一次，没再为读记录多花一次',
                     asks === asksBeforeRead + 1, asks + ' / ' + (asksBeforeRead + 1));
 
@@ -824,16 +859,16 @@
                 w.ellipse.settings.set('assistant', { readAllow: true });
                 await sleep(200);
                 typeIn('我最近睡得怎么样');
-                await waitFor(() => d.querySelector('#homeDock [data-chord="trust"]'));
+                await waitFor(() => d.querySelector('#viewPage [data-chord="trust"]'));
                 t('开关打开后，卡上多出「以后不用再问」',
-                    !!d.querySelector('#homeDock [data-chord="trust"]'));
-                d.querySelector('#homeDock [data-chord="trust"]').checked = true;
-                d.querySelector('#homeDock [data-chord="yes"]').click();
-                await waitFor(() => /睡得还行/.test(chordText('#homeDock .chord-bubble')));
+                    !!d.querySelector('#viewPage [data-chord="trust"]'));
+                d.querySelector('#viewPage [data-chord="trust"]').checked = true;
+                d.querySelector('#viewPage [data-chord="yes"]').click();
+                await waitFor(() => /睡得还行/.test(chordText('#viewPage .chord-bubble')));
                 t('点同意后记录真的发过去了', sawDigest);
                 t('拿到记录后弦音接着说下去',
-                    /睡得还行/.test(chordText('#homeDock .chord-bubble')),
-                    chordText('#homeDock .chord-bubble'));
+                    /睡得还行/.test(chordText('#viewPage .chord-bubble')),
+                    chordText('#viewPage .chord-bubble'));
                 t('「以后不用再问」被记住了',
                     String(w.ellipse.settings.get('assistant').readTrusted) === 'sleep',
                     String(w.ellipse.settings.get('assistant').readTrusted));
@@ -842,27 +877,199 @@
                 const asksBeforeCrisis = asks;
                 typeIn('我不想活了');
                 await sleep(300);
-                t('出了求助卡', !!d.querySelector('#homeDock .chord-card--crisis'));
+                t('出了求助卡', !!d.querySelector('#viewPage .chord-card--crisis'));
                 t('求助卡上有热线和急救',
-                    /12356/.test((d.querySelector('#homeDock .chord-card--crisis') || {}).textContent || '') &&
-                    /120/.test((d.querySelector('#homeDock .chord-card--crisis') || {}).textContent || ''));
+                    /12356/.test((d.querySelector('#viewPage .chord-card--crisis') || {}).textContent || '') &&
+                    /120/.test((d.querySelector('#viewPage .chord-card--crisis') || {}).textContent || ''));
                 t('一个字都没发给 AI', asks === asksBeforeCrisis,
                     asks + ' / ' + asksBeforeCrisis);
                 w.fetch = realFetch;
 
+                say('== 弦音：贴一张照片发给 AI ==');
+                const chatH = w.document.documentElement.style.getPropertyValue('--chat-h');
+                t('量了真实可视高度写进 --chat-h（软键盘要靠它）',
+                    /^\d+px$/.test(chatH.trim()), chatH);
+
+                const attachBox = () => d.querySelector('#viewPage #chordAttach');
+                const makeFile = (name, ww, hh) => new Promise((res) => {
+                    const cv = d.createElement('canvas');
+                    cv.width = ww;
+                    cv.height = hh;
+                    const ctx = cv.getContext('2d');
+                    ctx.fillStyle = '#3fa07a';
+                    ctx.fillRect(0, 0, ww, hh);
+                    ctx.fillStyle = '#ffffff';
+                    ctx.fillRect(ww / 4, hh / 4, ww / 2, hh / 2);
+                    cv.toBlob((blob) => res(new w.File([blob], name, { type: 'image/png' })), 'image/png');
+                });
+                const feed = (file) => {
+                    const dt = new w.DataTransfer();
+                    dt.items.add(file);
+                    const input = d.getElementById('chordFile');
+                    input.files = dt.files;
+                    input.dispatchEvent(new w.Event('change', { bubbles: true }));
+                };
+
+                let sentBody = '';
+                w.fetch = function (url, opts) {
+                    asks++;
+                    if (String(url).indexOf('chat/completions') < 0) return realFetch.apply(w, arguments);
+                    sentBody = String((opts && opts.body) || '');
+                    return Promise.resolve(sse([parcel('我看到了，绿底、中间一块白。')]));
+                };
+                const lastMsg = () => {
+                    const arr = JSON.parse(sentBody).messages;
+                    return arr[arr.length - 1];
+                };
+
+                // 无头浏览器里 createImageBitmap 永远不返回（虚拟时钟不推图片解码），
+                // 摘掉它，逼 app 走自己那条 <img> 兜底路——两条路只差一次解码，后面都一样。
+                w.createImageBitmap = undefined;
+
+                feed(await makeFile('wo.png', 1400, 1000));
+                const shown = await waitFor(() => {
+                    const b = attachBox();
+                    return b && !b.hidden && b.querySelector('img') ? b : null;
+                });
+                t('选完照片，输入条上方露出预览', !!shown);
+                t('预览里已经缩成 JPEG（不是原来那张 PNG）',
+                    !!shown && /^data:image\/jpeg/.test(shown.querySelector('img').src),
+                    shown ? String(shown.querySelector('img').src).slice(0, 24) : '');
+
+                d.querySelector('#viewPage [data-chord="drop-photo"]').click();
+                await sleep(150);
+                t('点「去掉」预览就收起来', attachBox().hidden === true);
+
+                feed(await makeFile('wo.png', 1400, 1000));
+                await waitFor(() => attachBox() && !attachBox().hidden && attachBox().querySelector('img'));
+                d.getElementById('chordSend').click();
+                await waitFor(() => /绿底/.test(chordText('#viewPage .chord-bubble')));
+                t('不打字、只发照片也发得出去',
+                    /绿底/.test(chordText('#viewPage .chord-bubble')), chordText('#viewPage .chord-bubble'));
+                t('发完预览条就收起来了', attachBox().hidden === true);
+                t('气泡里画出了那张照片', !!d.querySelector('#viewPage .chord-msg--me .chord-pic-img'));
+                t('点气泡里的照片，弹出来看大图', (function () {
+                    const pic = d.querySelector('#viewPage .chord-pic-img');
+                    if (!pic) return false;
+                    pic.click();
+                    return d.getElementById('sheet').classList.contains('open') &&
+                        !!d.querySelector('#sheetBody .chord-view-img');
+                })());
+                d.getElementById('sheetClose').click();
+                await sleep(200);
+                t('看完大图能关掉', !d.getElementById('sheet').classList.contains('open'));
+
+                const outMsg = lastMsg();
+                t('只发照片时，「内容」是数组、里面只有图片段（没塞空的文字段）',
+                    Array.isArray(outMsg.content) && outMsg.content.length === 1 &&
+                    outMsg.content[0].type === 'image_url',
+                    JSON.stringify(outMsg).slice(0, 120));
+                t('请求体里那串图确实是张 JPEG',
+                    String(outMsg.content[0].image_url.url).indexOf('data:image/jpeg') === 0);
+
+                const stored = JSON.parse(w.localStorage.getItem('ellipse.v1.settings'))
+                    .mods.assistant.chat;
+                const mine = stored.filter((m) => m.role === 'user').pop();
+                t('存本机的那条有照片', !!(mine && mine.photo));
+                t('那张临时清楚图没有落盘', !!mine && mine.photoSend === undefined,
+                    JSON.stringify(mine || {}).slice(0, 80));
+                t('发给 AI 的比存本机的清楚',
+                    mine && mine.photo &&
+                    outMsg.content[0].image_url.url.length > mine.photo.length,
+                    (mine && mine.photo ? mine.photo.length : 0) + ' / ' +
+                    outMsg.content[0].image_url.url.length);
+                t('气泡里那张就是存本机那张（不是临时那张清楚图）',
+                    !!mine && !!mine.photo &&
+                    d.querySelector('#viewPage .chord-pic-img').getAttribute('src') === mine.photo);
+
+                sentBody = '';
+                typeIn('今天挺好的');
+                await waitFor(() => sentBody.indexOf('今天挺好的') >= 0);
+                t('纯文字那条还是普通字符串，没硬塞图片段',
+                    typeof lastMsg().content === 'string' && lastMsg().content === '今天挺好的',
+                    JSON.stringify(lastMsg()).slice(0, 120));
+
+                sentBody = '';
+                feed(await makeFile('wo.png', 1400, 1000));
+                await waitFor(() => attachBox() && !attachBox().hidden && attachBox().querySelector('img'));
+                typeIn('看看这张');
+                await waitFor(() => sentBody.indexOf('看看这张') >= 0);
+                t('又打字又贴图：文字段排在前、图片段排在后', (function () {
+                    const c = lastMsg().content;
+                    return Array.isArray(c) && c.length === 2 &&
+                        c[0].type === 'text' && c[0].text === '看看这张' &&
+                        c[1].type === 'image_url';
+                })(), JSON.stringify(lastMsg()).slice(0, 160));
+
+                say('== 弦音：哪个模型看不了图，要说人话 ==');
+                w.fetch = function (url, opts) {
+                    asks++;
+                    if (String(url).indexOf('chat/completions') < 0) return realFetch.apply(w, arguments);
+                    return Promise.resolve(new w.Response(
+                        JSON.stringify({ error: { message: 'invalid content type' } }),
+                        { status: 400, headers: { 'Content-Type': 'application/json' } }
+                    ));
+                };
+                feed(await makeFile('wo.png', 1400, 1000));
+                await waitFor(() => attachBox() && !attachBox().hidden && attachBox().querySelector('img'));
+                d.getElementById('chordSend').click();
+                await waitFor(() => /看不了图片/.test(chordText('#viewPage .chord-card-body')));
+                t('碰上看不了图的模型，说的是「换个支持图片的模型」',
+                    /看不了图片/.test(chordText('#viewPage .chord-card-body')) &&
+                    /gpt-4o/.test(chordText('#viewPage .chord-card-body')),
+                    chordText('#viewPage .chord-card-body').slice(0, 200));
+                t('这张卡还留着「再试一次」，没把人堵死',
+                    !!d.querySelector('#viewPage .chord-card-body + .chord-card-acts [data-chord="retry"]') ||
+                    !!d.querySelector('#viewPage [data-chord="retry"]'));
+
+                say('== 弦音：不是图片、读不出来的，都得挡住 ==');
+                w.fetch = realFetch;
+                const asksBeforeBad = asks;
+                feed(new w.File([new Uint8Array([1, 2, 3, 4])], 'x.heic', { type: 'image/heic' }));
+                await sleep(700);
+                t('读不出来的照片给一句人话',
+                    /读不出来/.test(d.getElementById('toast').textContent || ''),
+                    d.getElementById('toast').textContent || '');
+                t('读不出来的照片不会贴上去',
+                    attachBox().hidden === true);
+                feed(new w.File([new Uint8Array([1, 2])], 'note.txt', { type: 'text/plain' }));
+                await sleep(400);
+                t('不是图片的文件直接挡住',
+                    /这不是一张图片/.test(d.getElementById('toast').textContent || ''),
+                    d.getElementById('toast').textContent || '');
+                t('这两种都没惊动 AI', asks === asksBeforeBad, asks + ' / ' + asksBeforeBad);
+                w.fetch = realFetch;
+
                 say('== 弦音：关掉它，主页退回原样 ==');
+                d.getElementById('backHomeBtn').click();
+                await sleep(250);
+                const railTokens = () => Array.from(d.querySelectorAll('#rail .rail-item'))
+                    .map((n) => n.getAttribute('data-rail-page') || n.getAttribute('data-act'));
+                const railBefore = railTokens();
+                t('回主页时弦音还在竖栏里', railBefore.indexOf('assistant') >= 0, railBefore.join(','));
+
                 d.getElementById('settingsBtn').click();
                 await sleep(300);
                 d.querySelector('[data-module-row="assistant"] [data-toggle]').click();
                 await sleep(300);
                 d.getElementById('settingsClose').click();
                 await sleep(300);
-                t('聊天框消失', d.getElementById('homeDock').hidden === true);
-                t('主页回到上下居中的老样子',
-                    !d.getElementById('viewHome').classList.contains('home--docked'));
-                t('弦音那块从 DOM 里撤了', !d.querySelector('#homeDock .chord'));
-                t('下半屏还是老样子',
-                    !!d.querySelector('#viewHome .wordmark') && !!d.querySelector('#viewHome .org-line'));
+                t('关掉后竖栏里弦音入口没了', railTokens().indexOf('assistant') < 0, railTokens().join(','));
+                t('别的入口一个都没少',
+                    railTokens().join(',') === railBefore.filter((x) => x !== 'assistant').join(','),
+                    railTokens().join(','));
+                t('主页还是老样子',
+                    !!d.querySelector('#viewHome .wordmark') && !!d.querySelector('#viewHome .org-line') &&
+                    d.getElementById('viewHome').className.indexOf('home--docked') < 0);
+
+                d.getElementById('settingsBtn').click();
+                await sleep(300);
+                d.querySelector('[data-module-row="assistant"] [data-toggle]').click();
+                await sleep(300);
+                d.getElementById('settingsClose').click();
+                await sleep(300);
+                t('再打开，弦音回到竖栏原来的位置',
+                    railTokens().join(',') === railBefore.join(','), railTokens().join(','));
 
                 say('DONE');
             } catch (err) {

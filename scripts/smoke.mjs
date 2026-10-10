@@ -253,9 +253,9 @@ ok('页面型模块要 mount（校验器拦得住没 mount 的）',
     validateDefinition({ apiVersion: 1, id: 'x', name: 'X', kind: 'page' }).ok === false);
 ok('页面型模块不占记录页的卡片位', registry.cardOrder().indexOf('trend') < 0,
     registry.cardOrder().join(','));
-ok('它是主页竖栏里的一个入口', registry.pageModules().join(',') === 'trend,calendar',
+ok('它是主页竖栏里的一个入口', registry.pageModules().join(',') === 'trend,calendar,assistant',
     registry.pageModules().join(','));
-ok('AI 助手是个服务型模块', getModule('assistant').kind === 'service');
+ok('弦音也是个页面型模块', getModule('assistant').kind === 'page');
 ok('服务型模块不占记录页的位置', registry.cardOrder().indexOf('assistant') < 0);
 ok('出图模块为 4 个（日记除外）', registry.chartModules(enabledOrder()).length === 4,
     registry.chartModules(enabledOrder()).map((m) => m.id).join(','));
@@ -270,8 +270,9 @@ const cal = getModule('calendar');
 const { setSettings } = await import('../assets/js/storage.js');
 
 ok('日历是个页面型模块', !!cal && cal.kind === 'page' && cal.name === '日历及健康');
-ok('日历排在波状图后面、记录模块前面',
-    registry.pageModules().join(',') === 'trend,calendar', registry.pageModules().join(','));
+ok('日历排在波状图后面、弦音前面',
+    registry.pageModules().join(',') === 'trend,calendar,assistant',
+    registry.pageModules().join(','));
 ok('日历不占记录页的卡片位', registry.cardOrder().indexOf('calendar') < 0);
 ok('四个日程类型都注册上了', registry.eventModules().join(',') === 'med,visit,revisit,checkup',
     registry.eventModules().join(','));
@@ -471,7 +472,7 @@ if (existsSync(logPath)) {
     try { new TextDecoder('utf-8', { fatal: true }).decode(log); } catch (err) { decodes = false; }
     ok('内容是真 UTF-8（存成 ANSI 的话别人的记事本会乱码）', decodes,
         '在记事本里"另存为"时编码选 UTF-8');
-    ok('记了最新那一版', log.toString('utf8').indexOf('v0.4.0') >= 0);
+    ok('记了最新那一版', log.toString('utf8').indexOf('v0.5.0') >= 0);
 }
 
 console.log('\n[11] 弦音的脑子（chat.js 纯函数）');
@@ -638,17 +639,32 @@ ok('md 记下了哪条执行了', chordMd.indexOf('> 已执行：填一条状态
 ok('md 给求助卡单独一节', chordMd.indexOf('### 10:00 求助卡') >= 0);
 ok('空的聊天记录也导得出来', chat.chatMarkdown([]).indexOf('还没有聊过') >= 0);
 
-console.log('\n[12] 弦音：主页插槽与导出提醒');
+console.log('\n[12] 弦音：独立页面与导出提醒');
 
-const blocks = registry.homeBlocks();
-ok('关掉的模块不占主页', blocks.every((d) => registry.isEnabled(d.id)));
-ok('开着弦音时主页插槽就是它', blocks.length === 1 && blocks[0].id === 'assistant');
-ok('插槽有 order 好排序', Number.isFinite(Number(blocks[0].homeBlock.order)));
-ok('没写 homeBlock 的模块不会被塞进来',
-    registry.all().filter((d) => !d.homeBlock).length > 0 &&
-    blocks.every((d) => !!d.homeBlock));
-ok('形状不对的 homeBlock 会被丢掉，不会崩',
-    registry.get('assistant').homeBlock.mount instanceof Function);
+const chordDef = registry.get('assistant');
+ok('弦音是独立的一页', chordDef.kind === 'page');
+ok('页面得能画出来', chordDef.mount instanceof Function);
+ok('聊天页有自己的整屏样式', chordDef.pageClass === 'page--chat');
+ok('它自己占一折设置', chordDef.group === 'assistant' && chordDef.groupTitle === '弦音');
+ok('关掉的模块不进竖栏',
+    registry.pageModules().every((id) => registry.isEnabled(id)));
+
+console.log('');
+ok('竖栏顺序：没存过就按现有的排',
+    registry.mergeOrder(null, ['trend', 'calendar', 'assistant', 'record']).join(',') ===
+    'trend,calendar,assistant,record');
+ok('竖栏顺序：存过的顺序说了算',
+    registry.mergeOrder(['assistant', 'record', 'trend', 'calendar'],
+        ['trend', 'calendar', 'assistant', 'record']).join(',') ===
+    'assistant,record,trend,calendar');
+ok('竖栏顺序：新冒出来的入口补在后面',
+    registry.mergeOrder(['record'], ['trend', 'calendar', 'assistant', 'record']).join(',') ===
+    'record,trend,calendar,assistant');
+ok('竖栏顺序：关掉的入口自动消失',
+    registry.mergeOrder(['trend', 'calendar', 'assistant', 'record'],
+        ['trend', 'calendar', 'assistant']).join(',') === 'trend,calendar,assistant');
+ok('竖栏顺序：存了个空的就当没存',
+    registry.mergeOrder([], ['trend', 'record']).join(',') === 'trend,record');
 
 const { remindDue } = await import('../assets/js/export.js');
 ok('刚记完不提醒',
@@ -692,6 +708,89 @@ ok('聊天那边单独算',
         remind: {}
     }) || {}).chat !== null);
 ok('一键备份的文件名认得出是备份', suggestFilename('chat').indexOf('ellipse-chord-') === 0);
+
+console.log('\n[13] 发照片：缩图、存本机、拼给 AI');
+
+const chord = await import('../assets/js/modules/assistant.js');
+
+ok('横着的大图按长边缩（4000×3000 → 1568×1176）',
+    JSON.stringify(chord.fitSize(4000, 3000, 1568)) === JSON.stringify({ w: 1568, h: 1176 }),
+    JSON.stringify(chord.fitSize(4000, 3000, 1568)));
+ok('竖着的大图也按长边缩（1200×4000 → 470×1568）',
+    JSON.stringify(chord.fitSize(1200, 4000, 1568)) === JSON.stringify({ w: 470, h: 1568 }),
+    JSON.stringify(chord.fitSize(1200, 4000, 1568)));
+ok('方图按边长缩', JSON.stringify(chord.fitSize(2000, 2000, 480)) ===
+    JSON.stringify({ w: 480, h: 480 }), JSON.stringify(chord.fitSize(2000, 2000, 480)));
+ok('本来就小的图原样不动，绝不放大',
+    JSON.stringify(chord.fitSize(100, 80, 480)) === JSON.stringify({ w: 100, h: 80 }),
+    JSON.stringify(chord.fitSize(100, 80, 480)));
+ok('刚好卡在顶上的也不动',
+    JSON.stringify(chord.fitSize(480, 480, 480)) === JSON.stringify({ w: 480, h: 480 }));
+ok('宽窄极端的长条也不会缩成 0',
+    chord.fitSize(9000, 3, 480).h === 1 && chord.fitSize(9000, 3, 480).w === 480,
+    JSON.stringify(chord.fitSize(9000, 3, 480)));
+ok('尺寸填了怪东西也不崩', chord.fitSize(0, 0, 480).w === 1);
+
+const pic = (n) => ({ id: 'm' + n, role: 'user', text: '', photo: 'x'.repeat(100) });
+ok('没照片的聊天一点照片字节都不算',
+    chord.photoBytes([{ id: 'a', text: '在' }, { id: 'b', text: '好' }]) === 0);
+ok('算得准照片占了多少字节', chord.photoBytes([pic(1), { id: 'z' }, pic(2)]) === 200);
+
+const smallLog = [pic(1), pic(2)];
+ok('没超预算就一张都不动',
+    chord.trimPhotos(smallLog, 1000000).dropped === 0 &&
+    chord.trimPhotos(smallLog, 1000000).list[0].photo === smallLog[0].photo);
+ok('超了预算就从最旧的开始丢', (function () {
+    const r = chord.trimPhotos([pic(1), pic(2), pic(3)], 250);
+    return r.dropped === 1 && r.list[0].photo === null &&
+        r.list[1].photo && r.list[2].photo;
+})(), JSON.stringify(chord.trimPhotos([pic(1), pic(2), pic(3)], 250).list.map((m) => !!m.photo)));
+ok('丢得狠一点就把旧的都丢掉、最新的保住', (function () {
+    const r = chord.trimPhotos([pic(1), pic(2), pic(3)], 100);
+    return r.dropped === 2 && !!r.list[2].photo;
+})(), JSON.stringify(chord.trimPhotos([pic(1), pic(2), pic(3)], 100).list.map((m) => !!m.photo)));
+ok('丢的时候只丢照片、文字留着',
+    chord.trimPhotos([{ id: 'm1', role: 'user', text: '昨晚睡得不好', photo: 'x'.repeat(100) }], 10)
+        .list[0].text === '昨晚睡得不好');
+ok('丢过的照片留个记号，界面上好写「没有留底」',
+    chord.trimPhotos([pic(1)], 10).list[0].photoDropped === true);
+ok('没照片的消息原样不动',
+    chord.trimPhotos([{ id: 'a', text: '在' }], 0).list[0].text === '在');
+
+ok('只打字：给 AI 的还是普通字符串',
+    JSON.stringify(chat.toApiMessage({ role: 'user', raw: '睡得好' })) ===
+    JSON.stringify({ role: 'user', content: '睡得好' }),
+    JSON.stringify(chat.toApiMessage({ role: 'user', raw: '睡得好' })));
+ok('弦音的回话也是字符串',
+    chat.toApiMessage({ role: 'ai', text: '嗯' }).content === '嗯' &&
+    chat.toApiMessage({ role: 'ai', text: '嗯' }).role === 'assistant');
+ok('带照片时 content 变成数组', Array.isArray(
+    chat.toApiMessage({ role: 'user', raw: '看看', photo: 'data:image/jpeg;base64,AAA' }).content));
+ok('先说字、再给图（顺序不能反）', (function () {
+    const c = chat.toApiMessage({ role: 'user', raw: '看看这个', photo: 'D' }).content;
+    return c.length === 2 && c[0].type === 'text' && c[0].text === '看看这个' &&
+        c[1].type === 'image_url' && c[1].image_url.url === 'D';
+})(), JSON.stringify(chat.toApiMessage({ role: 'user', raw: '看看这个', photo: 'D' }).content));
+ok('只发照片不打字：不给空的文字段（有些接口会顶回来）', (function () {
+    const c = chat.toApiMessage({ role: 'user', raw: '', photo: 'D' }).content;
+    return c.length === 1 && c[0].type === 'image_url';
+})(), JSON.stringify(chat.toApiMessage({ role: 'user', raw: '', photo: 'D' }).content));
+ok('发给 AI 用清楚那张、存本机用小的那张', (function () {
+    const c = chat.toApiMessage({ role: 'user', raw: 'x', photo: 'SMALL', photoSend: 'BIG' }).content;
+    return c[c.length - 1].image_url.url === 'BIG';
+})(), JSON.stringify(chat.toApiMessage({ role: 'user', raw: 'x', photo: 'S', photoSend: 'B' }).content));
+ok('临时那张没了就退回本机那张', (function () {
+    const c = chat.toApiMessage({ role: 'user', raw: 'x', photo: 'SMALL' }).content;
+    return c[c.length - 1].image_url.url === 'SMALL';
+})(), JSON.stringify(chat.toApiMessage({ role: 'user', raw: 'x', photo: 'SMALL' }).content));
+ok('照片被清理过的消息，还是按纯文字发出去',
+    chat.toApiMessage({ role: 'user', raw: '看看', photo: null, photoDropped: true }).content === '看看');
+ok('导出 md 时带照片的消息标一下，别留个空格子',
+    chat.chatMarkdown([{ id: 'm1', role: 'user', at: '2026-10-10T09:00:00', text: '看看',
+        photo: 'D' }]).indexOf('［照片］') >= 0);
+ok('没留底的照片导出时也说得明白',
+    chat.chatMarkdown([{ id: 'm1', role: 'user', at: '2026-10-10T09:00:00', text: '',
+        photoDropped: true }]).indexOf('没留底') >= 0);
 
 console.log('\n' + (fails ? '有 ' + fails + ' 项未通过' : '全部通过'));
 process.exit(fails ? 1 : 0);

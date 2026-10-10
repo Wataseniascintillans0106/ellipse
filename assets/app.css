@@ -74,34 +74,6 @@ body.is-locked { overflow: hidden; }
 
 .home-block { text-align: center; }
 
-.home-dock { display: flex; flex-direction: column; min-height: 0; }
-.home-dock[hidden] { display: none; }
-
-.home--docked {
-    flex-direction: column;
-    align-items: stretch;
-    justify-content: flex-start;
-    height: 100%;
-    padding-bottom: calc(18px + env(safe-area-inset-bottom));
-}
-
-.home--docked .home-dock {
-    flex: 1 1 50%;
-    min-height: 0;
-    padding-right: 56px;
-}
-
-.home-dock-block { display: flex; flex-direction: column; min-height: 0; height: 100%; }
-
-.home--docked .home-block {
-    flex: 1 1 50%;
-    min-height: 0;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-}
-
 .home .wordmark {
     margin: 0;
     font-size: 15px;
@@ -123,6 +95,26 @@ body.is-locked { overflow: hidden; }
 }
 
 .page-view .page-head { margin-bottom: 0; }
+
+.page-view.page--chat {
+    height: var(--chat-h, 100%);
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    padding-bottom: calc(14px + env(safe-area-inset-bottom));
+}
+
+.page--chat .page-body {
+    flex: 1 1 auto;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    padding-top: 4px;
+}
+
+.page--chat .chord { flex: 1 1 auto; min-height: 0; }
+
+.page--chat .foot-note { display: none; }
 
 .page-head { margin-bottom: 20px; }
 
@@ -904,6 +896,11 @@ body.is-locked .page-back { pointer-events: none; }
 .order-btn svg { width: 15px; height: 15px; display: block; }
 .order-btn:hover { background: rgba(43, 43, 40, 0.05); }
 .order-btn[disabled] { opacity: 0.26; pointer-events: none; }
+
+.rail-order .set-row--rail { padding: 9px 0; gap: 10px; }
+.rail-order .set-row--rail .module-mark svg { width: 18px; height: 18px; }
+.rail-order .set-row--rail .order-btn { width: 28px; height: 28px; }
+.rail-order .set-row--rail .order-btn svg { width: 13px; height: 13px; }
 
 .set-input {
     width: 100%;
@@ -1758,6 +1755,85 @@ body.is-locked .cal-search-btn { pointer-events: none; }
 .chord-send svg,
 .chord-stop svg { display: block; width: 18px; height: 18px; }
 
+.chord-photo {
+    flex: 0 0 auto;
+    width: 40px;
+    height: 40px;
+    padding: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: 1px solid var(--line-2);
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.8);
+    color: var(--ink-2);
+    cursor: pointer;
+    transition: background 0.18s ease, transform 0.15s ease;
+}
+.chord-photo:hover { background: rgba(43, 43, 40, 0.07); }
+.chord-photo:active { transform: scale(0.93); }
+.chord-photo[disabled] { opacity: 0.45; cursor: default; }
+.chord-photo svg { display: block; width: 18px; height: 18px; }
+
+.chord-file { display: none; }
+
+.chord-attach {
+    flex: 0 0 auto;
+    display: flex;
+    gap: 8px;
+    padding: 8px 0 0;
+}
+.chord-attach[hidden] { display: none; }
+
+.chord-thumb {
+    position: relative;
+    width: 48px;
+    height: 48px;
+}
+.chord-thumb-img {
+    display: block;
+    width: 48px;
+    height: 48px;
+    object-fit: cover;
+    border-radius: 10px;
+    border: 1px solid var(--line-2);
+}
+.chord-thumb-x {
+    position: absolute;
+    top: -6px;
+    right: -6px;
+    width: 18px;
+    height: 18px;
+    padding: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: none;
+    border-radius: 50%;
+    background: rgba(43, 43, 40, 0.72);
+    color: #fff;
+    cursor: pointer;
+}
+.chord-thumb-x svg { display: block; width: 11px; height: 11px; }
+
+.chord-pic { margin: 0 0 6px; }
+.chord-msg--me .chord-pic { text-align: right; }
+.chord-pic-img {
+    display: inline-block;
+    max-width: 100%;
+    max-height: 260px;
+    border-radius: 14px;
+    border: 1px solid var(--line-2);
+    cursor: zoom-in;
+}
+.chord-pic--gone {
+    font-size: 11px;
+    letter-spacing: 0.5px;
+    color: var(--ink-2);
+}
+
+.chord-view-img { display: block; width: 100%; height: auto; border-radius: 12px; }
+
 .chord-disclaimer {
     flex: 0 0 auto;
     margin: 7px 0 0;
@@ -1775,7 +1851,6 @@ body.is-locked .cal-search-btn { pointer-events: none; }
     .scale-cell { height: 32px; font-size: 11.5px; border-radius: 8px; }
     .cal-month { font-size: 16px; letter-spacing: 1.6px; }
     .cal-time { width: 36px; }
-    .home--docked .home-dock { padding-right: 52px; }
 }
 
 @media (prefers-reduced-motion: reduce) {

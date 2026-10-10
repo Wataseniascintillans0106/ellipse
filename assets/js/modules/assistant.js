@@ -1,15 +1,50 @@
 import { isConfigured, isTrustedEndpoint, getAiConfig, polishText, chatStream } from '../ai.js';
 import {
     crisisHit, crisisReply, splitReply, proseSoFar, parseActions,
-    validateAction, describeAction, readDigest, buildSystemPrompt, chatMarkdown
+    validateAction, describeAction, readDigest, buildSystemPrompt, chatMarkdown, toApiMessage
 } from '../chat.js';
 import { suggestFilename } from '../export.js';
 import { todayKey, toKey, pad2, escapeHtml } from '../util.js';
+import { KEY_SETTINGS } from '../storage.js';
 
 const MOD_ID = 'assistant';
 const MAX_KEEP = 2000;
 const HISTORY = 30;
 const MAX_TURNS = 3;
+
+const IMG_LIMIT = 30 * 1024 * 1024;
+const REQ_MAX = 1568;
+const REQ_Q = 0.85;
+const THUMB_MAX = 480;
+const THUMB_Q = 0.6;
+const PHOTO_BUDGET = 1200 * 1024;
+
+export function fitSize(w, h, max) {
+    const cw = Math.max(1, Number(w) || 1);
+    const ch = Math.max(1, Number(h) || 1);
+    if (cw <= max && ch <= max) return { w: cw, h: ch };
+    const k = max / Math.max(cw, ch);
+    return { w: Math.max(1, Math.round(cw * k)), h: Math.max(1, Math.round(ch * k)) };
+}
+
+export function photoBytes(list) {
+    return (Array.isArray(list) ? list : []).reduce(function (n, m) {
+        return n + (m && m.photo ? String(m.photo).length : 0);
+    }, 0);
+}
+
+export function trimPhotos(list, budget) {
+    const out = (Array.isArray(list) ? list : []).slice();
+    let used = photoBytes(out);
+    let dropped = 0;
+    for (let i = 0; i < out.length && used > budget; i++) {
+        if (!out[i] || !out[i].photo) continue;
+        used -= String(out[i].photo).length;
+        out[i] = Object.assign({}, out[i], { photo: null, photoDropped: true });
+        dropped++;
+    }
+    return { list: out, dropped: dropped };
+}
 
 const SUGGESTIONS = [
     '帮我把今天的睡眠记一下：睡了 6 个半小时，还行',
@@ -25,6 +60,8 @@ let typingTimer = 0;
 let pending = null;
 let wired = false;
 let wiredOn = null;
+let pendingPhoto = null;
+let viewportOff = null;
 
 function A() { return globalThis.ellipse; }
 
@@ -40,7 +77,7 @@ function watchConfig() {
         const now = isConfigured();
         if (now === wiredOn) return;
         wiredOn = now;
-        if (rootEl && !busy) paint();
+        if (rootEl && rootEl.offsetParent && !busy) paint();
     });
 }
 
@@ -63,9 +100,48 @@ function load() {
     });
 }
 
+function lastId() {
+    return log.length ? log[log.length - 1].id : '';
+}
+
+function savedOnDisk() {
+    const want = lastId();
+    if (!want) return true;
+    try {
+        const box = JSON.parse(globalThis.localStorage.getItem(KEY_SETTINGS) || '');
+        const chat = box && box.mods && box.mods.assistant && box.mods.assistant.chat;
+        return Array.isArray(chat) && chat.some(function (m) { return m.id === want; });
+    } catch (err) {
+        return false;
+    }
+}
+
+function dropNewestPhoto() {
+    for (let i = log.length - 1; i >= 0; i--) {
+        if (log[i] && log[i].photo) {
+            log[i] = Object.assign({}, log[i], { photo: null, photoDropped: true });
+            return true;
+        }
+    }
+    return false;
+}
+
 function save() {
     const over = log.length - MAX_KEEP;
-    A().settings.set(MOD_ID, { chat: over > 0 ? log.slice(over) : log });
+    if (over > 0) log = log.slice(over);
+    const trimmed = trimPhotos(log, PHOTO_BUDGET);
+    log = trimmed.list;
+    log.forEach(function (m) { if (m.photoSend) delete m.photoSend; });
+    A().settings.set(MOD_ID, { chat: log });
+    if (trimmed.dropped) A().toast('照片太多了，早一些的照片没再留底');
+    if (!log.some(function (m) { return !!m.photo; })) return;
+    if (savedOnDisk()) return;
+    if (dropNewestPhoto()) {
+        A().settings.set(MOD_ID, { chat: log });
+        A().toast(savedOnDisk() ? '这台设备存不下照片了，这张没留底' : '这台设备存不下新的聊天内容了');
+        return;
+    }
+    A().toast('这台设备存不下新的聊天内容了');
 }
 
 function recordWorld() {
@@ -119,12 +195,7 @@ function apiMessages(extra) {
     const out = [{ role: 'system', content: buildSystemPrompt(world()) }];
     log.filter(function (m) {
         return m.role !== 'crisis' && !m.pending && !m.error;
-    }).slice(-HISTORY).forEach(function (m) {
-        out.push({
-            role: m.role === 'user' ? 'user' : 'assistant',
-            content: String(m.raw || m.text || '')
-        });
-    });
+    }).slice(-HISTORY).forEach(function (m) { out.push(toApiMessage(m)); });
     if (extra) out.push(extra);
     return out;
 }
@@ -317,6 +388,26 @@ function msgNode(m) {
     if (m.error) {
         col.appendChild(retryCard(m));
     } else {
+        if (m.photo || m.photoDropped) {
+            const pic = document.createElement('div');
+            pic.className = 'chord-pic' + (m.photo ? '' : ' chord-pic--gone');
+            if (m.photo) {
+                const img = document.createElement('img');
+                img.className = 'chord-pic-img';
+                img.src = m.photo;
+                img.alt = '照片';
+                img.dataset.chord = 'view-photo';
+                img.dataset.msg = m.id;
+                img.addEventListener('error', function () {
+                    pic.className = 'chord-pic chord-pic--gone';
+                    pic.textContent = '（这张照片没有留底）';
+                });
+                pic.appendChild(img);
+            } else {
+                pic.textContent = '（这张照片没有留底）';
+            }
+            col.appendChild(pic);
+        }
         const bubble = document.createElement('div');
         bubble.className = 'chord-bubble';
         if (m.pending && !m.text) {
@@ -383,9 +474,100 @@ function setBusy(on) {
     const send = rootEl.querySelector('#chordSend');
     const stop = rootEl.querySelector('#chordStop');
     const input = rootEl.querySelector('#chordInput');
+    const photo = rootEl.querySelector('#chordPhoto');
     if (send) send.hidden = on;
     if (stop) stop.hidden = !on;
     if (input) input.disabled = on;
+    if (photo) photo.disabled = on;
+}
+
+function drawTo(bitmap, max, q) {
+    const w = bitmap.naturalWidth || bitmap.width;
+    const h = bitmap.naturalHeight || bitmap.height;
+    const size = fitSize(w, h, max);
+    const cv = document.createElement('canvas');
+    cv.width = size.w;
+    cv.height = size.h;
+    const ctx = cv.getContext('2d');
+    ctx.drawImage(bitmap, 0, 0, size.w, size.h);
+    return cv.toDataURL('image/jpeg', q);
+}
+
+function decodeViaImg(file) {
+    return new Promise(function (resolve, reject) {
+        const url = URL.createObjectURL(file);
+        const img = new Image();
+        img.onload = function () { URL.revokeObjectURL(url); resolve(img); };
+        img.onerror = function () { URL.revokeObjectURL(url); reject(new Error('读不出来')); };
+        img.src = url;
+    });
+}
+
+function decodeImage(file) {
+    if (typeof globalThis.createImageBitmap === 'function') {
+        return globalThis.createImageBitmap(file, { imageOrientation: 'from-image' })
+            .catch(function () { return decodeViaImg(file); });
+    }
+    return decodeViaImg(file);
+}
+
+function renderPending() {
+    const box = rootEl ? rootEl.querySelector('#chordAttach') : null;
+    if (!box) return;
+    box.innerHTML = '';
+    if (!pendingPhoto) { box.hidden = true; return; }
+    box.hidden = false;
+    const thumb = document.createElement('div');
+    thumb.className = 'chord-thumb';
+    const img = document.createElement('img');
+    img.className = 'chord-thumb-img';
+    img.src = pendingPhoto.thumb;
+    img.alt = '待发的照片';
+    const x = document.createElement('button');
+    x.type = 'button';
+    x.className = 'chord-thumb-x';
+    x.dataset.chord = 'drop-photo';
+    x.setAttribute('aria-label', '去掉这张照片');
+    x.innerHTML = A().icon('close');
+    thumb.appendChild(img);
+    thumb.appendChild(x);
+    box.appendChild(thumb);
+}
+
+async function attachPhoto(file) {
+    if (!file) return;
+    if (!/^image\//.test(file.type || '')) { A().toast('这不是一张图片'); return; }
+    if (file.size > IMG_LIMIT) { A().toast('照片太大了，换一张小一点的'); return; }
+    let bmp = null;
+    try {
+        bmp = await decodeImage(file);
+    } catch (err) {
+        A().toast('这张照片读不出来，换一张 JPG 或 PNG 试试');
+        return;
+    }
+    const req = drawTo(bmp, REQ_MAX, REQ_Q);
+    const thumb = drawTo(bmp, THUMB_MAX, THUMB_Q);
+    if (typeof bmp.close === 'function') bmp.close();
+    pendingPhoto = { req: req, thumb: thumb };
+    renderPending();
+    scrollBottom();
+}
+
+function watchViewport() {
+    if (viewportOff) { viewportOff(); viewportOff = null; }
+    const vv = globalThis.visualViewport;
+    if (!vv) return;
+    const apply = function () {
+        document.documentElement.style.setProperty('--chat-h', Math.round(vv.height) + 'px');
+    };
+    vv.addEventListener('resize', apply);
+    vv.addEventListener('scroll', apply);
+    viewportOff = function () {
+        vv.removeEventListener('resize', apply);
+        vv.removeEventListener('scroll', apply);
+        document.documentElement.style.removeProperty('--chat-h');
+    };
+    apply();
 }
 
 function reveal(holder, acc) {
@@ -395,6 +577,16 @@ function reveal(holder, acc) {
     const cut = splitReply(acc);
     streamTo(bubble, cut.found ? cut.prose : proseSoFar(acc));
     scrollBottom();
+}
+
+function turnNote(messages, err) {
+    const said = msg(err);
+    const hadPhoto = (messages || []).some(function (m) { return Array.isArray(m.content); });
+    if (hadPhoto && /返回 4\d\d/.test(said)) {
+        return '这个模型看不了图片（' + said + '）。' +
+            '到「设置 · 弦音」里换一个支持图片的模型，比如 gpt-4o 或 gpt-4o-mini。';
+    }
+    return '没连上：' + said;
 }
 
 async function runTurn(messages, budget) {
@@ -418,7 +610,7 @@ async function runTurn(messages, budget) {
         holder.pending = false;
         holder.error = true;
         holder.text = '';
-        holder.note = '没连上：' + msg(err);
+        holder.note = turnNote(messages, err);
         paint();
         save();
     } finally {
@@ -601,9 +793,16 @@ function handleChord(evt) {
     }
     if (what === 'say') { send(node.dataset.text || ''); return; }
     if (what === 'stop') { if (ctrl) ctrl.abort(); return; }
+    if (what === 'drop-photo') { pendingPhoto = null; renderPending(); return; }
 
     const holder = log.filter(function (m) { return m.id === node.dataset.msg; })[0];
     if (!holder) return;
+
+    if (what === 'view-photo') {
+        if (holder.photo) A().sheet.open('照片', '<img class="chord-view-img" alt="照片" src="' +
+            holder.photo + '">', '');
+        return;
+    }
 
     if (what === 'retry') {
         log = log.filter(function (m) { return m.id !== holder.id; });
@@ -642,11 +841,19 @@ function handleChord(evt) {
 
 function send(text) {
     const raw = String(text || '').trim();
-    if (!raw || busy) return;
+    if ((!raw && !pendingPhoto) || busy) return;
     const input = rootEl ? rootEl.querySelector('#chordInput') : null;
     if (input) { input.value = ''; input.style.height = ''; }
 
-    log.push({ id: uid(), role: 'user', text: raw, raw: raw, at: stamp() });
+    const line = { id: uid(), role: 'user', text: raw, raw: raw, at: stamp() };
+    if (pendingPhoto) {
+        line.photo = pendingPhoto.thumb;
+        line.photoSend = pendingPhoto.req;
+        pendingPhoto = null;
+        renderPending();
+    }
+    log.push(line);
+    const outbound = apiMessages();
 
     if (crisisHit(raw)) {
         const c = crisisReply();
@@ -672,7 +879,7 @@ function send(text) {
 
     paint();
     save();
-    runTurn(apiMessages(), MAX_TURNS);
+    runTurn(outbound, MAX_TURNS);
 }
 
 function exportChat() {
@@ -691,13 +898,19 @@ function wipeChat() {
 
 function mountChat(box) {
     rootEl = box;
+    pendingPhoto = null;
     load();
     watchConfig();
+    watchViewport();
 
     box.innerHTML =
         '<div class="chord">' +
         '<div class="chord-list" id="chordList"></div>' +
+        '<div class="chord-attach" id="chordAttach" hidden></div>' +
         '<form class="chord-bar" id="chordForm">' +
+        '<button class="chord-photo" id="chordPhoto" type="button" aria-label="发照片">' +
+        A().icon('photo') + '</button>' +
+        '<input class="chord-file" id="chordFile" type="file" accept="image/*" hidden>' +
         '<textarea class="chord-input" id="chordInput" rows="1" ' +
         'placeholder="说点什么…" aria-label="给弦音发消息"></textarea>' +
         '<button class="chord-send" id="chordSend" type="submit" aria-label="发送">' +
@@ -709,9 +922,23 @@ function mountChat(box) {
         '内容由 AI 生成，仅供参考，只辅助记录，不做任何医学判断。</p>' +
         '</div>';
     paint();
+    renderPending();
 
     const form = box.querySelector('#chordForm');
     const input = box.querySelector('#chordInput');
+    const photoBtn = box.querySelector('#chordPhoto');
+    const fileEl = box.querySelector('#chordFile');
+
+    if (photoBtn && fileEl) {
+        photoBtn.addEventListener('click', function () {
+            if (!busy) fileEl.click();
+        });
+        fileEl.addEventListener('change', function () {
+            const file = fileEl.files && fileEl.files[0];
+            fileEl.value = '';
+            attachPhoto(file);
+        });
+    }
 
     form.addEventListener('submit', function (evt) {
         evt.preventDefault();
@@ -733,6 +960,7 @@ function mountChat(box) {
     box.addEventListener('click', handleChord);
 
     if (busy) setBusy(true);
+    scrollBottom();
 }
 
 function setRow(title, desc, inner) {
@@ -744,7 +972,7 @@ function setRow(title, desc, inner) {
 }
 
 function statusText() {
-    if (!isConfigured()) return '当前状态：还没配置。填上 API Key 之后，主页上半屏就能聊了。';
+    if (!isConfigured()) return '当前状态：还没配置。填上 API Key 之后，这里就能聊了。';
     if (!isTrustedEndpoint()) return '当前状态：密钥有了，但接口地址不在可信名单里，浏览器可能会拦下这个请求。';
     return '当前状态：已配置，接口是 ' + getAiConfig().baseUrl + '。';
 }
@@ -829,16 +1057,17 @@ function runPolish(ctx) {
 ellipse.define({
     apiVersion: 1,
     id: 'assistant',
-    kind: 'service',
+    kind: 'page',
     name: '弦音',
     icon: 'note',
-    desc: '主页上半屏的聊天；能帮你记状态、排日程，动手之前先问你',
+    note: '能陪你说话、帮你记状态、排日程',
+    desc: '独立的一页聊天；能帮你记状态、排日程，动手之前先问你',
+    group: 'assistant',
+    groupTitle: '弦音',
+    pageClass: 'page--chat',
     secrets: ['apiKey', 'baseUrl'],
 
-    homeBlock: {
-        order: 10,
-        mount: mountChat
-    },
+    mount: mountChat,
 
     services: {
         ai: {

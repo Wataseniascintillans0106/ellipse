@@ -675,6 +675,17 @@ function clockOf(at) {
     return s.length >= 16 ? s.slice(11, 16) : '';
 }
 
+export function toApiMessage(m) {
+    const text = String((m && (m.raw || m.text)) || '');
+    if (m && m.role === 'user' && (m.photo || m.photoSend)) {
+        const parts = [];
+        if (text) parts.push({ type: 'text', text: text });
+        parts.push({ type: 'image_url', image_url: { url: m.photoSend || m.photo } });
+        return { role: 'user', content: parts };
+    }
+    return { role: m && m.role === 'user' ? 'user' : 'assistant', content: text };
+}
+
 export function chatMarkdown(messages, opts) {
     const o = opts || {};
     const list = Array.isArray(messages) ? messages : [];
@@ -709,7 +720,9 @@ export function chatMarkdown(messages, opts) {
         }
         out.push('**' + (m.role === 'user' ? '我' : '弦音') + '**' + (stamp ? ' · ' + stamp : ''));
         out.push('');
-        out.push(String(m.text || '').trim());
+        if (m.photo || m.photoDropped) out.push(m.photo ? '［照片］' : '［照片，本机没留底］');
+        const said = String(m.text || '').trim();
+        if (said) out.push(said);
         out.push('');
         (m.acts || []).forEach(function (a) {
             const mark = a.decision === 'ok' ? '已执行' : (a.decision === 'no' ? '没执行' : '没回应');
