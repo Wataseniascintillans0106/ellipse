@@ -58,6 +58,7 @@ ellipse.define({
     settingsSections: [{
         id: 'trend',
         title: '显示',
+        group: 'chart',          // 这一节的内容挂进「数值图」那一折，不单独占一节
         html: function (ctx) {
             const rangeId = currentRange(ctx.api);
             return '<div class="set-row">' +

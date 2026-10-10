@@ -727,27 +727,43 @@ function html(htmlText) {
     return box;
 }
 
-function moduleSection(sec) {
-    const box = group(sec.title, sec.note);
-    box.dataset.section = sec.id;
-    const root = document.createElement('div');
+function sectionBody(sec, holder) {
+    holder.dataset.section = sec.id;
     try {
-        root.innerHTML = typeof sec.html === 'function'
+        holder.innerHTML = typeof sec.html === 'function'
             ? String(sec.html({ api: api, rerender: renderSettings }) || '')
             : '';
     } catch (err) {
         console.error('[ellipse] 设置分区「' + sec.id + '」渲染出错：', err);
-        root.innerHTML = '<p class="empty-note">这个分区没能画出来：' + escapeHtml(msg(err)) + '</p>';
+        holder.innerHTML = '<p class="empty-note">这个分区没能画出来：' + escapeHtml(msg(err)) + '</p>';
     }
-    box.appendChild(root);
     if (typeof sec.bind === 'function') {
         try {
-            sec.bind(root, { api: api, rerender: renderSettings });
+            sec.bind(holder, { api: api, rerender: renderSettings });
         } catch (err) {
             console.error('[ellipse] 设置分区「' + sec.id + '」绑定出错：', err);
         }
     }
+    return holder;
+}
+
+function moduleSection(sec) {
+    const box = group(sec.title, sec.note);
+    box.appendChild(sectionBody(sec, document.createElement('div')));
     return box;
+}
+
+// 分区可以声明 group：内容挂进同名那一折里，不再单独占一节
+function foldSections(key) {
+    return registry.settingsSections().filter(function (sec) { return sec.group === key; });
+}
+
+// 没声明 group、或声明的折子不在（模块被卸了），就还是单独占一节
+function looseSections() {
+    const live = foldDefs().map(function (g) { return g.key; });
+    return registry.settingsSections().filter(function (sec) {
+        return !sec.group || live.indexOf(sec.group) < 0;
+    });
 }
 
 const CUSTOM_BADGE = '<em class="set-badge">自装</em>';
@@ -1007,6 +1023,10 @@ function rowsInOrder(ids, box) {
     });
 }
 
+// 「主页右侧栏顺序」跟着弦音那一折走 —— 竖栏里进得去的就是这几栏，放一块儿最顺手。
+// 那一折要是没画出来（模块被卸了），下面会自动把它退回模块最底下。
+const RAIL_ORDER_FOLD = 'assistant';
+
 function modulesGroup() {
     const box = group('模块', registry.enabledCount() + ' / ' + registry.all().length + ' 已开启');
     box.appendChild(html(
@@ -1016,6 +1036,7 @@ function modulesGroup() {
         '<input type="file" accept=".js,text/javascript" id="modFile" hidden>' +
         '</div>'));
 
+    let railPlaced = false;
     foldDefs().forEach(function (g) {
         const fold = foldGroup(g.key, g.title);
         const master = groupSwitch(g.key, g.title, g.ids);
@@ -1028,6 +1049,13 @@ function modulesGroup() {
                 escapeHtml(g.owner.groupAction.label) + '</button>' +
                 '</div>'));
         }
+        foldSections(g.key).forEach(function (sec) {
+            fold.body.appendChild(sectionBody(sec, document.createElement('div')));
+        });
+        if (g.key === RAIL_ORDER_FOLD) {
+            fold.body.appendChild(railOrderRow());
+            railPlaced = true;
+        }
         box.appendChild(fold.box);
     });
 
@@ -1039,7 +1067,7 @@ function modulesGroup() {
         box.appendChild(problemRow(p));
     });
 
-    box.appendChild(railOrderRow());
+    if (!railPlaced) box.appendChild(railOrderRow());
 
     box.appendChild(html('<p class="sheet-note">关掉模块不会删掉它的数据；' +
         '卸载自装模块只移走代码，记录同样保留。' +
@@ -1152,7 +1180,7 @@ function installGroup() {
 function renderSettings() {
     el.settingsBody.innerHTML = '';
     el.settingsBody.appendChild(modulesGroup());
-    registry.settingsSections().forEach(function (sec) {
+    looseSections().forEach(function (sec) {
         el.settingsBody.appendChild(moduleSection(sec));
     });
     el.settingsBody.appendChild(dataGroup());

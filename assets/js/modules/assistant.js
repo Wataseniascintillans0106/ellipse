@@ -311,7 +311,7 @@ function actCard(m) {
         const why = document.createElement('p');
         why.className = 'chord-card-done';
         why.textContent = m.noRead
-            ? '读记录这项功能现在关着。要用的话，到「设置 · 弦音」里打开「允许弦音读取我的记录」。'
+            ? '读记录这项功能现在关着。要用的话，到「设置 · AI——弦音」里打开「允许弦音读取我的记录」。'
             : '已经读过了（你之前勾过「以后不用再问」）。';
         box.appendChild(why);
         if (m.noRead) {
@@ -584,7 +584,7 @@ function turnNote(messages, err) {
     const hadPhoto = (messages || []).some(function (m) { return Array.isArray(m.content); });
     if (hadPhoto && /返回 4\d\d/.test(said)) {
         return '这个模型看不了图片（' + said + '）。' +
-            '到「设置 · 弦音」里换一个支持图片的模型，比如 gpt-4o 或 gpt-4o-mini。';
+            '到「设置 · AI——弦音」里换一个支持图片的模型，比如 gpt-4o 或 gpt-4o-mini。';
     }
     return '没连上：' + said;
 }
@@ -870,7 +870,7 @@ function send(text) {
     if (!isConfigured()) {
         log.push({
             id: uid(), role: 'ai', at: stamp(),
-            text: '弦音还没接上。到「设置 · 弦音」里填一下接口地址和密钥，我就能回话了。'
+            text: '弦音还没接上。到「设置 · AI——弦音」里填一下接口地址和密钥，我就能回话了。'
         });
         paint();
         save();
@@ -1047,7 +1047,7 @@ function runPolish(ctx) {
         '<p class="sheet-note" id="aiNote">' +
         (isConfigured()
             ? '内容会发送到你填的接口（' + api.escapeHtml(getAiConfig().baseUrl) + '）。'
-            : '还没有配置弦音，请先到「设置 · 弦音」填写 API Key。') +
+            : '还没有配置弦音，请先到「设置 · AI——弦音」填写 API Key。') +
         '</p>',
         '<button class="btn" type="button" data-action="ai-cancel">取消</button>' +
         '<button class="btn primary" type="button" data-action="ai-run"' +
@@ -1063,7 +1063,7 @@ ellipse.define({
     note: '能陪你说话、帮你记状态、排日程',
     desc: '独立的一页聊天；能帮你记状态、排日程，动手之前先问你',
     group: 'assistant',
-    groupTitle: '弦音',
+    groupTitle: 'AI——弦音',
     pageClass: 'page--chat',
     secrets: ['apiKey', 'baseUrl'],
 
@@ -1114,7 +1114,7 @@ ellipse.define({
 
     settingsSections: [{
         id: 'ai',
-        title: '弦音',
+        title: 'AI——弦音',
         note: '可选，密钥只存在本机',
 
         html: function () { return sectionHtml(); },

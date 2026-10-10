@@ -39,9 +39,20 @@
                 await sleep(300);
                 const groups = texts('#settingsBody .set-group-title');
                 say('分组: ' + groups.join(' / '));
+                const foldTitles = texts('#settingsBody .set-group--fold .set-group-title');
+                say('折子: ' + foldTitles.join(' / '));
                 t('「模块」打头', groups[0] === '模块');
-                t('趋势模块贡献了「显示」', groups.indexOf('显示') > 0);
-                t('弦音模块贡献了「弦音」', groups.indexOf('弦音') > 0);
+                t('波状图的设置挂进了「数值图」那一折，不再单独占一节',
+                    groups.indexOf('显示') < 0 &&
+                    !!q('#settingsBody [data-group="chart"] [data-section="trend"]'));
+                t('弦音那一折的标题带了 AI 前缀',
+                    foldTitles.indexOf('AI——弦音') >= 0, foldTitles.join(','));
+                t('弦音填接口那一节的标题也一起改了，且只剩一处写「弦音」',
+                    groups.filter((g) => g === 'AI——弦音').length === 2 &&
+                    groups.indexOf('弦音') < 0,
+                    groups.filter((g) => /弦音/.test(g)).join(','));
+                t('主页右侧栏顺序挪进了弦音那一折',
+                    !!q('#settingsBody [data-group="assistant"] [data-rail-order-row]'));
                 t('数据与安装分组还在', groups.indexOf('数据') > 0 && groups.indexOf('安装到主屏') > 0);
 
                 const rows = qa('#settingsBody [data-module-row]').map((n) => n.dataset.moduleRow);

@@ -472,7 +472,9 @@ if (existsSync(logPath)) {
     try { new TextDecoder('utf-8', { fatal: true }).decode(log); } catch (err) { decodes = false; }
     ok('内容是真 UTF-8（存成 ANSI 的话别人的记事本会乱码）', decodes,
         '在记事本里"另存为"时编码选 UTF-8');
-    ok('记了最新那一版', log.toString('utf8').indexOf('v0.5.0') >= 0);
+    const logText = log.toString('utf8').replace(/^﻿/, '');
+    const newest = (logText.match(/^  (v\d+\.\d+\.\d+)/m) || [])[1];
+    ok('最新那一版记在最上面（不是塞到了开头或末尾）', newest === 'v0.5.1', newest || '(没找到)');
 }
 
 console.log('\n[11] 弦音的脑子（chat.js 纯函数）');
@@ -645,7 +647,16 @@ const chordDef = registry.get('assistant');
 ok('弦音是独立的一页', chordDef.kind === 'page');
 ok('页面得能画出来', chordDef.mount instanceof Function);
 ok('聊天页有自己的整屏样式', chordDef.pageClass === 'page--chat');
-ok('它自己占一折设置', chordDef.group === 'assistant' && chordDef.groupTitle === '弦音');
+ok('它自己占一折设置，标题带 AI 前缀',
+    chordDef.group === 'assistant' && chordDef.groupTitle === 'AI——弦音');
+ok('填接口那一节的标题也一起改名了',
+    chordDef.settingsSections.some((s) => s.id === 'ai' && s.title === 'AI——弦音'));
+
+const trendDef = registry.get('trend');
+ok('波状图那块设置声明了要挂进「数值图」这一折',
+    trendDef.settingsSections.some((s) => s.id === 'trend' && s.group === 'chart'));
+ok('别的模块的设置区没被顺手搬走',
+    registry.all().every((d) => d.settingsSections.every((s) => !s.group || s.group === 'chart')));
 ok('关掉的模块不进竖栏',
     registry.pageModules().every((id) => registry.isEnabled(id)));
 

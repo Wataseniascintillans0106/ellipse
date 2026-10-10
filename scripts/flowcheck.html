@@ -234,6 +234,28 @@
                     !railRows[1].querySelector('[data-rail-move="up"]').disabled &&
                     !railRows[1].querySelector('[data-rail-move="down"]').disabled);
 
+                say('== 设置里谁住哪一折 ==');
+                const foldTitles = Array.from(
+                    d.querySelectorAll('#settingsBody .set-group--fold .set-group-title')
+                ).map((n) => n.textContent.trim());
+                say('折子: ' + foldTitles.join(' / '));
+                t('弦音那一折的标题加了 AI 前缀',
+                    foldTitles.indexOf('AI——弦音') >= 0, foldTitles.join(','));
+                const railFold = orderRow.closest('[data-group]');
+                t('主页栏顺序这一块挪进了弦音那一折',
+                    !!railFold && railFold.getAttribute('data-group') === 'assistant',
+                    railFold ? railFold.getAttribute('data-group') : '（没挂在任何一折里）');
+                t('波状图那个默认区间住进了「数值图」这一折',
+                    !!d.querySelector('#settingsBody [data-group="chart"] [data-default-range]'));
+                // 「模块」那一大块本身也是 .set-group，撇开它，剩下的才是单占一节的
+                const looseTitles = Array.from(
+                    d.querySelectorAll('#settingsBody > .set-group > .set-group-head > .set-group-title')
+                ).map((n) => n.textContent.trim()).slice(1);
+                say('单占一节的: ' + looseTitles.join(' / '));
+                t('「显示」不再单独占一节', looseTitles.indexOf('显示') < 0, looseTitles.join(','));
+                t('填接口那一节还叫「AI——弦音」',
+                    looseTitles.indexOf('AI——弦音') >= 0, looseTitles.join(','));
+
                 railRows[2].querySelector('[data-rail-move="up"]').click();
                 await sleep(200);
                 const afterRows = Array.from(d.querySelectorAll('[data-rail-order-row] [data-rail-item]'));
@@ -836,9 +858,9 @@
                 };
                 const asksBeforeRead = asks;
                 typeIn('我最近睡得怎么样');
-                await waitFor(() => /设置 · 弦音/.test(chordText('#viewPage .chord-card-done')));
+                await waitFor(() => /设置 · AI——弦音/.test(chordText('#viewPage .chord-card-done')));
                 t('读取开关关着时，卡上说清楚去哪儿开',
-                    /设置 · 弦音/.test(chordText('#viewPage .chord-card-done')));
+                    /设置 · AI——弦音/.test(chordText('#viewPage .chord-card-done')));
                 t('只花了拿到回话的那一次，没再为读记录多花一次',
                     asks === asksBeforeRead + 1, asks + ' / ' + (asksBeforeRead + 1));
 

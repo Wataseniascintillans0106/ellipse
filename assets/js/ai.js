@@ -90,7 +90,7 @@ function wholeText(text) {
 async function post(messages, opts) {
     const o = opts || {};
     const cfg = getAiConfig();
-    if (!cfg.apiKey) throw new Error('还没有填 API Key，去「设置 · 弦音」里填一下');
+    if (!cfg.apiKey) throw new Error('还没有填 API Key，去「设置 · AI——弦音」里填一下');
 
     const ctrl = new AbortController();
     let stopped = false;
@@ -208,7 +208,7 @@ async function requestJson(path, options) {
 
 export async function polishText(raw, instruction) {
     const cfg = getAiConfig();
-    if (!cfg.apiKey) throw new Error('还没有填写 API Key，请在「设置 · 弦音」中配置');
+    if (!cfg.apiKey) throw new Error('还没有填写 API Key，请在「设置 · AI——弦音」中配置');
     const sys = instruction || '你是健康状况日记的整理助手。把用户零散写下的内容整理成第一人称、通顺、克制的日记段落：' +
         '保留全部事实与数字，不添加未提到的信息，不做医疗建议，不抒情，不用 emoji 与表情符号，' +
         '输出纯文本，150 字以内，直接给出整理后的正文。';
