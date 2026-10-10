@@ -709,6 +709,32 @@
                 t('主页上有弦音那块', !!d.querySelector('#homeDock .chord'));
                 t('没填密钥时先说没接上', /还没接上/.test(chordText('#homeDock .chord-empty')));
 
+                const dockEdge = d.getElementById('homeDock').getBoundingClientRect();
+                const railEl = d.getElementById('rail');
+                const railEdge = railEl.getBoundingClientRect();
+                const homeBox = d.getElementById('viewHome').getBoundingClientRect();
+                const markEdge = d.querySelector('#viewHome .wordmark').getBoundingClientRect();
+                const barEdge = d.querySelector('#homeDock .chord-bar').getBoundingClientRect();
+                const listEdge = d.querySelector('#homeDock #chordList').getBoundingClientRect();
+                const noteEdge = d.querySelector('#homeDock .chord-disclaimer').getBoundingClientRect();
+                t('聊天区占了上半屏，字标在下半屏',
+                    dockEdge.bottom <= markEdge.top + 1 && markEdge.top <= homeBox.bottom + 1,
+                    dockEdge.bottom + ' / ' + markEdge.top + ' / ' + homeBox.bottom);
+                t('聊天区确实占了半屏（不是细条）',
+                    dockEdge.height >= homeBox.height * 0.4,
+                    dockEdge.height + ' / ' + homeBox.height);
+                if (!railEl.hidden) {
+                    t('消息列表和输入条都没被右侧栏压住',
+                        Math.max(listEdge.right, barEdge.right) <= railEdge.left + 1,
+                        listEdge.right + ' / ' + barEdge.right + ' / ' + railEdge.left);
+                }
+                t('输入条在聊天区里，消息列表在它上面',
+                    barEdge.bottom <= dockEdge.bottom + 1 && listEdge.bottom <= barEdge.top + 1,
+                    barEdge.bottom + ' / ' + dockEdge.bottom + ' / ' + listEdge.bottom + ' / ' + barEdge.top);
+                t('免责小字在输入条下面、还在聊天区里',
+                    noteEdge.top >= barEdge.bottom - 1 && noteEdge.bottom <= dockEdge.bottom + 1,
+                    noteEdge.top + ' / ' + barEdge.bottom + ' / ' + noteEdge.bottom + ' / ' + dockEdge.bottom);
+
                 w.ellipse.settings.set('assistant', { apiKey: 'test-key', baseUrl: 'https://api.openai.com/v1' });
                 await sleep(250);
                 t('填上密钥后「还没接上」就收起来',
