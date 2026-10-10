@@ -754,14 +754,21 @@ body.is-locked .page-back { pointer-events: none; }
 .set-group--fold .set-group-head {
     width: 100%;
     padding: 0 0 8px;
+    border-bottom: 1px solid var(--line);
+    align-items: center;
+}
+.set-group-fold {
+    flex: 1 1 auto;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 0;
     background: none;
     border: none;
-    border-bottom: 1px solid var(--line);
     font: inherit;
     color: inherit;
     text-align: left;
     cursor: pointer;
-    align-items: center;
 }
 .fold-chev {
     flex: 0 0 auto;

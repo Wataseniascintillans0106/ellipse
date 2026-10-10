@@ -280,6 +280,70 @@
                 t('重新打开任意一个，「状态记录」入口就回来',
                     !!d.querySelector('#rail [data-act="record"]'));
                 t('竖栏重新露出来', !d.getElementById('rail').hidden);
+
+                say('== 「状态记录」栏的标题条仍能收起 / 展开 ==');
+                d.getElementById('settingsBtn').click();
+                await sleep(250);
+                const foldBtn = () => d.querySelector('[data-fold="record"]');
+                const foldBody = () => d.querySelector('[data-group="record"] .set-group-body');
+                t('标题条上还是那个折叠按钮', !!foldBtn());
+                t('折叠按钮没把总开关裹进去（不能是嵌套按钮）',
+                    !!foldBtn() && foldBtn().querySelectorAll('button').length === 0);
+                t('默认展开着', !!foldBody() && !foldBody().hidden);
+
+                foldBtn().click();
+                await sleep(250);
+                t('点标题条那一栏收起', !!foldBody() && foldBody().hidden);
+
+                d.getElementById('settingsClose').click();
+                await sleep(250);
+                d.getElementById('settingsBtn').click();
+                await sleep(250);
+                t('关掉设置再打开，收起状态还在', !!foldBody() && foldBody().hidden);
+
+                foldBtn().click();
+                await sleep(250);
+                t('再点一次又展开', !!foldBody() && !foldBody().hidden);
+                d.getElementById('settingsClose').click();
+                await sleep(250);
+
+                say('== 「状态记录」栏的总开关 ==');
+                d.getElementById('settingsBtn').click();
+                await sleep(250);
+                const master = () => d.querySelector('[data-toggle-group="record"]');
+                const cardSwitches = () => d.querySelectorAll(
+                    '#settingsBody [data-group="record"] [data-toggle]');
+                const cardOnCount = () => d.querySelectorAll(
+                    '#settingsBody [data-group="record"] [data-toggle].on').length;
+                t('「状态记录」栏标题条上有一个总开关', !!master());
+                t('现在只开着一个，总开关显示「关」',
+                    cardOnCount() === 1 && !!master() && !master().classList.contains('on'));
+
+                master().click();
+                await sleep(250);
+                t('点一下整栏全开', cardSwitches().length > 1 &&
+                    cardOnCount() === cardSwitches().length, String(cardOnCount()));
+                t('总开关自己变成「开」', !!master() && master().classList.contains('on'));
+
+                master().click();
+                await sleep(250);
+                t('再点一下整栏全关', cardOnCount() === 0, String(cardOnCount()));
+                t('总开关自己变成「关」', !!master() && !master().classList.contains('on'));
+
+                d.getElementById('settingsClose').click();
+                await sleep(250);
+                t('整栏关光后竖栏里的「状态记录」入口又没了',
+                    !d.querySelector('#rail [data-act="record"]'));
+                t('整条竖栏又收起', d.getElementById('rail').hidden);
+
+                d.getElementById('settingsBtn').click();
+                await sleep(250);
+                master().click();
+                await sleep(250);
+                d.getElementById('settingsClose').click();
+                await sleep(250);
+                t('用总开关打开，入口就回来', !!d.querySelector('#rail [data-act="record"]'));
+                t('竖栏重新露出来', !d.getElementById('rail').hidden);
                 say('DONE');
             } catch (err) {
                 say('ERROR ' + err.message);

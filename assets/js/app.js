@@ -802,13 +802,18 @@ function foldGroup(id, title) {
     box.className = 'set-group set-group--fold' + (open ? '' : ' is-folded');
     box.dataset.group = id;
 
-    const head = document.createElement('button');
-    head.type = 'button';
+    const head = document.createElement('div');
     head.className = 'set-group-head';
-    head.setAttribute('data-fold', id);
-    head.setAttribute('aria-expanded', open ? 'true' : 'false');
-    head.innerHTML = '<span class="fold-chev">' + icon('chevron') + '</span>' +
+
+    const fold = document.createElement('button');
+    fold.type = 'button';
+    fold.className = 'set-group-fold';
+    fold.setAttribute('data-fold', id);
+    fold.setAttribute('aria-expanded', open ? 'true' : 'false');
+    fold.innerHTML = '<span class="fold-chev">' + icon('chevron') + '</span>' +
         '<span class="set-group-title">' + escapeHtml(title) + '</span>';
+
+    head.appendChild(fold);
 
     const body = document.createElement('div');
     body.className = 'set-group-body';
@@ -816,7 +821,41 @@ function foldGroup(id, title) {
 
     box.appendChild(head);
     box.appendChild(body);
-    return { box: box, body: body };
+    return { box: box, body: body, head: head };
+}
+
+function groupIds(key) {
+    return registry.orderedIds().filter(function (id) {
+        const def = registry.get(id);
+        if (!def) return false;
+        return key === 'record' ? registry.isCard(id) : def.kind === 'page';
+    });
+}
+
+function groupSwitch(key, name, ids) {
+    if (ids.length < 2) return null;
+    const on = ids.every(function (id) { return registry.isEnabled(id); });
+
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'switch' + (on ? ' on' : '');
+    btn.setAttribute('role', 'switch');
+    btn.setAttribute('aria-checked', on ? 'true' : 'false');
+    btn.setAttribute('aria-label', '全部开启或关闭' + name);
+    btn.setAttribute('data-toggle-group', key);
+    btn.innerHTML = '<span class="switch-label" aria-hidden="true">' + (on ? '开' : '关') + '</span>';
+    return btn;
+}
+
+function toggleGroup(key) {
+    const ids = groupIds(key);
+    if (!ids.length) return;
+    const allOn = ids.every(function (id) { return registry.isEnabled(id); });
+    const patch = {};
+    ids.forEach(function (id) { patch[id] = !allOn; });
+    setSettings({ modules: patch });
+    renderSettings();
+    render();
 }
 
 function rowsInOrder(ids, box) {
@@ -851,6 +890,8 @@ function modulesGroup() {
     const pages = ordered.filter(function (id) { return kindOf(id) === 'page'; });
     if (pages.length) {
         const fold = foldGroup('chart', '数值图');
+        const master = groupSwitch('chart', '数值图', pages);
+        if (master) fold.head.appendChild(master);
         rowsInOrder(pages, fold.body);
         box.appendChild(fold.box);
     }
@@ -858,6 +899,8 @@ function modulesGroup() {
     const cards = ordered.filter(function (id) { return registry.isCard(id); });
     if (cards.length) {
         const fold = foldGroup('record', '状态记录');
+        const master = groupSwitch('record', '状态记录', cards);
+        if (master) fold.head.appendChild(master);
         rowsInOrder(cards, fold.body);
         box.appendChild(fold.box);
     }
@@ -939,6 +982,9 @@ el.settingsBody.addEventListener('click', function (evt) {
 
     const toggle = evt.target.closest('[data-toggle]');
     if (toggle) { toggleModule(toggle.getAttribute('data-toggle')); return; }
+
+    const groupToggle = evt.target.closest('[data-toggle-group]');
+    if (groupToggle) { toggleGroup(groupToggle.getAttribute('data-toggle-group')); return; }
 
     const orderBtn = evt.target.closest('[data-order]');
     if (orderBtn) {
