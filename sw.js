@@ -1,4 +1,4 @@
-const CACHE = 'ellipse-cache-v6';
+const CACHE = 'ellipse-cache-v7';
 
 const NAV_TIMEOUT = 20000;
 const ASSET_TIMEOUT = 9000;
@@ -13,6 +13,7 @@ const SHELL = [
     './assets/js/ai.js',
     './assets/js/app.js',
     './assets/js/charts.js',
+    './assets/js/chat.js',
     './assets/js/export.js',
     './assets/js/icons.js',
     './assets/js/storage.js',

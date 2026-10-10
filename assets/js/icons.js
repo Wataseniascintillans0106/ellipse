@@ -56,6 +56,25 @@ export const ICONS = {
         '<path d="M18.4 15.4l.7 2 2 .7-2 .7-.7 2-.7-2-2-.7 2-.7z"></path>'
     ),
 
+    note: wrap(
+        '<path d="M9.4 17.6V6.2l8.4-1.8v11.2"></path>' +
+        '<circle cx="7" cy="18" r="2.6"></circle>' +
+        '<circle cx="15.4" cy="16" r="2.6"></circle>'
+    ),
+
+    send: wrap(
+        '<path d="M20.4 12 4.2 5.4l2.4 6.6-2.4 6.6z"></path>' +
+        '<path d="M6.6 12h13.8"></path>'
+    ),
+
+    stop: wrap('<rect x="7" y="7" width="10" height="10" rx="2.2"></rect>'),
+
+    alert: wrap(
+        '<path d="M12 3.8 21.2 20H2.8z"></path>' +
+        '<path d="M12 10v4.4"></path>' +
+        '<path d="M12 17.4h.01"></path>'
+    ),
+
     calendar: wrap(
         '<rect x="3.4" y="5" width="17.2" height="15.6" rx="2.6"></rect>' +
         '<path d="M3.4 9.6h17.2"></path>' +

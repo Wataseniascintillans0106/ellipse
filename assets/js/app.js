@@ -6,11 +6,11 @@ import {
 import {
     getSettings, setSettings, getRecordData, setField,
     subscribe as subscribeStorage, allRecordKeys, importAll, clearRecords,
-    exportAll
+    exportAll, getModuleSettings, getRemind, setRemind
 } from './storage.js';
 import {
     dayMarkdown, rangeMarkdown, allMarkdown, downloadMarkdown,
-    copyText, suggestFilename
+    copyText, suggestFilename, remindDue
 } from './export.js';
 import { renderFields, summarize, fieldByKey } from './core/fields.js';
 import * as registry from './core/registry.js';
@@ -36,6 +36,7 @@ const state = {
 
 const el = {
     viewHome: document.getElementById('viewHome'),
+    homeDock: document.getElementById('homeDock'),
     viewRecord: document.getElementById('viewRecord'),
     viewPage: document.getElementById('viewPage'),
     pageTitle: document.getElementById('pageTitle'),
@@ -262,6 +263,35 @@ function renderPage() {
     }
 }
 
+let homeSig = null;
+
+function renderHome() {
+    const blocks = registry.homeBlocks();
+    const sig = blocks.map(function (d) { return d.id; }).join(',');
+    if (sig === homeSig) return;
+    homeSig = sig;
+    el.homeDock.innerHTML = '';
+    if (!blocks.length) {
+        el.homeDock.hidden = true;
+        el.viewHome.classList.remove('home--docked');
+        return;
+    }
+    el.homeDock.hidden = false;
+    el.viewHome.classList.add('home--docked');
+    blocks.forEach(function (def) {
+        const box = document.createElement('div');
+        box.className = 'home-dock-block';
+        box.dataset.homeBlock = def.id;
+        el.homeDock.appendChild(box);
+        try {
+            def.homeBlock.mount(box, { api: api, page: state.page });
+        } catch (err) {
+            console.error('[ellipse] 主页区块「' + def.id + '」渲染出错：', err);
+            box.innerHTML = '<p class="empty-note">这块没能画出来：' + escapeHtml(msg(err)) + '</p>';
+        }
+    });
+}
+
 function placeBackBtn() {
     const view = state.page === 'record' ? el.viewRecord : el.viewPage;
     const row = view.querySelector('.head-row');
@@ -295,6 +325,7 @@ function render() {
 
     if (home) {
         if (sheet.isOpen()) sheet.close();
+        renderHome();
     } else if (record) {
         renderHead();
         renderStack();
@@ -310,7 +341,8 @@ install({
     refresh: function () {
         renderStack();
         renderExport();
-        if (state.page !== 'home' && state.page !== 'record') renderPage();
+        if (state.page === 'home') renderHome();
+        else if (state.page !== 'record') renderPage();
     }
 });
 
@@ -749,6 +781,7 @@ function rowWhere(def) {
     if (registry.isCard(def.id)) return '';
     if (def.kind === 'page') return '；入口在主页右侧栏';
     if (def.kind === 'event') return '；在「日历及健康」里安排';
+    if (def.homeBlock) return '；就住在主页上半屏';
     return '；不占记录页的位置';
 }
 
@@ -983,6 +1016,38 @@ function modulesGroup() {
     return box;
 }
 
+function daysLabel(n) {
+    return n >= 2 ? n + ' 天' : '一天';
+}
+
+function remindLines(due) {
+    const out = [];
+    if (due.records) out.push('状态记录：' + displayKey(due.records.newest) + ' 之后又记了 ' +
+        daysLabel(due.records.days) + '。');
+    if (due.chat) out.push('弦音聊天：' + displayKey(due.chat.newest) + ' 之后又有新的对话。');
+    return out;
+}
+
+function remindRow() {
+    const due = state.remind;
+    if (!due) {
+        const since = getRemind().records;
+        return '<div class="set-row"><span class="set-row-main">' +
+            '<span class="set-row-title">导出提醒</span>' +
+            '<span class="set-row-desc">' +
+            (since ? '上次导出是 ' + escapeHtml(displayKey(since)) + '，现在还不用导。'
+                   : '隔一段时间会在这里提醒你导出一份留着。') +
+            '</span></span></div>';
+    }
+    return '<div class="set-row"><span class="set-row-main">' +
+        '<span class="set-row-title">该导出一份了</span>' +
+        '<span class="set-row-desc">' + escapeHtml(remindLines(due).join(' ')) +
+        '　导出一份 md 或备份 JSON，这条提醒就会消失。</span>' +
+        '<div class="set-actions">' +
+        '<button class="btn" type="button" data-set="remind-snooze">先不用提醒</button>' +
+        '</div></span></div>';
+}
+
 function dataGroup() {
     const box = group('数据', allRecordKeys().length + ' 天记录');
     box.appendChild(html(
@@ -996,11 +1061,44 @@ function dataGroup() {
         '</div>' +
         '<label class="set-check"><input type="checkbox" id="backupSecrets">' +
         '备份里带上 AI 密钥（默认不带，免得把备份发给别人时一起泄露）</label>' +
+        remindRow() +
         '<div class="set-actions">' +
         '<button class="btn danger" type="button" data-set="wipe">清空全部记录</button>' +
         '</div>' +
         '<p class="sheet-note">记录保存在本机浏览器；清理浏览器数据会一并清空，建议定期备份。</p>'));
     return box;
+}
+
+function chatKeys() {
+    const chat = getModuleSettings('assistant').chat;
+    if (!Array.isArray(chat)) return [];
+    return chat.map(function (m) {
+        return String((m && m.at) || '').slice(0, 10);
+    }).filter(function (k) {
+        return /^\d{4}-\d{2}-\d{2}$/.test(k);
+    }).sort();
+}
+
+function remindState() {
+    const keys = allRecordKeys();
+    const chat = chatKeys();
+    const due = remindDue({
+        today: todayKey(),
+        oldestRecordKey: keys[0] || '',
+        newestRecordKey: keys[keys.length - 1] || '',
+        oldestChatAt: chat[0] || '',
+        newestChatAt: chat[chat.length - 1] || '',
+        remind: getRemind()
+    });
+    state.remind = due;
+    if (el.settingsBtn) el.settingsBtn.classList.toggle('is-due', !!due);
+    return due;
+}
+
+function markExported(kind) {
+    if (kind === 'records') setRemind({ records: todayKey() });
+    remindState();
+    if (state.settingsOpen) renderSettings();
 }
 
 function installGroup() {
@@ -1172,14 +1270,23 @@ function downloadFile(text, filename, mime) {
 }
 
 function handleSettingAction(name, btn) {
+    if (name === 'remind-snooze') {
+        setRemind({ snoozeUntil: shiftKey(todayKey(), 30) });
+        remindState();
+        renderSettings();
+        toast('这 30 天不再提醒');
+        return;
+    }
     if (name === 'export-day') {
         downloadMarkdown(dayMarkdown(state.key), suggestFilename('day', state.key));
         toast('已导出 ' + suggestFilename('day', state.key));
+        markExported('records');
         return;
     }
     if (name === 'export-all') {
         downloadMarkdown(allMarkdown(), suggestFilename('all'));
         toast('已导出全部记录');
+        markExported('records');
         return;
     }
     if (name === 'export-range') {
@@ -1189,11 +1296,13 @@ function handleSettingAction(name, btn) {
         const to = keys[keys.length - 1];
         downloadMarkdown(rangeMarkdown(from, to), 'ellipse-summary-' + from + '_' + to + '.md');
         toast('已导出区间汇总');
+        markExported('records');
         return;
     }
     if (name === 'backup') {
         downloadFile(backupJson(), 'ellipse-backup-' + todayKey() + '.json', 'application/json');
         toast('已导出备份');
+        markExported('records');
         return;
     }
     if (name === 'import') {
@@ -1302,7 +1411,11 @@ document.addEventListener('keydown', function (evt) {
 });
 
 subscribeStorage(function (evt) {
-    if (evt && evt.type === 'settings' && el.settingsPanel.classList.contains('open')) {
+    if (!evt) return;
+    if ((evt.type === 'settings' || evt.type === 'record' || evt.type === 'bulk') && state.booted) {
+        remindState();
+    }
+    if (evt.type === 'settings' && el.settingsPanel.classList.contains('open')) {
         renderSettings();
     }
 });
@@ -1350,7 +1463,14 @@ const skipMods = new URLSearchParams(location.search).get('nomods') === '1';
 
     state.booted = true;
     render();
+    remindState();
 })();
+
+globalThis.addEventListener('ellipse:chat-exported', function () {
+    setRemind({ chat: todayKey() });
+    remindState();
+    if (state.settingsOpen) renderSettings();
+});
 
 (function applyPreviewPanel() {
     const q = new URLSearchParams(location.search);

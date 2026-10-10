@@ -1,4 +1,4 @@
-import { cnKey, weekdayCN, fmtNum, shortDate, recentKeys, escapeHtml } from './util.js';
+import { cnKey, weekdayCN, fmtNum, shortDate, recentKeys, escapeHtml, fromKey, todayKey } from './util.js';
 import { getRecordData, allRecordKeys, getSettings } from './storage.js';
 import { get, enabledOrder } from './core/registry.js';
 import { markdownLines, metricValueOf } from './core/fields.js';
@@ -170,7 +170,41 @@ export function allMarkdown() {
 export function suggestFilename(kind, key) {
     if (kind === 'day') return (key || 'record') + '.md';
     if (kind === 'all') return 'ellipse-records-' + new Date().toISOString().slice(0, 10) + '.md';
+    if (kind === 'chat') return 'ellipse-chord-' + new Date().toISOString().slice(0, 10) + '.md';
     return 'ellipse-summary-' + (key || '') + '.md';
+}
+
+const REMIND_DAYS = 14;
+
+function daysSince(from, today) {
+    if (!from) return null;
+    return Math.round((fromKey(today) - fromKey(from)) / 86400000);
+}
+
+export function remindDue(state) {
+    const s = state || {};
+    const today = s.today || todayKey();
+    const remind = s.remind || {};
+    if (remind.snoozeUntil && remind.snoozeUntil > today) return null;
+
+    const out = { records: null, chat: null };
+
+    const newestRecord = String(s.newestRecordKey || '');
+    const recordSince = String(remind.records || s.oldestRecordKey || '');
+    const recDays = daysSince(recordSince, today);
+    if (newestRecord && newestRecord > recordSince && recDays !== null && recDays >= REMIND_DAYS) {
+        out.records = { days: recDays, since: recordSince, newest: newestRecord };
+    }
+
+    const newestChat = String(s.newestChatAt || '').slice(0, 10);
+    const chatSince = String(remind.chat || s.oldestChatAt || '');
+    const chatDays = daysSince(chatSince, today);
+    if (newestChat && newestChat > chatSince && chatDays !== null && chatDays >= REMIND_DAYS) {
+        out.chat = { days: chatDays, since: chatSince, newest: newestChat };
+    }
+
+    if (!out.records && !out.chat) return null;
+    return out;
 }
 
 export function downloadMarkdown(text, filename) {

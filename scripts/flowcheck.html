@@ -15,7 +15,17 @@
 
         frame.addEventListener('load', async () => {
             const w = frame.contentWindow, d = frame.contentDocument;
-            const t = (label, cond) => say((cond ? 'ok   ' : 'FAIL ') + label);
+            const t = (label, cond, extra) => say((cond ? 'ok   ' : 'FAIL ') + label + (cond || !extra ? '' : ' -> ' + extra));
+            const waitFor = async (sel, ms) => {
+                for (let i = 0; i < (ms || 4000) / 50; i++) {
+                    const hit = typeof sel === 'function' ? sel() : d.querySelector(sel);
+                    if (hit) return hit;
+                    await sleep(50);
+                }
+                return null;
+            };
+            const chordText = (sel) => Array.from(d.querySelectorAll(sel || '#homeDock'))
+                .map((n) => n.textContent).join('\n');
             try {
                 for (let i = 0; i < 60 && !d.querySelector('#rail .rail-item'); i++) await sleep(50);
 
@@ -661,6 +671,172 @@
                 t('再打开，两个入口都回来',
                     !!d.querySelector('#rail [data-rail-page="calendar"]') &&
                     !!d.querySelector('#rail [data-act="record"]'));
+
+                say('== 弦音：流式回话、确认卡、同意后真的写进去 ==');
+
+                const realFetch = w.fetch;
+                let asks = 0;
+                const day = (function () {
+                    const n = new Date();
+                    const p = (x) => String(x).padStart(2, '0');
+                    return n.getFullYear() + '-' + p(n.getMonth() + 1) + '-' + p(n.getDate());
+                })();
+
+                function sse(parts) {
+                    const enc = new w.TextEncoder();
+                    const stream = new w.ReadableStream({
+                        start(c) {
+                            parts.forEach((p) => c.enqueue(enc.encode('data: ' + p + '\n\n')));
+                            c.enqueue(enc.encode('data: [DONE]\n\n'));
+                            c.close();
+                        }
+                    });
+                    return new w.Response(stream, {
+                        status: 200, headers: { 'Content-Type': 'text/event-stream' }
+                    });
+                }
+
+                function parcel(text) {
+                    return JSON.stringify({ choices: [{ delta: { content: text } }] });
+                }
+
+                w.fetch = function (url) {
+                    asks++;
+                    if (String(url).indexOf('chat/completions') < 0) return realFetch.apply(w, arguments);
+                    return Promise.resolve(sse(['data: ']));
+                };
+
+                t('主页上有弦音那块', !!d.querySelector('#homeDock .chord'));
+                t('没填密钥时先说没接上', /还没接上/.test(chordText('#homeDock .chord-empty')));
+
+                w.ellipse.settings.set('assistant', { apiKey: 'test-key', baseUrl: 'https://api.openai.com/v1' });
+                await sleep(250);
+                t('填上密钥后「还没接上」就收起来',
+                    !/还没接上/.test(chordText('#homeDock .chord-empty')));
+
+                function typeIn(text) {
+                    const box = d.getElementById('chordInput');
+                    box.value = text;
+                    d.getElementById('chordForm').dispatchEvent(new w.Event('submit', { bubbles: true, cancelable: true }));
+                }
+
+                const fence = '```ellipse\n' +
+                    JSON.stringify({ do: [{ act: 'set-field', date: day, module: 'sleep', field: 'hours', value: 6.5 }] }) +
+                    '\n```';
+                reply = parcel('好的，记下了。\n\n') + '';
+                w.fetch = function (url) {
+                    asks++;
+                    if (String(url).indexOf('chat/completions') < 0) return realFetch.apply(w, arguments);
+                    return Promise.resolve(sse([
+                        parcel('好的，记下了。\n\n'),
+                        parcel(fence)
+                    ]));
+                };
+
+                const before = JSON.stringify(w.ellipse.records.dataOf(day));
+
+                typeIn('昨晚睡了 6 个半小时');
+                for (let i = 0; i < 80 && !d.querySelector('#homeDock [data-chord="yes"]'); i++) await sleep(50);
+
+                t('我的话出现在气泡里',
+                    /昨晚睡了 6 个半小时/.test((d.querySelector('#homeDock .chord-msg--me') || {}).textContent || ''));
+                const said = Array.from(d.querySelectorAll('#homeDock .chord-msg--ai .chord-bubble'))
+                    .map((n) => n.textContent).join('\n');
+                t('弦音的话显示出来了', /记下了/.test(said));
+                t('没配置的提示已经收起来', !d.querySelector('#homeDock .chord-empty'));
+                t('指令块从没以文字形式露出来',
+                    said.indexOf('`') < 0 && said.indexOf('ellipse') < 0 &&
+                    said.indexOf('set-field') < 0 && said.indexOf('"do"') < 0,
+                    said);
+                t('整个聊天区里都没有裸露的围栏',
+                    (d.querySelector('#homeDock #chordList').textContent || '').indexOf('`') < 0);
+                t('确认卡弹出来了', !!d.querySelector('#homeDock [data-chord="yes"]'));
+                t('卡上写清楚要填什么',
+                    /睡眠/.test((d.querySelector('#homeDock .chord-card') || {}).textContent || '') &&
+                    /6.5/.test((d.querySelector('#homeDock .chord-card') || {}).textContent || ''));
+                t('没点同意之前，一个字都没写进去',
+                    JSON.stringify(w.ellipse.records.dataOf(day)) === before);
+
+                d.querySelector('#homeDock [data-chord="yes"]').click();
+                await sleep(250);
+                t('点了同意才真的写进记录', w.ellipse.records.dataOf(day).sleep.hours === 6.5,
+                    String((w.ellipse.records.dataOf(day).sleep || {}).hours));
+                t('卡上留下「已执行」的痕迹',
+                    /已执行/.test((d.querySelector('#homeDock .chord-card') || {}).textContent || ''));
+                t('同意按钮收起来了', !d.querySelector('#homeDock [data-chord="yes"]'));
+
+                say('== 弦音：读到记录前先请示，关着就直说 ==');
+                w.fetch = function (url) {
+                    asks++;
+                    if (String(url).indexOf('chat/completions') < 0) return realFetch.apply(w, arguments);
+                    return Promise.resolve(sse([parcel('我看看。\n\n' + '```ellipse\n' +
+                        JSON.stringify({ do: [{ act: 'read-records', from: day, to: day, modules: ['sleep'] }] }) +
+                        '\n```')]));
+                };
+                const asksBeforeRead = asks;
+                typeIn('我最近睡得怎么样');
+                await waitFor(() => /设置 · 弦音/.test(chordText('#homeDock .chord-card-done')));
+                t('读取开关关着时，卡上说清楚去哪儿开',
+                    /设置 · 弦音/.test(chordText('#homeDock .chord-card-done')));
+                t('只花了拿到回话的那一次，没再为读记录多花一次',
+                    asks === asksBeforeRead + 1, asks + ' / ' + (asksBeforeRead + 1));
+
+                say('== 弦音：打开开关、勾「以后不用再问」，才真能读到 ==');
+                let sawDigest = false;
+                w.fetch = function (url, opts) {
+                    asks++;
+                    if (String(url).indexOf('chat/completions') < 0) return realFetch.apply(w, arguments);
+                    if (String((opts && opts.body) || '').indexOf('【用户已同意你查看的记录】') >= 0) {
+                        sawDigest = true;
+                        return Promise.resolve(sse([parcel('看过了，这几天睡得还行。')]));
+                    }
+                    return Promise.resolve(sse([parcel('我看看。\n\n```ellipse\n' +
+                        JSON.stringify({ do: [{ act: 'read-records', from: day, to: day, modules: ['sleep'] }] }) +
+                        '\n```')]));
+                };
+
+                w.ellipse.settings.set('assistant', { readAllow: true });
+                await sleep(200);
+                typeIn('我最近睡得怎么样');
+                await waitFor(() => d.querySelector('#homeDock [data-chord="trust"]'));
+                t('开关打开后，卡上多出「以后不用再问」',
+                    !!d.querySelector('#homeDock [data-chord="trust"]'));
+                d.querySelector('#homeDock [data-chord="trust"]').checked = true;
+                d.querySelector('#homeDock [data-chord="yes"]').click();
+                await waitFor(() => /睡得还行/.test(chordText('#homeDock .chord-bubble')));
+                t('点同意后记录真的发过去了', sawDigest);
+                t('拿到记录后弦音接着说下去',
+                    /睡得还行/.test(chordText('#homeDock .chord-bubble')),
+                    chordText('#homeDock .chord-bubble'));
+                t('「以后不用再问」被记住了',
+                    String(w.ellipse.settings.get('assistant').readTrusted) === 'sleep',
+                    String(w.ellipse.settings.get('assistant').readTrusted));
+
+                say('== 弦音：不想活了，本地拦下，不发给 AI ==');
+                const asksBeforeCrisis = asks;
+                typeIn('我不想活了');
+                await sleep(300);
+                t('出了求助卡', !!d.querySelector('#homeDock .chord-card--crisis'));
+                t('求助卡上有热线和急救',
+                    /12356/.test((d.querySelector('#homeDock .chord-card--crisis') || {}).textContent || '') &&
+                    /120/.test((d.querySelector('#homeDock .chord-card--crisis') || {}).textContent || ''));
+                t('一个字都没发给 AI', asks === asksBeforeCrisis,
+                    asks + ' / ' + asksBeforeCrisis);
+                w.fetch = realFetch;
+
+                say('== 弦音：关掉它，主页退回原样 ==');
+                d.getElementById('settingsBtn').click();
+                await sleep(300);
+                d.querySelector('[data-module-row="assistant"] [data-toggle]').click();
+                await sleep(300);
+                d.getElementById('settingsClose').click();
+                await sleep(300);
+                t('聊天框消失', d.getElementById('homeDock').hidden === true);
+                t('主页回到上下居中的老样子',
+                    !d.getElementById('viewHome').classList.contains('home--docked'));
+                t('弦音那块从 DOM 里撤了', !d.querySelector('#homeDock .chord'));
+                t('下半屏还是老样子',
+                    !!d.querySelector('#viewHome .wordmark') && !!d.querySelector('#viewHome .org-line'));
 
                 say('DONE');
             } catch (err) {

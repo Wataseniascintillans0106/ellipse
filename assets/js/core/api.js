@@ -7,7 +7,7 @@ import {
 import { ICONS, icon } from '../icons.js';
 import { escapeHtml, fmtNum, debounce, toast } from '../util.js';
 import {
-    getSettings, setSettings, getModuleSettings,
+    getSettings, setSettings, getModuleSettings, subscribe as subscribeStorage,
     getRecordData, setField, dropModuleData, allRecordKeys
 } from '../storage.js';
 import * as sheet from './sheet.js';
@@ -115,6 +115,7 @@ function buildFacade() {
                 box[modId] = patch || {};
                 return setSettings({ mods: box });
             },
+            on: subscribeStorage,
             global: getSettings
         },
 

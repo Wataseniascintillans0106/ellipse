@@ -1,6 +1,7 @@
 const KEY_RECORDS = 'ellipse.v1.records';
 const KEY_SETTINGS = 'ellipse.v1.settings';
 const KEY_MODS = 'ellipse.v1.mods';
+const KEY_REMIND = 'ellipse.v1.remind';
 
 const SETTINGS_VERSION = 2;
 
@@ -206,6 +207,26 @@ export function setModsRaw(all) {
     }
 }
 
+export function getRemind() {
+    const raw = safeParse(localStorage.getItem(KEY_REMIND), null);
+    const src = (raw && typeof raw === 'object') ? raw : {};
+    return {
+        records: typeof src.records === 'string' ? src.records : '',
+        chat: typeof src.chat === 'string' ? src.chat : '',
+        snoozeUntil: typeof src.snoozeUntil === 'string' ? src.snoozeUntil : ''
+    };
+}
+
+export function setRemind(patch) {
+    const value = Object.assign(getRemind(), patch || {});
+    try {
+        localStorage.setItem(KEY_REMIND, JSON.stringify(value));
+    } catch (err) {
+        console.error('[ellipse] 提醒状态没能存下：', err);
+    }
+    return value;
+}
+
 export function exportAll(opts) {
     const o = opts || {};
     const payload = {
@@ -272,4 +293,4 @@ function emit(evt) {
     });
 }
 
-export { DEFAULT_SETTINGS, SETTINGS_VERSION, KEY_RECORDS, KEY_SETTINGS, KEY_MODS };
+export { DEFAULT_SETTINGS, SETTINGS_VERSION, KEY_RECORDS, KEY_SETTINGS, KEY_MODS, KEY_REMIND };

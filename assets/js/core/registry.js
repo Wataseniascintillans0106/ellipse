@@ -18,6 +18,7 @@ function normalize(def, meta) {
     out.settingsSections = Array.isArray(def.settingsSections) ? def.settingsSections.slice() : [];
     out.services = (def.services && typeof def.services === 'object') ? def.services : {};
     out.actions = (def.actions && typeof def.actions === 'object') ? def.actions : {};
+    out.homeBlock = (def.homeBlock && typeof def.homeBlock.mount === 'function') ? def.homeBlock : null;
     out.icon = def.icon || 'chart';
     out.desc = def.desc || '';
     out.builtin = !!m.builtin;
@@ -112,6 +113,19 @@ export function pageModules() {
     return orderedIds().filter(function (id) {
         const def = defs.get(id);
         return !!def && def.kind === 'page' && isEnabled(id);
+    });
+}
+
+export function homeBlocks() {
+    return orderedIds().filter(function (id) {
+        const def = defs.get(id);
+        return !!def && def.homeBlock && isEnabled(id);
+    }).sort(function (a, b) {
+        const oa = Number(defs.get(a).homeBlock.order) || 0;
+        const ob = Number(defs.get(b).homeBlock.order) || 0;
+        return oa - ob;
+    }).map(function (id) {
+        return defs.get(id);
     });
 }
 

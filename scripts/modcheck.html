@@ -41,7 +41,7 @@
                 say('分组: ' + groups.join(' / '));
                 t('「模块」打头', groups[0] === '模块');
                 t('趋势模块贡献了「显示」', groups.indexOf('显示') > 0);
-                t('AI 模块贡献了「AI 辅助」', groups.indexOf('AI 辅助') > 0);
+                t('弦音模块贡献了「弦音」', groups.indexOf('弦音') > 0);
                 t('数据与安装分组还在', groups.indexOf('数据') > 0 && groups.indexOf('安装到主屏') > 0);
 
                 const rows = qa('#settingsBody [data-module-row]').map((n) => n.dataset.moduleRow);
@@ -56,16 +56,37 @@
                     qa('[data-module-row="assistant"] [data-order]').length === 0 &&
                     qa('[data-module-row="assistant"] [data-toggle]').length === 1);
 
-                t('AI 分区有三个输入框（接口 / 密钥 / 模型）',
-                    qa('#settingsBody [data-ai]').length === 3, String(qa('#settingsBody [data-ai]').length));
-                t('AI 状态显示未配置', /^当前状态：未配置/.test((q('#aiStatus') || {}).textContent || ''));
+                t('弦音分区有四个输入框（接口 / 密钥 / 模型 / 读取开关）',
+                    qa('#settingsBody [data-ai]').length === 4, String(qa('#settingsBody [data-ai]').length));
+                t('读记录的开关默认是关的',
+                    (q('#settingsBody [data-ai="readAllow"]') || {}).checked === false);
+                t('弦音状态显示未配置', /^当前状态：还没配置/.test((q('#aiStatus') || {}).textContent || ''));
+                t('弦音分区能导出聊天 md', !!q('#settingsBody [data-set="ai-export-chat"]'));
+                t('弦音分区能清空聊天', !!q('#settingsBody [data-set="ai-clear-chat"]'));
+                t('模块行上写明它就住主页上半屏',
+                    ((q('[data-module-row="assistant"] .set-row-desc') || {}).textContent || '')
+                        .indexOf('就住在主页上半屏') > 0);
                 t('趋势分区有三个区间按钮', qa('#settingsBody [data-default-range]').length === 3);
                 const cb = d.getElementById('backupSecrets');
                 t('备份默认不带 AI 密钥', !!cb && cb.checked === false);
 
-                say('== 日记不挂工具按钮 / 关掉 AI 助手，AI 分区跟着消失 ==');
+                say('== 弦音开着时主页上半屏有聊天框 ==');
                 click(d.getElementById('settingsClose'));
                 await sleep(250);
+                t('主页插槽露出来了', !!d.getElementById('homeDock') &&
+                    d.getElementById('homeDock').hidden === false);
+                t('主页切到了「上下两半」模式',
+                    d.getElementById('viewHome').classList.contains('home--docked'));
+                t('聊天框画出来了', !!d.querySelector('#homeDock #chordList') &&
+                    !!d.querySelector('#homeDock #chordInput'));
+                t('输入框下面常驻一行免责小字',
+                    /弦音不是医生/.test((d.querySelector('#homeDock .chord-disclaimer') || {}).textContent || ''));
+                t('免责小字只有这一行', qa('#homeDock .chord-disclaimer').length === 1);
+                t('下半屏的字标一个都没动',
+                    ((d.querySelector('#viewHome .wordmark') || {}).textContent || '') === 'ellipse' &&
+                    !!d.querySelector('#viewHome .org-line'));
+
+                say('== 日记不挂工具按钮 / 关掉弦音，聊天框和 AI 分区一起消失 ==');
                 click(q('#rail [data-act="record"]'));
                 await sleep(300);
                 t('日记里没有任何工具按钮', qa('#moduleStack .tool-btn').length === 0,
@@ -77,9 +98,12 @@
                 await sleep(250);
                 click(q('[data-module-row="assistant"] [data-toggle]'));
                 await sleep(250);
-                t('AI 分区跟着消失', !q('#settingsBody [data-section="ai"]'));
+                t('弦音分区跟着消失', !q('#settingsBody [data-section="ai"]'));
                 click(d.getElementById('settingsClose'));
                 await sleep(250);
+                t('聊天框跟着消失', d.getElementById('homeDock').hidden === true);
+                t('主页退回原样', !d.getElementById('viewHome').classList.contains('home--docked') &&
+                    !d.querySelector('#homeDock .chord'));
                 click(q('#rail [data-act="record"]'));
                 await sleep(300);
                 t('日记里依然没有工具按钮', qa('#moduleStack .tool-btn').length === 0);
@@ -90,8 +114,14 @@
                 await sleep(250);
                 click(q('[data-module-row="assistant"] [data-toggle]'));
                 await sleep(250);
-                t('重新打开后 AI 分区回来', !!q('#settingsBody [data-section="ai"]'));
+                t('重新打开后弦音分区回来', !!q('#settingsBody [data-section="ai"]'));
+                click(d.getElementById('settingsClose'));
+                await sleep(250);
+                t('聊天框也回来', d.getElementById('homeDock').hidden === false &&
+                    !!d.querySelector('#homeDock .chord'));
 
+                click(d.getElementById('settingsBtn'));
+                await sleep(250);
                 say('== 导入一个自装模块 ==');
                 const input = d.getElementById('modFile');
                 t('设置里有导入模块的入口', !!input && !!q('[data-set="import-mod"]'));
@@ -99,8 +129,9 @@
                 dt.items.add(new w.File([MOD_SRC], 'weight.js', { type: 'text/javascript' }));
                 input.files = dt.files;
                 input.dispatchEvent(new w.Event('change', { bubbles: true }));
-                await sleep(500);
-                t('先弹出确认框', d.getElementById('sheet').classList.contains('open'));
+                for (let i = 0; i < 80 && !d.getElementById('sheet').classList.contains('open'); i++) await sleep(50);
+                t('先弹出确认框', d.getElementById('sheet').classList.contains('open'),
+                    (d.getElementById('toast') || {}).textContent || '');
                 const note = d.getElementById('sheetBody').textContent;
                 t('确认框里点名了模块自称的 id 与名字', note.indexOf('体重') >= 0 && note.indexOf('weight') >= 0);
                 t('确认框里写明了它能读本机记录与密钥',

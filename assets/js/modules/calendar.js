@@ -1168,6 +1168,8 @@ ellipse.define({
     expandDates: expandDates,
     timesOn: timesOn,
     occursOn: occursOn,
+    itemTitle: itemTitle,
+    valueText: valueText,
 
     actions: {
         'cal-add-for': function (ctx) {

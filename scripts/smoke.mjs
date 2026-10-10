@@ -471,8 +471,227 @@ if (existsSync(logPath)) {
     try { new TextDecoder('utf-8', { fatal: true }).decode(log); } catch (err) { decodes = false; }
     ok('内容是真 UTF-8（存成 ANSI 的话别人的记事本会乱码）', decodes,
         '在记事本里"另存为"时编码选 UTF-8');
-    ok('记了最新那一版', log.toString('utf8').indexOf('v0.3.1') >= 0);
+    ok('记了最新那一版', log.toString('utf8').indexOf('v0.4.0') >= 0);
 }
+
+console.log('\n[11] 弦音的脑子（chat.js 纯函数）');
+
+const chat = await import('../assets/js/chat.js');
+
+const cut1 = chat.splitReply('好的，记下了。\n\n```ellipse\n{"do":[]}\n```');
+ok('切得出说的话', cut1.found && cut1.closed && cut1.prose.indexOf('记下了') >= 0);
+ok('切得出指令块', cut1.block === '\n{"do":[]}\n');
+const cut2 = chat.splitReply('正在想 ```ellipse{"do"');
+ok('指令块没写完时不许执行', cut2.found && !cut2.closed && cut2.block === null);
+ok('半截的围栏不露出来',
+    chat.proseSoFar('正在想 ```ell').indexOf('`') < 0);
+const line = '今天出去走了走，膝盖还行，没什么特别的';
+ok('打字机留一手，不把最后几个字先吐出来',
+    chat.proseSoFar(line) === line.slice(0, line.length - 9) &&
+    line.length - chat.proseSoFar(line).length === 9);
+ok('话太短就先什么都不显示', chat.proseSoFar('今天') === '');
+
+ok('坏 JSON 认得出', chat.parseActions('{oops').error !== null);
+ok('不认识的形状也认得出', chat.parseActions('[1,2]').error !== null &&
+    chat.parseActions('[1,2]').acts.length === 0);
+ok('混进来一条不是对象的也认得出',
+    chat.parseActions('[{"act":"read-records"}, 7]').error !== null);
+ok('空的 do 数组不算错', chat.parseActions('{"do":[]}').error === null);
+ok('裸数组也收', chat.parseActions('[{"act":"read-records"}]').acts.length === 1);
+
+ok('自伤的词拦得住', chat.crisisHit('我不想活了'));
+ok('自伤的词没误伤', !chat.crisisHit('今天心情不错'));
+const crisis = chat.crisisReply();
+ok('求助卡有热线号码', crisis.lines.some((l) => l.value.indexOf('12356') >= 0));
+ok('求助卡也提了医生和急救', crisis.lines.some((l) => l.label.indexOf('医生') >= 0) &&
+    crisis.lines.some((l) => l.value.indexOf('120') >= 0));
+
+const fieldSleep = { key: 'hours', label: '睡了多久', type: 'scale', min: 1, max: 12 };
+ok('量表的正常值收得下', chat.normalizeFieldValue(fieldSleep, 6).value === 6);
+ok('量表超范围拦得住', chat.normalizeFieldValue(fieldSleep, 40).ok === false);
+ok('量表下面的范围也拦得住', chat.normalizeFieldValue(fieldSleep, 0).ok === false);
+ok('全角数字认得', chat.normalizeFieldValue(fieldSleep, '６').value === 6);
+ok('量表不收小数', chat.normalizeFieldValue(fieldSleep, 6.5).ok === false);
+ok('清空是合法的', chat.normalizeFieldValue(fieldSleep, '').value === null);
+ok('没填的也当清空', chat.normalizeFieldValue(fieldSleep, null).value === null);
+
+const fieldMood = {
+    key: 'morning', label: '早间心情', type: 'enum',
+    options: [{ value: 'true', label: '好' }, { value: 'false', label: '差' }]
+};
+ok('选项按值收', chat.normalizeFieldValue(fieldMood, 'true').value === 'true');
+ok('选项按标签收', chat.normalizeFieldValue(fieldMood, '好').value === 'true');
+ok('选项收成布尔也不算错', chat.normalizeFieldValue(fieldMood, '好').value === true ||
+    chat.normalizeFieldValue(fieldMood, '好').value === 'true');
+ok('不存在的选项拦得住', chat.normalizeFieldValue(fieldMood, '一般').ok === false);
+
+const fieldText = { key: 'text', label: '备注', type: 'textarea', maxlength: 10 };
+ok('超长文本拦得住', chat.normalizeFieldValue(fieldText, '一二三四五六七八九十十一').ok === false);
+ok('没超长的文本收得下', chat.normalizeFieldValue(fieldText, '膝盖不疼').value === '膝盖不疼');
+
+const fieldNum = { key: 'v', label: '数值', type: 'number', min: 0, unit: '次' };
+ok('数字型不收小数限制', chat.normalizeFieldValue(fieldNum, 2.5).value === 2.5);
+ok('数字型没有上限就不设上限', chat.normalizeFieldValue(fieldNum, 999).ok === true);
+
+const world = {
+    today: '2026-10-10',
+    records: [
+        { id: 'sleep', name: '睡眠', fields: [{ key: 'hours', label: '睡了多久', type: 'number', min: 0 }] },
+        { id: 'mood', name: '情绪', fields: [
+            { key: 'morning', label: '早间心情', type: 'scale', min: 1, max: 10 }
+        ] }
+    ],
+    events: [
+        {
+            id: 'med', name: '用药', fields: [{ key: 'drug', label: '药名', type: 'text', required: true }],
+            repeats: ['once', 'daily'], events: [
+                { id: 'e1', date: '2026-10-10', time: '08:00', values: { drug: '舍曲林' }, repeat: { kind: 'daily', every: 1, unit: 'day' } }
+            ]
+        }
+    ]
+};
+
+const setSpec = chat.validateAction(
+    { act: 'set-field', date: '2026-10-10', module: 'sleep', field: 'hours', value: 6.5 }, world);
+ok('填记录：正常的一条能过', setSpec.ok && setSpec.spec.value === 6.5);
+ok('填记录：模块用中文名也认',
+    chat.validateAction({ act: 'set-field', date: '2026-10-10', module: '睡眠', field: '睡了多久', value: 7 }, world).ok);
+ok('填记录：不存在的模块拦得住',
+    chat.validateAction({ act: 'set-field', date: '2026-10-10', module: 'nope', field: 'x', value: 1 }, world).ok === false);
+ok('填记录：不存在的字段拦得住',
+    chat.validateAction({ act: 'set-field', date: '2026-10-10', module: 'sleep', field: 'nope', value: 1 }, world).ok === false);
+ok('填记录：明天的日子拦得住',
+    chat.validateAction({ act: 'set-field', date: '2026-10-11', module: 'sleep', field: 'hours', value: 6 }, world).ok === false);
+ok('填记录：不存在的日期拦得住',
+    chat.validateAction({ act: 'set-field', date: '2026-02-30', module: 'sleep', field: 'hours', value: 6 }, world).ok === false);
+ok('填记录：不认识的指令拦得住', chat.validateAction({ act: 'drop-db' }, world).ok === false);
+
+const addSpec = chat.validateAction(
+    { act: 'add-event', type: 'med', date: '2026-10-12', time: '08:00', values: { drug: '奥氮平' } }, world);
+ok('加日程：能过', addSpec.ok && addSpec.spec.date === '2026-10-12');
+ok('加日程：必填项空着拦得住',
+    chat.validateAction({ act: 'add-event', type: 'med', date: '2026-10-12', values: {} }, world).ok === false);
+ok('加日程：时间写成乱码拦得住',
+    chat.validateAction({ act: 'add-event', type: 'med', date: '2026-10-12', time: '25:99', values: { drug: 'x' } }, world).ok === false);
+ok('加日程：不支持的频率拦得住',
+    chat.validateAction({ act: 'add-event', type: 'med', date: '2026-10-12', values: { drug: 'x' }, repeat: { kind: 'weekly' } }, world).ok === false);
+ok('加日程：卡上会写清楚要加什么',
+    chat.describeAction(addSpec.spec).items.some((l) => l.indexOf('奥氮平') >= 0));
+
+ok('认日程：认得出那一条',
+    chat.resolveEventRef({ type: 'med', match: '舍曲林' }, world).status === 'ok');
+ok('认日程：认不出就是没有',
+    chat.resolveEventRef({ type: 'med', match: '阿司匹林' }, world).status === 'none');
+ok('认日程：日子对不上也认不出',
+    chat.resolveEventRef({ type: 'med', date: '2026-09-01', match: '舍曲林' }, world).status === 'none');
+
+const many = {
+    today: '2026-10-10',
+    records: [],
+    events: [{
+        id: 'med', name: '用药', fields: [], repeats: ['once'], events: [
+            { id: 'a', date: '2026-10-10', values: { drug: 'A' }, repeat: { kind: 'once' } },
+            { id: 'b', date: '2026-10-10', values: { drug: 'B' }, repeat: { kind: 'once' } }
+        ]
+    }]
+};
+ok('认日程：两条就是说不清',
+    chat.resolveEventRef({ type: 'med', date: '2026-10-10' }, many).status === 'many');
+const delSpec = chat.validateAction({ act: 'delete-event', type: 'med', date: '2026-10-10' }, many);
+ok('删日程：说不清时也先摆出来，由人挑', delSpec.ok && delSpec.spec.matches.length === 2);
+
+const readSpec = chat.validateAction(
+    { act: 'read-records', from: '2026-10-01', to: '2026-10-10', modules: ['sleep'] }, world);
+ok('读记录：正常的一条能过', readSpec.ok && readSpec.spec.days === 10);
+ok('读记录：超过 31 天拦得住',
+    chat.validateAction({ act: 'read-records', from: '2026-01-01', to: '2026-10-10' }, world).ok === false);
+ok('读记录：起止反了拦得住',
+    chat.validateAction({ act: 'read-records', from: '2026-10-10', to: '2026-10-01' }, world).ok === false);
+ok('读记录：不存在的模块拦得住',
+    chat.validateAction({ act: 'read-records', from: '2026-10-01', to: '2026-10-10', modules: ['nope'] }, world).ok === false);
+ok('读记录的卡会写清楚看哪几天哪几个模块',
+    chat.describeAction(readSpec.spec).items.some((l) => l.indexOf('睡眠') >= 0) &&
+    chat.describeAction(readSpec.spec).items.some((l) => l.indexOf('10 天') >= 0));
+ok('读记录：不写模块就是全部',
+    chat.validateAction({ act: 'read-records', from: '2026-10-09', to: '2026-10-10' }, world).spec.modules.length === 2);
+
+const sys = chat.buildSystemPrompt(world);
+ok('系统提示词带上今天几号', sys.indexOf('2026-10-10') >= 0);
+ok('系统提示词带上模块的字段名', sys.indexOf('hours') >= 0 && sys.indexOf('morning') >= 0);
+ok('系统提示词写死了不做医疗建议', sys.indexOf('不建议加药') >= 0 && sys.indexOf('不做任何诊断') >= 0);
+ok('系统提示词交代了指令怎么发', sys.indexOf('```ellipse') >= 0);
+ok('没开模块时提示词也说得明白',
+    chat.buildSystemPrompt({ today: '2026-10-10', records: [], events: [] }).indexOf('一个都没开') >= 0);
+
+const chordMd = chat.chatMarkdown([
+    { role: 'user', text: '昨晚睡了 6 小时', at: '2026-10-10T09:12:00' },
+    {
+        role: 'ai', text: '记下了。', at: '2026-10-10T09:12:20',
+        acts: [{ title: '填一条状态记录', items: ['昨天 · 睡眠 · 时长 = 6 小时'], decision: 'ok' }]
+    },
+    { role: 'crisis', text: '求助卡', at: '2026-10-10T10:00:00' }
+]);
+ok('md 有头信息', chordMd.indexOf('tags: [ellipse, 弦音]') >= 0);
+ok('md 按天分段', chordMd.indexOf('## 2026-10-10 周') >= 0);
+ok('md 分得清谁说的', chordMd.indexOf('**我**') >= 0 && chordMd.indexOf('**弦音**') >= 0);
+ok('md 记下了哪条执行了', chordMd.indexOf('> 已执行：填一条状态记录') >= 0);
+ok('md 给求助卡单独一节', chordMd.indexOf('### 10:00 求助卡') >= 0);
+ok('空的聊天记录也导得出来', chat.chatMarkdown([]).indexOf('还没有聊过') >= 0);
+
+console.log('\n[12] 弦音：主页插槽与导出提醒');
+
+const blocks = registry.homeBlocks();
+ok('关掉的模块不占主页', blocks.every((d) => registry.isEnabled(d.id)));
+ok('开着弦音时主页插槽就是它', blocks.length === 1 && blocks[0].id === 'assistant');
+ok('插槽有 order 好排序', Number.isFinite(Number(blocks[0].homeBlock.order)));
+ok('没写 homeBlock 的模块不会被塞进来',
+    registry.all().filter((d) => !d.homeBlock).length > 0 &&
+    blocks.every((d) => !!d.homeBlock));
+ok('形状不对的 homeBlock 会被丢掉，不会崩',
+    registry.get('assistant').homeBlock.mount instanceof Function);
+
+const { remindDue } = await import('../assets/js/export.js');
+ok('刚记完不提醒',
+    remindDue({
+        today: '2026-10-10', oldestRecordKey: '2026-10-09', newestRecordKey: '2026-10-10',
+        remind: {}
+    }) === null);
+ok('满 14 天没导就提醒',
+    remindDue({
+        today: '2026-10-20', oldestRecordKey: '2026-09-01', newestRecordKey: '2026-10-20',
+        remind: {}
+    }) !== null);
+ok('提醒里写清了隔了多少天',
+    remindDue({
+        today: '2026-10-20', oldestRecordKey: '2026-09-01', newestRecordKey: '2026-10-20',
+        remind: { records: '2026-10-01' }
+    }).records.days === 19);
+ok('导过之后就不再提醒',
+    remindDue({
+        today: '2026-10-20', oldestRecordKey: '2026-09-01', newestRecordKey: '2026-10-05',
+        remind: { records: '2026-10-20' }
+    }) === null);
+ok('导出之后又没有新东西，不提醒',
+    remindDue({
+        today: '2026-10-20', oldestRecordKey: '2026-09-01', newestRecordKey: '2026-10-01',
+        remind: { records: '2026-10-01' }
+    }) === null);
+ok('说了先不用提醒，就不提醒',
+    remindDue({
+        today: '2026-10-20', oldestRecordKey: '2026-09-01', newestRecordKey: '2026-10-20',
+        remind: { snoozeUntil: '2026-10-30' }
+    }) === null);
+ok('免打扰过了期，照提醒',
+    remindDue({
+        today: '2026-11-02', oldestRecordKey: '2026-09-01', newestRecordKey: '2026-10-30',
+        remind: { snoozeUntil: '2026-10-30' }
+    }) !== null);
+ok('聊天那边单独算',
+    (remindDue({
+        today: '2026-10-20', oldestChatAt: '2026-09-01', newestChatAt: '2026-10-20',
+        remind: {}
+    }) || {}).chat !== null);
+ok('一键备份的文件名认得出是备份', suggestFilename('chat').indexOf('ellipse-chord-') === 0);
 
 console.log('\n' + (fails ? '有 ' + fails + ' 项未通过' : '全部通过'));
 process.exit(fails ? 1 : 0);
