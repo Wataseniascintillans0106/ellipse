@@ -53,6 +53,10 @@
                 t('竖栏隐藏', d.getElementById('rail').hidden);
                 t('返回按钮可见', !d.getElementById('backHomeBtn').hidden);
 
+                t('页标题的字号是 25px',
+                    parseFloat(w.getComputedStyle(d.querySelector('#viewRecord .head-line')).fontSize) === 25,
+                    w.getComputedStyle(d.querySelector('#viewRecord .head-line')).fontSize);
+
                 const recordHead = d.querySelector('#viewRecord .head-line').getBoundingClientRect();
                 const recordHeadLeft = recordHead.left;
                 const recordHeadTop = recordHead.top;
@@ -364,6 +368,9 @@
                 t('日历页可见', !d.getElementById('viewPage').hidden);
                 t('标题是「日历及健康」', d.getElementById('pageTitle').textContent === '日历及健康',
                     d.getElementById('pageTitle').textContent);
+                t('整页模块的标题也是 25px（和记录页一样大）',
+                    parseFloat(w.getComputedStyle(d.getElementById('pageTitle')).fontSize) === 25,
+                    w.getComputedStyle(d.getElementById('pageTitle')).fontSize);
                 t('返回按钮跟别的一样在左边', !!d.querySelector('#viewPage .head-row > #backHomeBtn'));
 
                 const calBody = d.getElementById('pageBody');

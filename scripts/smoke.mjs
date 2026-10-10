@@ -471,7 +471,7 @@ if (existsSync(logPath)) {
     try { new TextDecoder('utf-8', { fatal: true }).decode(log); } catch (err) { decodes = false; }
     ok('内容是真 UTF-8（存成 ANSI 的话别人的记事本会乱码）', decodes,
         '在记事本里"另存为"时编码选 UTF-8');
-    ok('记了最新那一版', log.toString('utf8').indexOf('v0.3.0') >= 0);
+    ok('记了最新那一版', log.toString('utf8').indexOf('v0.3.1') >= 0);
 }
 
 console.log('\n' + (fails ? '有 ' + fails + ' 项未通过' : '全部通过'));

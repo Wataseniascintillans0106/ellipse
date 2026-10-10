@@ -128,8 +128,8 @@ body.is-locked { overflow: hidden; }
 
 .head-line {
     margin: 0;
-    font-size: 12.5px;
-    letter-spacing: 4px;
+    font-size: 25px;
+    letter-spacing: 8px;
     color: var(--ink-2);
 }
 
