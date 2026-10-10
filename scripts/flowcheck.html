@@ -22,7 +22,6 @@
                 t('设置按钮在主页显示', !d.getElementById('settingsBtn').hidden);
                 t('返回按钮隐藏', d.getElementById('backHomeBtn').hidden);
 
-                /* 竖栏里两个入口：波状图在上、状态记录在下 */
                 const railItems = Array.from(d.querySelectorAll('#rail .rail-item'));
                 t('竖栏两个入口（波状图 + 状态记录）', railItems.length === 2,
                     String(railItems.length));
@@ -31,8 +30,6 @@
                     railItems[0].getAttribute('data-rail-page') === 'trend' &&
                     railItems[1].getAttribute('data-act') === 'record');
                 if (railItems.length === 2) {
-                    /* DOM 顺序不够，还要真的量：竖栏是 bottom 锚定的纵向 flex，
-                       先写进去的应该排在上面 */
                     const a = railItems[0].getBoundingClientRect();
                     const b = railItems[1].getBoundingClientRect();
                     t('波状图入口确实压在状态记录上方', a.bottom <= b.top + 1,
@@ -49,13 +46,10 @@
                 t('竖栏隐藏', d.getElementById('rail').hidden);
                 t('返回按钮可见', !d.getElementById('backHomeBtn').hidden);
 
-                /* 记下记录页的「左边线」和顶部留白，稍后拿来跟整页比 ——
-                   用户要的是「框架一致」，光看两边都有标题不够，得量同一根边线 */
                 const recordHead = d.querySelector('#viewRecord .head-line').getBoundingClientRect();
                 const recordHeadLeft = recordHead.left;
                 const recordHeadTop = recordHead.top;
 
-                /* 返回按钮在页头顶栏的左边、和标题同一行（手机上的返回就长这样） */
                 const recordBack = d.getElementById('backHomeBtn').getBoundingClientRect();
                 t('返回按钮在标题左边',
                     recordBack.right <= recordHead.left + 1,
@@ -72,12 +66,8 @@
                 say('栏: ' + cards.map((c) => c.dataset.module).join(','));
                 t('记录页最后一张是日记', cards.length > 0 &&
                     cards[cards.length - 1].dataset.module === 'diary');
-                /* 波状图搬去主页竖栏了，不该再占记录页的卡片位 */
                 t('记录页里没有波状图卡片', cards.every((c) => c.dataset.module !== 'trend'));
 
-                /* 收起时那行小字要夹在「标题栏横线」和「卡片底边」正中间。
-                   只用量到的矩形 + padding，不去解析 line-height（'normal' 算不出来）。
-                   这里是浏览器层才量得到的，所以放在 flowcheck 而不是 smoke。 */
                 const offCenter = cards.filter((card) => {
                     const prev = card.querySelector('.module-preview');
                     if (!prev) return false;
@@ -92,14 +82,12 @@
                 }).map((c) => c.dataset.module);
                 t('收起的小字上下留白一致（垂直居中）', offCenter.length === 0, offCenter.join(','));
 
-                /* 先测面板自带的关闭按钮，排除历史记录的干扰 */
                 d.querySelector('.export-card').click();
                 await sleep(300);
                 d.getElementById('sheetClose').click();
                 await sleep(400);
                 t('面板自身关闭按钮有效', !d.getElementById('sheet').classList.contains('open'));
 
-                /* 卡片的展开 / 收起：点标题栏翻一次，再点一次回到原状 */
                 const card = (id) => d.querySelector('.module[data-module="' + id + '"]');
                 const isOpen = (id) => !!card(id) && card(id).classList.contains('is-open');
                 const clickHead = (id) => card(id).querySelector('.module-head').click();
@@ -142,7 +130,6 @@
                 t('最下面有一行小字说明', (d.getElementById('pageNote').textContent || '').length > 4,
                     d.getElementById('pageNote').textContent);
 
-                /* 框架与记录页一致：标题落在同一根左边线、同一个顶部位置上 */
                 const pageHead = d.getElementById('pageTitle').getBoundingClientRect();
                 t('标题的左边缘和记录页标题对齐',
                     Math.abs(pageHead.left - recordHeadLeft) <= 1,
@@ -151,7 +138,6 @@
                     Math.abs(pageHead.top - recordHeadTop) <= 1,
                     pageHead.top + ' vs ' + recordHeadTop);
 
-                /* 顺序：标题 → 区间按钮 → 图 → 小字 */
                 const rangeRow = pageBody.querySelector('.range-row').getBoundingClientRect();
                 const lastChart = charts[charts.length - 1].getBoundingClientRect();
                 const noteRect = d.getElementById('pageNote').getBoundingClientRect();
@@ -159,8 +145,6 @@
                     rangeRow.top + ' vs ' + pageHead.bottom);
                 t('小字排在所有图的下面', noteRect.top >= lastChart.bottom - 1,
                     noteRect.top + ' vs ' + lastChart.bottom);
-                /* 正文一条左边线：区间按钮、曲线都从这儿开始。
-                   （标题搬到顶栏、跟在返回箭头后面了，不再站在这条线上） */
                 const firstChart = charts[0].getBoundingClientRect();
                 t('曲线块与区间按钮左右对齐',
                     Math.abs(firstChart.left - rangeRow.left) <= 1,
@@ -171,7 +155,6 @@
                         d.getElementById('backHomeBtn').getBoundingClientRect().height / 2 -
                         (pageHead.top + pageHead.height / 2)) <= 2);
 
-                /* 换页时页面本身要能滚：内容比一屏高 */
                 t('这一页比一屏高、能上下滑',
                     d.getElementById('viewPage').scrollHeight > w.innerHeight,
                     d.getElementById('viewPage').scrollHeight + ' vs ' + w.innerHeight);

@@ -1,12 +1,3 @@
-/* ellipse · 日常状态记录 —— 入口与编排
-
-   这一层只做「外壳」该做的事：页面与日期、卡片骨架、设置面板骨架、键盘与手势、PWA。
-   它不认识「情绪」「睡眠」「AI 助手」——那些全在 assets/js/modules/ 里，
-   和用户自己导入的模块走同一套契约（core/registry.js）。
-
-   启动顺序是刻意的：外壳先渲染出来，模块的求值推迟到首屏之后。
-   这样即使某个模块坏掉，设置页在你需要它的时候也一定打得开。 */
-
 import { icon } from './icons.js';
 import {
     todayKey, shiftKey, displayKey, relativeLabel, weekdayCN, cnKey,
@@ -30,21 +21,17 @@ import {
     uninstallMod, exportSource, disableAllCustom
 } from './core/loader.js';
 
-/* mod 契约的唯一入口：装到全局的 ellipse，也是模块拿到的那份 api */
 const api = installGlobal();
 
-/* 整页模块没自己写底注时，用这一句兜底（模块写了 def.note 就用它的） */
 const DEFAULT_PAGE_NOTE = '这一页只读，不会改动任何记录';
 
-/* ---------------- 状态 ---------------- */
-
 const state = {
-    page: 'home',                 // 'home' | 'record' | 页面型模块的 id（如 'trend'）
+    page: 'home',
     key: todayKey(),
-    openModule: null,             // 展开的那条记录型模块（同时只开一条）
+    openModule: null,
     settingsOpen: false,
-    installPrompt: null,          // 浏览器给的安装事件，只在本次会话有效，用完即弃
-    booted: false                 // 模块装载完之前，别把地址里的深链接当成失效
+    installPrompt: null,
+    booted: false
 };
 
 const el = {
@@ -73,17 +60,12 @@ const el = {
 
 function msg(err) { return String((err && err.message) || err); }
 
-/* ---------------- 面板与设置的开关状态 ---------------- */
-
-/* 底部面板由 core/sheet.js 管；这里只在它开关时同步页面上的按钮与滚动锁。
-   面板里按钮的派发器在文件下方接上（dispatchSheetAction）。 */
 sheet.onStateChange(syncOverlays);
 
 function syncOverlays() {
     const sheetOpen = sheet.isOpen();
     const panelOpen = el.settingsPanel.classList.contains('open');
 
-    /* 页头顶栏左边的「返回主页」；导出面板打开时收起，让面板自己管关闭 */
     el.backHomeBtn.hidden = sheetOpen || state.page === 'home';
     el.backHomeBtn.setAttribute('aria-label', '返回主页');
     el.backHomeBtn.setAttribute('title', '返回主页');
@@ -99,10 +81,6 @@ function closeTopOverlay() {
     return false;
 }
 
-/* ---------------- 地址里的页面 ----------------
-   主页 #home、记录页 #record、模块自己的页面 #page/<模块 id>。
-   #page/ 这层前缀是必要的：模块 id 允许叫 record 或 home（见 validate.js 的 ID_RE），
-   裸写成 #<id> 会和这两种页面撞名。 */
 function hashForPage(page) {
     if (page === 'record' || page === 'home') return '#' + page;
     return '#page/' + page;
@@ -114,9 +92,6 @@ function pageFromHash(hash) {
     return 'home';
 }
 
-/* 先读地址、再规范化 —— 这个先后顺序是必须的。
-   旧版把 replaceState('#home') 写在读 hash 之前，于是等后面读到的时候
-   地址早被冲成 #home 了，index.html#record 从来就进不去记录页。 */
 const startPage = pageFromHash(location.hash);
 history.replaceState({ ellipse: startPage }, '', hashForPage(startPage));
 
@@ -125,8 +100,6 @@ window.addEventListener('popstate', function (evt) {
     const st = evt.state;
     setPage(st && st.ellipse ? st.ellipse : 'home');
 });
-
-/* ---------------- 渲染：日期 ---------------- */
 
 function renderHead() {
     const key = state.key;
@@ -137,16 +110,11 @@ function renderHead() {
     el.dateInput.value = key;
 }
 
-/* ---------------- 渲染：模块卡片 ----------------
-   卡片长什么样由模块的定义决定：记录型用 fields 自动生成表单，
-   面板型自己 mount 一整块内容。这里只负责骨架与容错。 */
-
 function cardOpen(def) {
     if (def.kind === 'panel') return panelOpen(def);
     return state.openModule === def.id;
 }
 
-/** 面板型的展开状态各记各的（波状图栏默认展开，不受记录模块影响） */
 function panelOpen(def) {
     const panels = getSettings().ui.panels || {};
     if (panels[def.id] !== undefined) return panels[def.id] !== false;
@@ -169,7 +137,6 @@ function cardHead(def, open) {
         '</header>';
 }
 
-/** 出错时的那一张卡：只坏这一栏，别的模块照常 */
 function errorCard(def, reason) {
     const card = document.createElement('article');
     card.className = 'module module--error';
@@ -235,7 +202,6 @@ function renderStack() {
 function renderExport() {
     const chars = dayMarkdown(state.key).length;
     const signature = state.key + '|' + chars;
-    /* 内容没变就不重建节点：否则输入 / 点击触发的重渲染会把正在按的按钮换掉 */
     if (el.exportZone.dataset.signature === signature) return;
     el.exportZone.dataset.signature = signature;
     el.exportZone.innerHTML =
@@ -248,9 +214,6 @@ function renderExport() {
         '</button>';
 }
 
-/* 竖栏：上面是每个「页面型」模块自己的入口，最底下永远是「状态记录」。
-   .rail 是 bottom 锚定的纵向 flex，所以先写进去的排在更上面 —— 顺序就是这里决定的。
-   一个页面型模块都没开时，竖栏只剩「状态记录」，和以前一样。 */
 function renderRail() {
     el.rail.className = 'rail rail--home';
     el.rail.hidden = state.page !== 'home';
@@ -268,13 +231,10 @@ function renderRail() {
     el.rail.innerHTML = htmlText;
 }
 
-/* 整页模块：内容来源与记录页的卡片一样，都是模块自己 mount 一整块。
-   只是这里没有卡片外壳，也不需要展开/收起。 */
 function renderPage() {
     const def = registry.get(state.page);
     if (!def) return;
     el.pageTitle.textContent = def.name;
-    /* 底注由模块自己写（def.note），没写就用外壳的默认句 */
     el.pageNote.textContent = def.note || DEFAULT_PAGE_NOTE;
     el.pageBody.dataset.module = def.id;
     el.pageBody.innerHTML = '';
@@ -287,8 +247,6 @@ function renderPage() {
     }
 }
 
-/* 把返回按钮搬进当前这一页的顶栏（左边第一个位置），和手机上的返回一样。
-   主页没有顶栏，也就用不着它。 */
 function placeBackBtn() {
     const view = state.page === 'record' ? el.viewRecord : el.viewPage;
     const row = view.querySelector('.head-row');
@@ -296,8 +254,6 @@ function placeBackBtn() {
 }
 
 function render() {
-    /* 站在某个模块页上，而它被关掉或卸载了：退回主页。
-       模块装载完之前（state.booted 还是 false）先不判，免得把深链接当成失效。 */
     if (state.booted && state.page !== 'home' && state.page !== 'record') {
         const def = registry.get(state.page);
         if (!def || def.kind !== 'page' || !registry.isEnabled(state.page)) {
@@ -313,14 +269,11 @@ function render() {
     el.viewHome.hidden = !home;
     el.viewRecord.hidden = !record;
     el.viewPage.hidden = home || record;
-    el.settingsBtn.hidden = !home;       /* 设置只在主页 */
+    el.settingsBtn.hidden = !home;
 
-    /* 返回按钮全局只有一个：哪一页露着脸，就把它挪到那一页顶栏的左边。
-       只搬 DOM 节点、不重建，所以 hidden 状态和挂上的事件都跟着它走。 */
     if (!home) placeBackBtn();
 
     if (home) {
-        /* 回到主页时收掉导出面板，避免盖住主页 */
         if (sheet.isOpen()) sheet.close();
     } else if (record) {
         renderHead();
@@ -333,7 +286,6 @@ function render() {
     syncOverlays();
 }
 
-/* 模块写完自己的数据后调 api.refresh()，走的就是这里 */
 install({
     refresh: function () {
         renderStack();
@@ -341,8 +293,6 @@ install({
         if (state.page !== 'home' && state.page !== 'record') renderPage();
     }
 });
-
-/* ---------------- 页面切换：主页 / 记录页 / 模块自己的页面 ---------------- */
 
 function viewForPage(page) {
     if (page === 'record') return el.viewRecord;
@@ -358,7 +308,7 @@ function setPage(page) {
     const view = viewForPage(next);
     if (changed) {
         view.classList.remove('fade-in');
-        void view.offsetWidth;            /* 重排一次，让动画能重复触发 */
+        void view.offsetWidth;
         view.classList.add('fade-in');
     }
     render();
@@ -369,8 +319,6 @@ function pushPage(page) {
     setPage(page);
 }
 
-/* ---------------- 卡片交互 ---------------- */
-
 function saveText(key, moduleId, field, value) {
     setField(key, moduleId, field, value.trim() ? value : null);
 }
@@ -379,14 +327,11 @@ const saveDebounced = debounce(function (key, moduleId, field, value) {
     saveText(key, moduleId, field, value);
 }, 420);
 
-/** 把一个 data-act 按钮派发给认领它的模块。记录页的卡片与整页模块共用这一段。 */
 function dispatchModuleAction(evt, def, card) {
     const actEl = evt.target.closest('[data-act]');
     if (!actEl) return false;
 
     const name = actEl.getAttribute('data-act');
-    /* 展开 / 收起和字段旁的小工具按钮都是记录页卡片才有的东西。
-       整页模块里没有卡片可翻，写错了就当没写 —— 否则会去动背后那张隐藏的卡片 */
     if (name === 'toggle') { if (registry.isCard(def.id)) toggleCard(def); return true; }
     if (name === 'tool') { if (registry.isCard(def.id)) runTool(def, actEl); return true; }
 
@@ -416,8 +361,6 @@ function handleStackClick(evt) {
     if (ctrl) handleValueClick(def, ctrl);
 }
 
-/* 整页模块里没有 .module 外壳，模块 id 直接从 state.page 拿。
-   card 只是为了让 ctx 的形状与卡片那条完全一致。 */
 function handlePageClick(evt) {
     const def = registry.get(state.page);
     if (!def) return;
@@ -435,8 +378,6 @@ function toggleCard(def) {
     renderStack();
 }
 
-/** 点一下就存的值控件。规则与改造前逐条一致：
-    评分格与二选一点第二次取消，快捷数字按钮只写不清。 */
 function handleValueClick(def, ctrl) {
     const field = ctrl.getAttribute('data-field');
     const type = ctrl.getAttribute('data-type');
@@ -462,8 +403,6 @@ function handleValueClick(def, ctrl) {
     }
 }
 
-/** 滑动变阻器：拖动中只改滑片位置与数值文字。
-    这里不能 renderStack：重建卡片会把正在拖的那个 input 换掉，手势随即中断 */
 function sliderVisual(card, input) {
     const min = Number(input.min);
     const max = Number(input.max);
@@ -478,7 +417,6 @@ function sliderVisual(card, input) {
     if (shown) shown.textContent = value + ' / ' + max;
 }
 
-/* 字段 key 是模块作者起的，直接拼进选择器会被引号之类的字符弄坏，所以按属性逐个比对 */
 function findByAttr(root, selector, prop, value) {
     const list = root.querySelectorAll(selector);
     for (let i = 0; i < list.length; i++) {
@@ -513,7 +451,6 @@ function handleStackInput(evt) {
     }
 }
 
-/* 滑动变阻器松手时才写入，一次拖动只落盘一次 */
 function handleSliderCommit(evt) {
     const target = evt.target;
     if (!target.dataset || target.dataset.type !== 'slider') return;
@@ -524,7 +461,6 @@ function handleSliderCommit(evt) {
     setField(state.key, card.dataset.module, target.dataset.field, value);
 }
 
-/** 字段旁边的工具按钮（如「整理成日记」）：功能由提供它的模块实现 */
 function runTool(def, btn) {
     const toolId = btn.getAttribute('data-tool');
     const field = btn.getAttribute('data-field');
@@ -547,8 +483,6 @@ function runTool(def, btn) {
         }
     });
 }
-
-/* ---------------- 底部面板内容 ---------------- */
 
 function openExportSheet() {
     const md = dayMarkdown(state.key);
@@ -590,15 +524,12 @@ function openDateSheet() {
     sheet.open('跳到有记录的日期', '<div class="pick-list">' + list + '</div>', '');
 }
 
-/* ---------------- 面板里的按钮：总派发 ---------------- */
-
-let pendingImport = null;     /* 已解析、等用户选合并还是覆盖的备份 */
-let pendingMod = null;        /* 已试求值、等用户确认的模块源码 */
+let pendingImport = null;
+let pendingMod = null;
 
 function dispatchSheetAction(name, target) {
     const kind = (target && target.getAttribute('data-kind')) || 'day';
 
-    /* 核心自己认得的动作 */
     if (name === 'copy') {
         copyText(currentSheetMarkdown(kind)).then(function (ok) {
             toast(ok ? '已复制到剪贴板' : '复制失败，可长按选择');
@@ -647,7 +578,6 @@ function dispatchSheetAction(name, target) {
     if (name === 'uninstall-keep') { finishUninstall(target.getAttribute('data-id'), false); return; }
     if (name === 'uninstall-drop') { finishUninstall(target.getAttribute('data-id'), true); return; }
 
-    /* 剩下的交给模块注册的动作（比如 AI 助手的 ai-run） */
     const handler = registry.action(name);
     if (typeof handler === 'function') {
         try {
@@ -657,12 +587,9 @@ function dispatchSheetAction(name, target) {
             toast('操作失败：' + msg(err).slice(0, 40));
         }
     }
-    /* 没人认领就安静放过：面板里的输入控件自己挂着自己的监听 */
 }
 
 document.getElementById('sheetClose').addEventListener('click', function () { sheet.close(); });
-
-/* ---------------- 日期交互 ---------------- */
 
 el.datePrev.addEventListener('click', function () { goDate(shiftKey(state.key, -1)); });
 el.dateNext.addEventListener('click', function () {
@@ -681,7 +608,6 @@ function goDate(key) {
     render();
 }
 
-/* 左右滑动切换日期 */
 (function attachSwipe() {
     let sx = 0, sy = 0, active = false;
     el.viewRecord.addEventListener('touchstart', function (evt) {
@@ -702,8 +628,6 @@ function goDate(key) {
     }, { passive: true });
 })();
 
-/* ---------------- 右侧栏与导出区 ---------------- */
-
 el.rail.addEventListener('click', function (evt) {
     const btn = evt.target.closest('button');
     if (!btn) return;
@@ -720,8 +644,6 @@ el.exportZone.addEventListener('click', function (evt) {
 el.stack.addEventListener('click', handleStackClick);
 el.stack.addEventListener('input', handleStackInput);
 el.stack.addEventListener('change', handleSliderCommit);
-
-/* ---------------- 设置面板 ---------------- */
 
 function openSettings() {
     renderSettings();
@@ -748,8 +670,6 @@ el.settingsBtn.addEventListener('click', function () {
 el.settingsClose.addEventListener('click', closeSettings);
 el.settingsScrim.addEventListener('click', closeSettings);
 
-/* ---------------- 设置面板：分组骨架 ---------------- */
-
 function group(title, note) {
     const box = document.createElement('section');
     box.className = 'set-group';
@@ -767,10 +687,6 @@ function html(htmlText) {
     return box;
 }
 
-/**
- * 由模块贡献的设置分区。模块自己给 HTML，自己挂事件，
- * 核心只负责把它放进列表里 —— 关掉模块，分区跟着消失。
- */
 function moduleSection(sec) {
     const box = group(sec.title, sec.note);
     box.dataset.section = sec.id;
@@ -794,8 +710,6 @@ function moduleSection(sec) {
     return box;
 }
 
-/* ---------------- 设置面板：模块分组 ---------------- */
-
 const CUSTOM_BADGE = '<em class="set-badge">自装</em>';
 const OFF_BADGE = '<em class="set-badge set-badge--off">已关闭</em>';
 
@@ -803,7 +717,6 @@ function moduleRow(def, first, last) {
     const on = registry.isEnabled(def.id);
     const isCard = registry.isCard(def.id);
     const row = document.createElement('div');
-    /* 关掉的模块整行变淡（见 app.css 的 .set-row.is-off），扫一眼就能分出开没开 */
     row.className = 'set-row' + (on ? '' : ' is-off');
     row.dataset.moduleRow = def.id;
     row.innerHTML =
@@ -850,11 +763,6 @@ function problemRow(p) {
     return row;
 }
 
-/**
- * 可展开 / 收起的栏：点标题条收起，再点展开。
- * 收起状态存在 settings.ui.groups 里，下次打开设置还是上次的样子（默认展开）。
- * 返回 {box, body}：box 是整栏，box 里的行都往 body 里塞。
- */
 function foldGroup(id, title) {
     const groups = getSettings().ui.groups || {};
     const open = groups[id] !== false;
@@ -880,9 +788,6 @@ function foldGroup(id, title) {
     return { box: box, body: body };
 }
 
-/* 一栏里的顺序：还开着的排在上面，关掉的沉到下面（各自保持原来的先后）。
-   上下箭头的边界按「开启块」「关闭块」分别算 —— 换行换了也看不出动静的箭头，
-   干脆按灰掉，免得点了没反应。 */
 function rowsInOrder(ids, box) {
     const isOn = registry.isEnabled;
     const blocks = [
@@ -912,7 +817,6 @@ function modulesGroup() {
         return def ? def.kind : '';
     };
 
-    /* 「数值图」：页面型模块（现在只有「状态波动图」），各占主页竖栏一个入口 */
     const pages = ordered.filter(function (id) { return kindOf(id) === 'page'; });
     if (pages.length) {
         const fold = foldGroup('chart', '数值图');
@@ -920,7 +824,6 @@ function modulesGroup() {
         box.appendChild(fold.box);
     }
 
-    /* 「状态记录」：记录型 + 面板型，就是记录页上的那些卡片 */
     const cards = ordered.filter(function (id) { return registry.isCard(id); });
     if (cards.length) {
         const fold = foldGroup('record', '状态记录');
@@ -928,7 +831,6 @@ function modulesGroup() {
         box.appendChild(fold.box);
     }
 
-    /* 服务型（AI 助手）不分栏，照旧单独一行跟在最后 */
     ordered.filter(function (id) {
         return !registry.isCard(id) && kindOf(id) !== 'page';
     }).forEach(function (id) {
@@ -944,8 +846,6 @@ function modulesGroup() {
         '装进来的模块是一段能在本机运行的代码，只装你信得过的文件。</p>'));
     return box;
 }
-
-/* ---------------- 设置面板：数据分组 ---------------- */
 
 function dataGroup() {
     const box = group('数据', allRecordKeys().length + ' 天记录');
@@ -967,8 +867,6 @@ function dataGroup() {
     return box;
 }
 
-/* ---------------- 设置面板：安装分组 ---------------- */
-
 function installGroup() {
     const box = group('安装到主屏', isStandalone() ? '已装到主屏' : '未安装');
     box.appendChild(html(
@@ -986,8 +884,6 @@ function installGroup() {
     return box;
 }
 
-/* ---------------- 设置面板：组装 ---------------- */
-
 function renderSettings() {
     el.settingsBody.innerHTML = '';
     el.settingsBody.appendChild(modulesGroup());
@@ -1003,8 +899,8 @@ el.settingsBody.addEventListener('click', function (evt) {
     if (fold) {
         const id = fold.getAttribute('data-fold');
         const groups = Object.assign({}, getSettings().ui.groups || {});
-        groups[id] = groups[id] === false;      /* 收着的点开、开着的收起 */
-        setSettings({ ui: { groups: groups } });  /* 会触发设置页重渲染 */
+        groups[id] = groups[id] === false;
+        setSettings({ ui: { groups: groups } });
         return;
     }
 
@@ -1040,7 +936,6 @@ function toggleModule(id) {
     const def = registry.get(id);
     if (!def) return;
     const turningOn = !registry.isEnabled(id);
-    /* 记录型模块至少要留一个（面板型与服务型不算） */
     if (!turningOn && def.kind === 'record' && registry.enabledOrder().length <= 1) {
         toast('至少保留一个记录模块');
         return;
@@ -1051,8 +946,6 @@ function toggleModule(id) {
     renderSettings();
     render();
 }
-
-/* ---------------- 模块文件：导入 / 导出 / 卸载 ---------------- */
 
 el.settingsBody.addEventListener('change', function (evt) {
     if (evt.target.id === 'importFile') { readBackupFile(evt.target); return; }
@@ -1135,8 +1028,6 @@ function downloadFile(text, filename, mime) {
     setTimeout(function () { URL.revokeObjectURL(url); }, 4000);
 }
 
-/* ---------------- 设置面板：按钮动作 ---------------- */
-
 function handleSettingAction(name, btn) {
     if (name === 'export-day') {
         downloadMarkdown(dayMarkdown(state.key), suggestFilename('day', state.key));
@@ -1189,7 +1080,7 @@ function handleSettingAction(name, btn) {
     if (name === 'install') {
         const installEvt = state.installPrompt;
         if (!installEvt) { toast('这个浏览器请按下面的说明手动添加'); return; }
-        state.installPrompt = null;   /* 同一个事件只能问一次，留着会重复触发 */
+        state.installPrompt = null;
         installEvt.prompt();
         installEvt.userChoice.then(function (choice) {
             if (choice && choice.outcome === 'accepted') toast('已开始安装');
@@ -1198,7 +1089,6 @@ function handleSettingAction(name, btn) {
     }
 }
 
-/* 备份 JSON。默认把模块声明的敏感字段摘掉（AI 密钥首当其冲）。 */
 function backupJson() {
     const withSecrets = !!el.settingsBody.querySelector('#backupSecrets') &&
         el.settingsBody.querySelector('#backupSecrets').checked;
@@ -1210,7 +1100,6 @@ function backupJson() {
             if (!fields.length || !mods[def.id]) return;
             fields.forEach(function (key) { delete mods[def.id][key]; });
         });
-        /* 老版本把 AI 配置放在顶层 ai 键里，一并摘掉 */
         if (payload.settings.ai && typeof payload.settings.ai === 'object') {
             delete payload.settings.ai.apiKey;
             delete payload.settings.ai.baseUrl;
@@ -1251,17 +1140,12 @@ function finishUninstall(id, dropData) {
     toast(dropData ? '已卸载「' + name + '」并删除它的数据' : '已卸载「' + name + '」，数据保留');
 }
 
-/* dispatchSheetAction 是函数声明，会先于这里的调用被提升，所以可以放心地在这里接上 */
 sheet.onAction(dispatchSheetAction);
-
-/* ---------------- 键盘 ---------------- */
 
 document.addEventListener('keydown', function (evt) {
     if (evt.key !== 'Escape') return;
     closeTopOverlay();
 });
-
-/* ---------------- 启动 ---------------- */
 
 subscribeStorage(function (evt) {
     if (evt && evt.type === 'settings' && el.settingsPanel.classList.contains('open')) {
@@ -1273,7 +1157,6 @@ registry.subscribe(function () {
     if (el.settingsPanel.classList.contains('open')) renderSettings();
 });
 
-/* 默认展开哪一条：上次开着的那条，否则第一条记录型模块 */
 function settleOpenModule() {
     if (state.openModule && registry.get(state.openModule)) return;
     const saved = getSettings().ui.openModule;
@@ -1283,13 +1166,11 @@ function settleOpenModule() {
 
 el.backHomeBtn.addEventListener('click', function () {
     if (sheet.isOpen()) { sheet.close(); return; }
-    /* 是「进」来的（不是直接敲的地址）就退回去，否则直接回主页 */
     const st = history.state;
     if (st && st.ellipse && st.ellipse === state.page && state.page !== 'home') history.back();
     else setPage('home');
 });
 
-/* 首屏先出来，模块随后再装载 —— 坏模块不该让整个应用打不开 */
 setPage(startPage);
 
 const skipMods = new URLSearchParams(location.search).get('nomods') === '1';
@@ -1313,12 +1194,10 @@ const skipMods = new URLSearchParams(location.search).get('nomods') === '1';
         render();
     }
 
-    /* 模块全装完了，这时才谈得上判断地址里那个 #page/<id> 到底认不认、开没开 */
     state.booted = true;
     render();
 })();
 
-/* ---------------- 本地预览钩子：?panel=settings|export|record|trend、?scroll=像素 ---------------- */
 (function applyPreviewPanel() {
     const q = new URLSearchParams(location.search);
     const panel = q.get('panel');
@@ -1339,7 +1218,6 @@ const skipMods = new URLSearchParams(location.search).get('nomods') === '1';
     }
 })();
 
-/* ---------------- 本地调试：?debug=1 输出关键尺寸（便于在真机上核对布局） ---------------- */
 (function debugLayout() {
     if (new URLSearchParams(location.search).get('debug') !== '1') return;
     const rows = [];
@@ -1365,19 +1243,16 @@ const skipMods = new URLSearchParams(location.search).get('nomods') === '1';
     document.body.appendChild(pre);
 })();
 
-/* ---------------- PWA：装到主屏与离线缓存 ---------------- */
 function isStandalone() {
     if (window.matchMedia && window.matchMedia('(display-mode: standalone)').matches) return true;
-    return window.navigator.standalone === true;   /* iOS Safari 自己的一套写法 */
+    return window.navigator.standalone === true;
 }
 
 function isIos() {
     if (/iPad|iPhone|iPod/.test(navigator.userAgent || '')) return true;
-    /* iPadOS 13 起 Safari 把自己报成 Mac，只能靠触点数认出来 */
     return navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1;
 }
 
-/* 设置页底部那行说明：按当前平台给不同的安装步骤 */
 function installHintText() {
     if (isStandalone()) return '当前已经以 App 形式运行。';
     if (location.protocol === 'file:') {
@@ -1390,7 +1265,6 @@ function installHintText() {
 
 function registerServiceWorker() {
     if (!('serviceWorker' in navigator)) return;
-    /* 只有 HTTPS 与 localhost 算安全来源；file:// 双击打开时注册会失败，干脆不试 */
     const host = location.hostname;
     if (location.protocol !== 'https:' && host !== 'localhost' && host !== '127.0.0.1') return;
     navigator.serviceWorker.register('sw.js').catch(function () {});
@@ -1408,7 +1282,6 @@ window.addEventListener('appinstalled', function () {
     if (el.settingsPanel.classList.contains('open')) renderSettings();
 });
 
-/* 放最后：注册 Service Worker 不参与首屏渲染，等页面加载完再说 */
 (function bootServiceWorker() {
     if (document.readyState === 'complete') registerServiceWorker();
     else window.addEventListener('load', registerServiceWorker);

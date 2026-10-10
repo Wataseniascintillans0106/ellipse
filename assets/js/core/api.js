@@ -1,10 +1,3 @@
-/* 交给 mod 的 API 门面 —— 模块能看到的全部能力都在这里，别的地方不要去碰。
-
-   模块文件统一写成：
-       ellipse.define({ apiVersion: 1, id: 'weight', ... });
-   这一种写法在「浏览器直接 import」和「退回 new Function」两条装载路径上都是合法代码，
-   所以一份模块文件两种环境都能跑，文档和示例也只需要一套。 */
-
 import { CORE_API_VERSION } from './validate.js';
 import * as registry from './registry.js';
 import {
@@ -21,15 +14,12 @@ import * as sheet from './sheet.js';
 import { renderChart, chartBlock, RANGES, rangeById } from '../charts.js';
 import { downloadMarkdown, copyText } from '../export.js';
 
-/* app.js 装配时补上的一个钩子：数据变了，重画记录页 */
 let refreshHook = function () {};
 
 export function install(capabilities) {
     const c = capabilities || {};
     if (typeof c.refresh === 'function') refreshHook = c.refresh;
 }
-
-/* ---------------- define 与「先接住、确认无误再注册」 ---------------- */
 
 let capture = null;
 let context = { builtin: true };
@@ -44,10 +34,6 @@ export function define(def) {
     return def;
 }
 
-/**
- * 求值一段（可能调用 define 的）代码，先接住它的定义，不直接注册。
- * 装模块前用它：先拿到 id/名字给您确认，再决定要不要真的装。
- */
 export async function captureDefine(run, ctx) {
     const prevCapture = capture;
     const prevContext = context;
@@ -66,29 +52,21 @@ export async function captureDefine(run, ctx) {
     return { def: got, error: error };
 }
 
-/**
- * 临时切换「来源」上下文（装载器用：内置还是自制、源码是什么）。
- * 在这段代码里发生的 define 调用都带上这份来源信息。
- */
 export async function withContext(ctx, run) {
     const prev = context;
     context = Object.assign({ builtin: true }, ctx || {});
     try { return await run(); } finally { context = prev; }
 }
 
-/** 注册内置模块时把来源标成内置 */
 export function withBuiltinContext(run) {
     return withContext({ builtin: true }, run);
 }
-
-/* ---------------- 门面 ---------------- */
 
 function buildFacade() {
     return {
         apiVersion: CORE_API_VERSION,
         define: define,
 
-        /* 通用小工具 */
         icon: icon,
         icons: ICONS,
         escapeHtml: escapeHtml,
@@ -96,10 +74,8 @@ function buildFacade() {
         debounce: debounce,
         toast: toast,
 
-        /* 数据变了，重画记录页（模块写完自己的数据后调用） */
         refresh: function () { refreshHook(); },
 
-        /* 只读查询：有哪些模块、开了没、按什么顺序 */
         registry: {
             get: registry.get,
             all: registry.all,
@@ -116,13 +92,11 @@ function buildFacade() {
             secretFields: registry.secretFields
         },
 
-        /* 取用别的模块提供的能力，比如 api.services.get('ai') */
         services: {
             get: registry.service,
             names: registry.serviceNames
         },
 
-        /* 记录读写 */
         records: {
             dataOf: getRecordData,
             setField: setField,
@@ -130,7 +104,6 @@ function buildFacade() {
             allKeys: allRecordKeys
         },
 
-        /* 这个模块自己的配置（存在 settings.mods[模块id] 下） */
         settings: {
             get: getModuleSettings,
             set: function (modId, patch) {
@@ -141,7 +114,6 @@ function buildFacade() {
             global: getSettings
         },
 
-        /* 底部面板 */
         sheet: {
             open: sheet.open,
             close: sheet.close,
@@ -152,7 +124,6 @@ function buildFacade() {
             foot: sheet.foot
         },
 
-        /* 波状图 */
         charts: {
             block: chartBlock,
             render: renderChart,
@@ -160,7 +131,6 @@ function buildFacade() {
             rangeById: rangeById
         },
 
-        /* 自己拼表单时用的控件工具包（声明式字段背后就是它们） */
         ui: {
             renderFields: renderFields,
             summarize: summarize,
@@ -172,7 +142,6 @@ function buildFacade() {
             fieldTypes: FIELD_TYPES
         },
 
-        /* 下载与复制 */
         download: downloadMarkdown,
         copy: copyText
     };
@@ -180,7 +149,6 @@ function buildFacade() {
 
 let facade = null;
 
-/** 把 ellipse 钉到全局，之后内置模块文件才 import 得进来 */
 export function installGlobal() {
     facade = buildFacade();
     try {
@@ -191,7 +159,6 @@ export function installGlobal() {
             enumerable: false
         });
     } catch (err) {
-        /* 极少数环境不让定义全局属性，退而求其次 */
         globalThis.ellipse = facade;
     }
     return facade;

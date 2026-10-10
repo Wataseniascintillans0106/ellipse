@@ -1,26 +1,11 @@
-/* ellipse · 日常状态记录 —— sw.js（Service Worker · 联网优先，离线回退）
-   与 index.html 放在同一目录，经 HTTPS（或 localhost）访问时页面会自动注册本文件。
-   只接管本站的 GET 请求；发往 AI 接口（api.deepseek.com 等）的请求原样放行、绝不缓存。
-
-   ⚠️ 改完本文件的内容，记得把下面的 CACHE 版本号 +1，否则旧缓存不会被清掉。
-      详见 docs/PWA部署与安装.md。 */
-
 const CACHE = 'ellipse-cache-v5';
 
-const NAV_TIMEOUT = 20000;   /* 页面：最多等 20 秒 */
-const ASSET_TIMEOUT = 9000;  /* 其它资源：最多等 9 秒 */
-const FAST_FALLBACK = 3500;  /* 本机有副本时，超过 3.5 秒就先用副本起页 */
+const NAV_TIMEOUT = 20000;
+const ASSET_TIMEOUT = 9000;
+const FAST_FALLBACK = 3500;
 
-/* 导航找不到副本时按顺序兜底：
-   部署在 GitHub Pages 的子路径下时，/ellipse/ 与 /ellipse/index.html 是两个 URL。 */
 const NAV_FALLBACK = ['./index.html', './'];
 
-/* 预缓存清单：装好 Service Worker 就整份存进本机，第一次打开之后断网也能直接用。
-   不预缓存的话，首次那轮页面加载发生在 SW 接管之前，资源根本进不了缓存，
-   要等第二次打开才有离线副本 —— 冷启动断网就只剩一页「暂时打不开」。
-   这些文件本来首次打开就要下载，预缓存不多花流量，只是让它必定落在缓存里。
-
-   ⚠️ 新增文件要加进这份清单 —— node scripts/smoke.mjs 会检查有没有漏掉 assets/ 下的文件。 */
 const SHELL = [
     './index.html',
     './manifest.webmanifest',
@@ -53,7 +38,6 @@ const SHELL = [
 self.addEventListener('install', function (e) {
     e.waitUntil(
         caches.open(CACHE).then(function (c) {
-            /* 逐个加而不是 addAll：某个文件取不到也不该让整个安装失败 */
             return Promise.all(SHELL.map(function (url) {
                 return c.add(url).catch(function () {});
             }));
@@ -83,7 +67,6 @@ function withTimeout(promise, ms) {
     });
 }
 
-/* 断网且本机没有副本时，给一页可读的提示，而不是浏览器的报错页 */
 function offlinePage() {
     return new Response(
         '<!DOCTYPE html><meta charset="utf-8">' +
@@ -104,7 +87,6 @@ function offlinePage() {
     );
 }
 
-/* 导航请求找本机副本：先按请求原样匹配，再按应用外壳兜底 */
 function matchShell(request) {
     return caches.match(request, { ignoreSearch: true }).then(function (hit) {
         if (hit) return hit;
@@ -119,7 +101,6 @@ function matchShell(request) {
 self.addEventListener('fetch', function (e) {
     if (e.request.method !== 'GET') return;
 
-    /* 只接管本站请求；AI 接口等跨域请求原样放行，绝不缓存 */
     const url = new URL(e.request.url);
     if (url.origin !== self.location.origin) return;
 
@@ -136,7 +117,6 @@ self.addEventListener('fetch', function (e) {
     });
 
     if (isNav) {
-        /* 快速回退之后让网络请求继续跑完，把新版补写进缓存 */
         e.waitUntil(net.then(function () {}, function () {}));
         e.respondWith(matchShell(e.request).then(function (cached) {
             if (!cached) {

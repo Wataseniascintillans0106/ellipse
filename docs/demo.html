@@ -5,8 +5,6 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>ellipse</title>
     <style>
-        /* ---------------- 字体 ---------------- */
-        /* 得意黑 Smiley Sans（同级 fonts 文件夹） */
         @font-face {
             font-family: "Smiley Sans";
             src: url("fonts/SmileySans-Oblique.ttf.woff2") format("woff2");
@@ -16,17 +14,17 @@
         }
 
         :root {
-            --edge: 24px;                     /* 按钮距屏幕边缘 */
-            --btn-size: 56px;                 /* 按钮直径 */
-            --accent: #df9068;                /* 右栏图标色 / 焦点圈 */
-            --gear: #de7b49;                  /* 设置按钮图标色 */
-            --ink: #2B2B28;                   /* 设置标题 / 关闭按钮 */
-            --paper: #FBFAED;                 /* 设置界面底色 */
-            --line: rgba(43, 43, 40, 0.12);   /* 顶栏下边缘线 */
-            --groove: #d8e0ec;                /* 右栏内框色：你自己改这一行 */
-            --rail-w: calc(var(--btn-size) + 7px);   /* 右栏宽 63px（比设置按钮每边各宽 3.5px）*/
-            --bg-left: #F2CED0;               /* 主页背景左端色 */
-            --bg-right: #FBFAED;              /* 主页背景右端色 */
+            --edge: 24px;
+            --btn-size: 56px;
+            --accent: #df9068;
+            --gear: #de7b49;
+            --ink: #2B2B28;
+            --paper: #FBFAED;
+            --line: rgba(43, 43, 40, 0.12);
+            --groove: #d8e0ec;
+            --rail-w: calc(var(--btn-size) + 7px);
+            --bg-left: #F2CED0;
+            --bg-right: #FBFAED;
         }
 
         html, body {
@@ -39,21 +37,18 @@
                          "PingFang SC", "Microsoft YaHei", sans-serif;
             -webkit-tap-highlight-color: transparent;
         }
-        /* 表单控件不会继承 body 的字体，必须显式声明 */
         button, input, select, textarea {
             font-family: inherit;
         }
-        /* 面板打开时锁住背景滚动 */
         body.panel-open {
             overflow: hidden;
         }
 
-        /* ---------------- 设置按钮 ---------------- */
         .settings-btn {
             position: fixed;
             bottom: var(--edge);
             right: var(--edge);
-            color: var(--gear);       /* 齿轮描边取 currentColor，改这一行即可 */
+            color: var(--gear);
             width: var(--btn-size);
             height: var(--btn-size);
             padding: 0;
@@ -85,28 +80,22 @@
             transform: rotate(45deg);
         }
 
-        /* ---------------- 右侧竖排标签栏 ---------------- */
-        /* 不贴边、独立悬浮的一条竖栏，与下方设置按钮同轴：
-           设置按钮圆心距右边缘 = --edge + --btn-size / 2，
-           从这个距离里减去自身一半宽度，中轴就压在同一条竖线上 */
         .tabbar {
             position: fixed;
             right: calc(var(--edge) + var(--btn-size) / 2 - var(--rail-w) / 2);
-            bottom: calc(var(--edge) + var(--btn-size) + 16px);   /* 正好落在设置按钮上方 */
+            bottom: calc(var(--edge) + var(--btn-size) + 16px);
             z-index: 10;
             width: var(--rail-w);
             display: flex;
-            flex-direction: column;   /* 竖排 */
+            flex-direction: column;
             gap: 6px;
-            padding: 0;               /* 不留内边距：内框本身就是按下区域 */
-            /* 自适应：高度跟内容走，图标多到装不下时自己滚动 */
+            padding: 0;
             max-height: calc(100vh - var(--edge) - var(--btn-size) - 32px);
             overflow-y: auto;
             overscroll-behavior: contain;
             scrollbar-width: none;
-            background: var(--groove);            /* 内框底色 */
+            background: var(--groove);
             border-radius: 20px;
-            /* 只往内打阴影，做出凹下去的槽感（不描边，所以外沿是软的） */
             box-shadow:
                 inset 1px 1px 3px rgba(43, 43, 40, 0.22),
                 inset 0 -1px 2px rgba(43, 43, 40, 0.12);
@@ -115,8 +104,6 @@
             display: none;
         }
 
-        /* 按下区域横向撑满内框、纵向也取内框宽度 —— 每个图标都是正方形，
-           上下叠起来就是一根等宽的竖条（内框宽度始终是 --rail-w） */
         .tabbar-item {
             flex: 0 0 auto;
             height: var(--rail-w);
@@ -126,7 +113,7 @@
             justify-content: center;
             background: transparent;
             border: none;
-            border-radius: 20px;      /* 与内框圆角一致 */
+            border-radius: 20px;
             color: var(--accent);
             cursor: pointer;
             transition: background 0.2s ease;
@@ -134,7 +121,6 @@
         .tabbar-item:hover {
             background: rgba(255, 255, 255, 0.45);
         }
-        /* 按下只换底色，不缩放，尺寸始终和底色框一致 */
         .tabbar-item:active {
             background: rgba(255, 255, 255, 0.78);
         }
@@ -144,7 +130,6 @@
             height: 30px;
         }
 
-        /* ---------------- 遮罩 ---------------- */
         .settings-overlay {
             position: fixed;
             inset: 0;
@@ -160,16 +145,15 @@
             transition: opacity 0.26s ease, visibility 0s;
         }
 
-        /* ---------------- 设置界面（右侧抽屉） ---------------- */
         .settings-panel {
             position: fixed;
             top: 0;
             right: 0;
             bottom: 0;
-            z-index: 101;             /* 盖住右栏和遮罩 */
-            width: 100%;              /* 全屏铺满，四周不留边 */
+            z-index: 101;
+            width: 100%;
             display: flex;
-            flex-direction: column;   /* 顶栏固定、内容区独立滚动 */
+            flex-direction: column;
             background: var(--paper);
             box-shadow: -8px 0 32px rgba(43, 43, 40, 0.10);
             transform: translateX(100%);
@@ -183,31 +167,28 @@
             transition: transform 0.26s cubic-bezier(0.32, 0.72, 0, 1), visibility 0s;
         }
 
-        /* 顶栏：固定不随内容滚动 */
         .settings-header {
             flex: 0 0 auto;
-            position: relative;   /* 作为标题绝对居中的参照 */
+            position: relative;
             display: flex;
             align-items: center;
             height: 60px;
             padding: 0 4px;
-            background: var(--paper);        /* 内容滚到下面时不会透出来 */
+            background: var(--paper);
             border-bottom: 1px solid var(--line);
         }
-        /* 标题在整条顶栏中绝对居中，与左侧关闭按钮互不影响 */
         .settings-title {
             position: absolute;
             top: 50%;
             left: 50%;
             transform: translate(-50%, -50%);
             margin: 0;
-            padding-left: 8px;    /* 抵消 letter-spacing 加在末字后的 8px，让两个字视觉居中 */
+            padding-left: 8px;
             font-size: 19px;
             color: var(--ink);
-            letter-spacing: 8px;  /* 「设」与「置」间距 8px */
+            letter-spacing: 8px;
             white-space: nowrap;
         }
-        /* 关闭按钮：顶栏最左 */
         .settings-close {
             width: 44px;
             height: 44px;
@@ -234,7 +215,6 @@
             height: 22px;
         }
 
-        /* 内容区：只有这里滚动 */
         .settings-body {
             flex: 1 1 auto;
             overflow-y: auto;
@@ -264,8 +244,6 @@
         <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" class="feather feather-settings"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
     </button>
 
-    <!-- 右侧竖排标签栏：一个图标一项，按顺序往下加。
-         最下面一项永远是「状态记录」，它上面是各页面型模块的入口（如「状态波动图」）。 -->
     <nav class="tabbar" aria-label="侧栏">
         <button class="tabbar-item" type="button" aria-label="状态波动图" title="状态波动图">
             <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
@@ -276,9 +254,7 @@
 
         <button class="tabbar-item" id="statusLogBtn" type="button" aria-label="状态记录" title="状态记录">
             <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
-                <!-- 纸：在后，被笔压住右上角 -->
                 <rect x="3" y="5.5" width="11.5" height="14.5" rx="1.6"></rect>
-                <!-- 笔：斜立着，笔尖落到纸上 -->
                 <path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"
                       transform="translate(9.2 1.2) scale(0.58)"
                       vector-effect="non-scaling-stroke"></path>
@@ -297,7 +273,6 @@
         </header>
 
         <div class="settings-body">
-            <!-- 设置项待定：确定后把分组 / 开关放进这里 -->
         </div>
     </aside>
 

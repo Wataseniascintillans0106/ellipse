@@ -1,12 +1,5 @@
-/* AI 助手：一个「服务型」模块 —— 它不产生记录卡片，只贡献两样东西：
-     1. 设置里的「AI 辅助」分区（连同测试连接、清除密钥按钮）
-     2. 一项能力：ai.polish（整理文段），别的模块可以取用
-
-   关掉它，上面两样一起消失。 */
-
 import { isConfigured, isTrustedEndpoint, getAiConfig, polishText } from '../ai.js';
 
-/* 打开「整理成日记」面板时记住是哪个字段，等点了「整理」再用 */
 let pending = null;
 
 function row(title, desc, inner) {
@@ -65,8 +58,6 @@ function testConnection(api, btn, root) {
         });
 }
 
-/* ---------------- 工具按钮 ---------------- */
-
 function runPolish(ctx) {
     const api = ctx.api;
     const existing = String(ctx.value || '');
@@ -121,7 +112,6 @@ ellipse.define({
             btn.disabled = true;
             btn.textContent = '整理中…';
             polishText(raw).then(function (out) {
-                /* 与改造前一致：原文在前，整理结果接在后面 */
                 const merged = (pending.existing + '\n\n' + out).trim();
                 pending.setValue(merged);
                 api.sheet.close();
@@ -163,7 +153,6 @@ ellipse.define({
                 const name = btn.getAttribute('data-set');
                 if (name === 'ai-test') { testConnection(api, btn, root); return; }
                 if (name === 'ai-clear') {
-                    /* transcribeModel 是删掉语音转写之前留下的键，一并清掉 */
                     api.settings.set('assistant', { apiKey: '', baseUrl: '', model: '', transcribeModel: '' });
                     ctx.rerender();
                     api.toast('已清除 AI 配置');

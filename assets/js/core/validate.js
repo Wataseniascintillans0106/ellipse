@@ -1,8 +1,5 @@
-/* 模块定义校验 + 接口版本判定。纯函数，不碰 DOM，Node 里可直接测。 */
-
 import { FIELD_TYPES } from './fields.js';
 
-/** 核心接口版本。以后只加字段不改签名就 +1；模块声明更高的版本会被拒绝加载。 */
 export const CORE_API_VERSION = 1;
 
 export const KINDS = ['record', 'panel', 'page', 'service'];
@@ -27,12 +24,6 @@ function checkFields(fields, errors) {
     });
 }
 
-/**
- * 校验一个模块定义
- * @param {object} def   模块定义
- * @param {object} opts  { taken: 已注册的 id 数组 }
- * @returns {{ ok: boolean, errors: string[] }}
- */
 export function validateDefinition(def, opts) {
     const o = opts || {};
     if (!def || typeof def !== 'object' || Array.isArray(def)) {
@@ -84,7 +75,6 @@ export function validateDefinition(def, opts) {
     return { ok: errors.length === 0, errors: errors };
 }
 
-/** 给用户看的失败摘要 */
 export function formatErrors(errors) {
     return (errors || []).join('；');
 }

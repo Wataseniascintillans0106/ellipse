@@ -38,8 +38,6 @@
             el.scrollTop = el.scrollHeight;
         };
 
-        /* 对照实验：两个一模一样的方块，只有 B 带 cursor: pointer。
-           iOS Safari 上 A 不会有任何反应、B 会 —— 这正是卡片标题栏的问题所在 */
         ['plainBox', 'cursorBox'].forEach((id) => {
             document.getElementById(id).addEventListener('click', () => say('ok   ' + id + ' 收到 click'));
         });
@@ -69,7 +67,6 @@
             say('请在下面这块 iframe 里点一下第一条卡片的标题栏：');
             say('');
 
-            /* 捕获阶段记账：看事件到底有没有产生 */
             ['touchstart', 'touchend', 'click'].forEach((type) => {
                 d.addEventListener(type, (evt) => {
                     const t = evt.target;

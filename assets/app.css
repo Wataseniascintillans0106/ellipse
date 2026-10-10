@@ -1,9 +1,3 @@
-/* ==========================================================================
-   ellipse · 日常状态记录
-   设计基线沿用 docs/demo.html：暖纸质底、右栏模块化、得意黑标题
-   ========================================================================== */
-
-/* ---------------- 字体 ---------------- */
 @font-face {
     font-family: "Smiley Sans";
     src: url("../../fonts/SmileySans-Oblique.ttf.woff2") format("woff2");
@@ -12,13 +6,11 @@
     font-display: swap;
 }
 
-/* ---------------- 变量 ---------------- */
 :root {
     --edge: 20px;
     --btn-size: 56px;
 
     --accent: #df9068;
-    /* 评分格选中态：比 --accent 更深（与 --gear 同色，但用途不同，故单独一枚） */
     --accent-deep: #de7b49;
     --gear: #de7b49;
     --ink: #2B2B28;
@@ -34,8 +26,6 @@
     --bg-right: #FBFAED;
 
     --rail-w: calc(var(--btn-size) + 7px);
-    /* 右侧浮动控件（竖栏 / 返回 / 设置）整体右移，
-       让出与内容相同的边距，避免压住卡片右缘与评分格 */
     --float-right: 10px;
     --main-pad: 22px;
     --radius: 16px;
@@ -45,7 +35,6 @@
             "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
 }
 
-/* ---------------- 基础 ---------------- */
 *, *::before, *::after { box-sizing: border-box; }
 
 html, body { height: 100%; margin: 0; }
@@ -66,7 +55,6 @@ body.is-locked { overflow: hidden; }
 
 :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 
-/* ---------------- 两层页面：主页 / 状态记录 ---------------- */
 .view[hidden] { display: none; }
 
 .view.fade-in { animation: view-in 0.26s cubic-bezier(0.32, 0.72, 0, 1); }
@@ -76,7 +64,6 @@ body.is-locked { overflow: hidden; }
     to { opacity: 1; }
 }
 
-/* 主页：保持 docs/demo.html 的样子，只有字标 */
 .home {
     min-height: 100%;
     display: flex;
@@ -101,32 +88,24 @@ body.is-locked { overflow: hidden; }
     color: var(--ink-2);
 }
 
-/* 状态记录：左右内边距相等，内容在屏幕中居中。
-   模块自己的整页（.page-view，比如「状态波动图」）用的是同一套外框 —— 框架一致。 */
 .record,
 .page-view {
     min-height: 100%;
     padding: calc(28px + env(safe-area-inset-top)) 26px calc(40px + env(safe-area-inset-bottom)) 26px;
 }
 
-/* 整页模块：顶栏下面紧接内容（区间按钮之类），所以不要 .page-head 那 20px 的底距。
-   正文一条左边线：区间按钮、曲线都从 --main-pad 开始；
-   标题不在这条线上 —— 它在顶栏里，跟在返回箭头后面。 */
 .page-view .page-head { margin-bottom: 0; }
 
-/* 页头顶栏：返回箭头在左、标题跟着它，跟手机上的返回一样 */
 .page-head { margin-bottom: 20px; }
 
 .head-row {
     display: flex;
     align-items: center;
     gap: 2px;
-    min-height: 44px;                      /* 手指点得到的顶栏高度 */
-    /* 往左探出正文的边距，让箭头贴着屏幕边（正文仍从 --main-pad 开始） */
+    min-height: 44px;
     margin: -6px 0 -6px calc(8px - var(--main-pad));
 }
 
-/* 返回：一个干净的箭头，不要圆底 —— 只有按上去 / 悬停时浮一层浅色 */
 .page-back {
     flex: 0 0 auto;
     width: 44px;
@@ -169,9 +148,7 @@ body.is-locked { overflow: hidden; }
     color: var(--ink-2);
 }
 
-/* 日期条：左「前一天」、右「后一天」，中间是当天日期 */
 .date-bar {
-    /* 左「前一天」、右「后一天」：时间由左至右，今天在轴的右端 */
     display: flex;
     align-items: center;
     gap: 6px;
@@ -248,7 +225,6 @@ body.is-locked { overflow: hidden; }
     padding: 0;
 }
 
-/* ---------------- 模块栏 ---------------- */
 .module-stack {
     display: flex;
     flex-direction: column;
@@ -269,10 +245,6 @@ body.is-locked { overflow: hidden; }
     gap: 10px;
     padding: 13px 16px 12px;
     border-bottom: 1px solid var(--line-2);
-    /* 整条标题栏可点（展开 / 收起）。
-       cursor 是继承属性，写上之后栏内文字与图标一起变成 pointer——
-       iOS Safari 只对「可点元素」（按钮或 cursor:pointer）派发 click，
-       缺了这行手机上点标题栏不会有任何反应 */
     cursor: pointer;
 }
 
@@ -316,10 +288,6 @@ body.is-locked { overflow: hidden; }
 
 .module-preview {
     margin: 0;
-    /* 收起时这行小字要夹在「标题栏那条横线」和「卡片底边」正中间。
-       行高 16 + 上 6 + 下 6 = 28，跟原来（行高 normal≈15 + 下 13）一样高 ——
-       卡片总高不变，只是小字从贴着横线挪到了正中间。
-       别把 padding 改回 0/13：那样小字会重新贴到上面的横线上。 */
     line-height: 16px;
     padding: 6px 16px;
     font-size: 12px;
@@ -331,7 +299,6 @@ body.is-locked { overflow: hidden; }
 }
 .module.is-open .module-preview { display: none; }
 
-/* 模块内字段 */
 .field + .field { margin-top: 16px; }
 
 .field-label {
@@ -342,13 +309,10 @@ body.is-locked { overflow: hidden; }
     font-size: 12px;
     letter-spacing: 1.8px;
     color: var(--ink-2);
-    /* 标题里写 \n 就真的换行（默认会被 HTML 折成一个空格）。
-       「微成就」的鼓励语就靠它分两行写。 */
     white-space: pre-line;
 }
 .field-value { font-size: 12px; letter-spacing: 0.5px; color: var(--ink-3); }
 
-/* 评分格：1–10 一键可选 */
 .scale {
     display: grid;
     grid-template-columns: repeat(10, 1fr);
@@ -387,8 +351,6 @@ body.is-locked { overflow: hidden; }
     color: var(--ink-3);
 }
 
-/* 滑动变阻器：一条轨道 + 一枚滑片，拖动取值（疼痛程度用）。
-   --fill 由 app.js 在拖动时就地更新，表示已选段占轨道的比例 */
 .rheostat { --fill: 0%; }
 
 .rheostat-input {
@@ -403,7 +365,6 @@ body.is-locked { overflow: hidden; }
     cursor: pointer;
 }
 
-/* 轨道：底槽是电阻丝，左侧已选段用主色填满 */
 .rheostat-input::-webkit-slider-runnable-track {
     height: 10px;
     border-radius: 999px;
@@ -426,7 +387,6 @@ body.is-locked { overflow: hidden; }
     background: var(--accent);
 }
 
-/* 滑片 */
 .rheostat-input::-webkit-slider-thumb {
     -webkit-appearance: none;
     width: 26px;
@@ -447,7 +407,6 @@ body.is-locked { overflow: hidden; }
 }
 .rheostat-input:active::-webkit-slider-thumb { transform: scale(1.06); }
 
-/* 分段选择 */
 .seg { display: flex; gap: 6px; }
 .seg-item {
     flex: 1 1 0;
@@ -463,7 +422,6 @@ body.is-locked { overflow: hidden; }
 }
 .seg-item.on { background: var(--accent-deep); border-color: var(--accent-deep); color: #fff; }
 
-/* 数值输入 */
 .num-row { display: flex; align-items: center; gap: 8px; }
 .num-input {
     flex: 1 1 auto;
@@ -480,7 +438,6 @@ body.is-locked { overflow: hidden; }
 .num-input:focus { outline: none; border-color: var(--accent); }
 .num-unit { font-size: 12px; letter-spacing: 2px; color: var(--ink-3); }
 
-/* 单行文本输入 */
 .text-input {
     display: block;
     width: 100%;
@@ -509,7 +466,6 @@ body.is-locked { overflow: hidden; }
 }
 .chip:active { background: rgba(255, 255, 255, 0.8); }
 
-/* 文本域 */
 .textarea {
     display: block;
     width: 100%;
@@ -565,7 +521,6 @@ body.is-locked { overflow: hidden; }
     color: var(--ink-3);
 }
 
-/* ---------------- 导出区 ---------------- */
 .export-zone { margin-top: 16px; }
 
 .export-card {
@@ -604,7 +559,6 @@ body.is-locked { overflow: hidden; }
     color: var(--ink-3);
 }
 
-/* ---------------- 右侧竖排栏 ---------------- */
 .rail {
     position: fixed;
     right: calc(var(--edge) + var(--btn-size) / 2 - var(--rail-w) / 2 - var(--float-right));
@@ -625,16 +579,11 @@ body.is-locked { overflow: hidden; }
 }
 .rail::-webkit-scrollbar { display: none; }
 
-/* 主页：贴右下角设置按钮的上方 */
 .rail--home {
     bottom: calc(var(--edge) + var(--btn-size) + 16px);
     max-height: calc(100vh - var(--edge) - var(--btn-size) - 32px);
 }
 
-/* ---------------- 自己画一整块内容的模块 ----------------
-   卡片型（panel）和整页型（page）画的是同一种东西，只是外壳不同：
-   一个装在记录页的卡片里，一个装在主页竖栏点进来的整页里。
-   所以下面这四条的「外壳部分」写成两个选择器，内容部分共用 —— 少写一套就不会长歪。 */
 .module[data-kind="panel"] .module-body,
 .page-body { padding-top: 12px; }
 
@@ -669,7 +618,6 @@ body.is-locked { overflow: hidden; }
 .rail-item:active { background: rgba(255, 255, 255, 0.78); }
 .rail-item.on { background: rgba(255, 255, 255, 0.72); color: var(--gear); }
 
-/* ---------------- 右下角设置 / 右上角返回 ---------------- */
 .corner-btn {
     position: fixed;
     right: calc(var(--edge) - var(--float-right));
@@ -688,7 +636,6 @@ body.is-locked { overflow: hidden; }
     box-shadow: 0 2px 10px rgba(0, 0, 0, 0.08);
     transition: background 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease;
 }
-/* 面板打开时，浮在面板上的角落按钮不再吃点击 */
 body.is-locked .corner-btn,
 body.is-locked .page-back { pointer-events: none; }
 
@@ -696,8 +643,6 @@ body.is-locked .page-back { pointer-events: none; }
 .rail[hidden],
 .view[hidden] { display: none !important; }
 
-/* 返回按钮收起时（导出面板打开）不撤走位置，只是看不见 ——
-   它一走，顶栏里的标题就会「跳」到最左边。宽度留着，标题就稳稳待着。 */
 .page-back[hidden] { display: flex !important; visibility: hidden; }
 .corner-btn--bottom { bottom: calc(var(--edge) + env(safe-area-inset-bottom)); }
 .corner-btn:hover {
@@ -709,7 +654,6 @@ body.is-locked .page-back { pointer-events: none; }
 .corner-btn svg { display: block; width: 26px; height: 26px; transition: transform 0.3s ease; }
 .corner-btn--bottom:hover svg { transform: rotate(45deg); }
 
-/* ---------------- 通用按钮 ---------------- */
 .icon-btn {
     width: 44px;
     height: 44px;
@@ -729,7 +673,6 @@ body.is-locked .page-back { pointer-events: none; }
 .icon-btn:hover { background: rgba(43, 43, 40, 0.06); }
 .icon-btn:active { transform: scale(0.92); }
 
-/* ---------------- 遮罩 ---------------- */
 .scrim {
     position: fixed;
     inset: 0;
@@ -745,7 +688,6 @@ body.is-locked .page-back { pointer-events: none; }
     transition: opacity 0.26s ease, visibility 0s;
 }
 
-/* ---------------- 设置面板 ---------------- */
 .settings-panel {
     position: fixed;
     top: 0;
@@ -798,7 +740,6 @@ body.is-locked .page-back { pointer-events: none; }
     padding: 20px var(--main-pad) calc(40px + env(safe-area-inset-bottom));
 }
 
-/* ---------------- 设置内容 ---------------- */
 .set-group + .set-group { margin-top: 30px; }
 
 .set-group-head {
@@ -809,7 +750,6 @@ body.is-locked .page-back { pointer-events: none; }
     border-bottom: 1px solid var(--line);
 }
 
-/* 可展开 / 收起的栏：标题条整条可点，左边的箭头朝下=开着、朝右=收着 */
 .set-group--fold { margin-top: 18px; }
 .set-group--fold .set-group-head {
     width: 100%;
@@ -834,7 +774,6 @@ body.is-locked .page-back { pointer-events: none; }
 .set-group--fold.is-folded .fold-chev { transform: rotate(-90deg); }
 .set-group--fold .set-group-title { letter-spacing: 2.4px; }
 
-/* 栏与栏之间不再叠一层外边距：它们同属「模块」这一组 */
 .set-group--fold + .set-group--fold { margin-top: 18px; }
 .set-group-title {
     margin: 0;
@@ -855,7 +794,6 @@ body.is-locked .page-back { pointer-events: none; }
 
 .set-row-main { flex: 1 1 auto; min-width: 0; transition: opacity 0.18s ease; }
 
-/* 关掉的模块：图标、标题、说明一起变淡，右边的开关保持清晰——好认，也好点回来 */
 .set-row.is-off .set-row-main,
 .set-row.is-off .module-mark { opacity: 0.45; }
 .set-row-title { display: block; font-size: 14.5px; letter-spacing: 1.6px; }
@@ -870,7 +808,6 @@ body.is-locked .page-back { pointer-events: none; }
 
 .set-row-side { flex: 0 0 auto; display: flex; align-items: center; gap: 4px; }
 
-/* 开关 */
 .switch {
     position: relative;
     width: 48px;
@@ -895,7 +832,6 @@ body.is-locked .page-back { pointer-events: none; }
     box-shadow: 0 1px 3px rgba(43, 43, 40, 0.24);
     transition: transform 0.2s cubic-bezier(0.32, 0.72, 0, 1);
 }
-/* 滑块占一半，另一半留给「开 / 关」两个字，状态不靠颜色猜 */
 .switch-label {
     position: absolute;
     top: 0;
@@ -914,7 +850,6 @@ body.is-locked .page-back { pointer-events: none; }
 .switch.on::after { transform: translateX(22px); }
 .switch.on .switch-label { right: auto; left: 0; color: var(--ink); }
 
-/* 排序按钮 */
 .order-btn {
     width: 32px;
     height: 32px;
@@ -933,7 +868,6 @@ body.is-locked .page-back { pointer-events: none; }
 .order-btn:hover { background: rgba(43, 43, 40, 0.05); }
 .order-btn[disabled] { opacity: 0.26; pointer-events: none; }
 
-/* 文本输入 */
 .set-input {
     width: 100%;
     margin-top: 8px;
@@ -967,11 +901,9 @@ body.is-locked .page-back { pointer-events: none; }
 .btn.danger { color: #b4553b; border-color: rgba(180, 85, 59, 0.34); }
 .btn[disabled] { opacity: 0.45; pointer-events: none; }
 
-/* 模块行里的次要操作（导出源码 / 卸载）：放在说明下面，不挤占右侧的排序与开关 */
 .set-row-tools { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 9px; }
 .set-row-tools .btn { padding: 6px 12px; font-size: 11.5px; letter-spacing: 1.2px; }
 
-/* 「自装」小标签：区分内置模块与用户自己装进来的 */
 .set-badge {
     margin-left: 6px;
     padding: 2px 7px;
@@ -983,13 +915,11 @@ body.is-locked .page-back { pointer-events: none; }
     color: var(--accent);
     vertical-align: 1px;
 }
-/* 「已关闭」：比「自装」更安静，灰底灰字，只做提醒不抢眼 */
 .set-badge--off {
     background: rgba(43, 43, 40, 0.08);
     color: var(--ink-3);
 }
 
-/* 数据分组里的复选框行 */
 .set-check {
     display: flex;
     align-items: center;
@@ -1003,11 +933,9 @@ body.is-locked .page-back { pointer-events: none; }
 }
 .set-check input { flex: 0 0 auto; width: 15px; height: 15px; accent-color: var(--accent); }
 
-/* 画不出来的模块：只坏这一栏，其余模块照常 */
 .module--error .module-head { opacity: 0.72; }
 .module--error .empty-note { color: #b4553b; }
 
-/* ---------------- 图表 ---------------- */
 .chart-block {
     padding: 4px 0 22px;
     border-bottom: 1px solid var(--line-2);
@@ -1078,9 +1006,6 @@ body.is-locked .page-back { pointer-events: none; }
 }
 .chart-tip.on { opacity: 1; }
 
-/* 柱状图的查看卡片：白底圆角的小卡，上面一行是日期 + 数值，
-   下面一行是「颜色块 + 指标名 + 数值」—— 跟折线图那个深色小药丸是两回事，
-   所以另起一个 --card 修饰类，折线图不受影响。 */
 .chart-tip--card {
     transform: translate(-50%, -112%);
     display: block;
@@ -1106,7 +1031,6 @@ body.is-locked .page-back { pointer-events: none; }
 .chart-tip--card .chart-tip-name { white-space: nowrap; }
 .chart-tip--card .chart-tip-num { margin-left: auto; color: var(--ink); }
 
-/* ---------------- 底部面板 ---------------- */
 .sheet {
     position: fixed;
     left: 0;
@@ -1201,7 +1125,6 @@ body.is-locked .page-back { pointer-events: none; }
     color: var(--ink-3);
 }
 
-/* ---------------- 提示 ---------------- */
 .toast {
     position: fixed;
     left: 50%;
@@ -1227,7 +1150,6 @@ body.is-locked .page-back { pointer-events: none; }
     transition: opacity 0.22s ease, transform 0.22s ease, visibility 0s;
 }
 
-/* ---------------- 启动失败提示 ---------------- */
 .boot-note {
     margin: 40px 24px;
     padding: 20px;
@@ -1255,10 +1177,8 @@ body.is-locked .page-back { pointer-events: none; }
     word-break: break-word;
 }
 
-/* 不支持 ES 模块的浏览器：直接显示提示 */
 html.no-module .boot-note { display: block; }
 
-/* ---------------- 窄屏 ---------------- */
 @media (max-width: 360px) {
     :root { --main-pad: 16px; }
     .date-num { font-size: 26px; }

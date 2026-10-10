@@ -1,5 +1,3 @@
-/* 睡眠：质量评分 + 可补记时长 */
-
 ellipse.define({
     apiVersion: 1,
     id: 'sleep',
@@ -15,8 +13,6 @@ ellipse.define({
         }
     ],
 
-    /* 不声明的话会由数值字段自动推导，只是「睡眠时长」会带上「小时」单位、图表纵轴跟着变；
-       这里显式写出来，保持和改造前完全一致 */
     metrics: [
         { key: 'quality', label: '睡眠质量', field: 'quality', min: 0, max: 10 },
         { key: 'hours', label: '睡眠时长', field: 'hours', min: 0 }

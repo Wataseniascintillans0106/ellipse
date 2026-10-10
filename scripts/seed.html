@@ -7,7 +7,6 @@
     <link rel="stylesheet" href="../assets/app.css">
 </head>
 <body>
-    <!-- 仅用于本地预览：向 localStorage 写入示例记录后跳回首页。不是应用的一部分。 -->
     <main class="app-main">
         <p class="empty-note" id="seedState">正在写入示例数据…</p>
     </main>
@@ -22,7 +21,6 @@
             for (let i = 89; i >= 0; i--) {
                 const d = new Date(today.getFullYear(), today.getMonth(), today.getDate() - i);
                 const k = key(d);
-                // 用确定性的伪随机，保证每次预览一致
                 const wave = Math.sin(i / 4.2);
                 const wave2 = Math.sin(i / 6.5);
                 const trend = i / 90;

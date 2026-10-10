@@ -8,8 +8,6 @@
     <iframe id="frame" src="../index.html" style="width:390px;height:844px;border:0;display:block;background:#fff"></iframe>
     <pre id="out" style="position:fixed;right:0;top:0;background:#fff;font:10px/1.4 monospace;margin:0;padding:5px;width:225px;white-space:pre-wrap"></pre>
     <script>
-        /* mod 系统的浏览器自检：设置分区、工具的连锁开关、装上 / 导出 / 卸载的完整闭环。
-           逻辑回归跑 node scripts/smoke.mjs，这里是真实 DOM 与真实交互那一层。 */
         const log = [];
         const say = (m) => { log.push(m); document.getElementById('out').textContent = log.join('\n'); };
         const frame = document.getElementById('frame');
@@ -175,7 +173,6 @@
                     if (cards2.length >= 6) break;
                 }
                 say('栏: ' + cards2.join(','));
-                /* 波状图是页面型模块，不在记录页的卡片栈里 —— 它出现在主页竖栏 */
                 t('内置模块照常', cards2.join(',') === 'mood,sleep,pain,exercise,micro,diary', cards2.join(','));
                 t('跳过了自装模块的求值', cards2.indexOf('weight') < 0);
 

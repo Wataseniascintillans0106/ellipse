@@ -1,21 +1,14 @@
-/* 本地存储：所有记录与设置只保存在当前浏览器（localStorage）。
-
-   这一层刻意不认识任何具体模块 —— 「有哪些模块、开没开」由 core/registry.js 负责。
-   依赖方向是单向的：registry → storage，反过来没有。 */
-
 const KEY_RECORDS = 'ellipse.v1.records';
 const KEY_SETTINGS = 'ellipse.v1.settings';
-const KEY_MODS = 'ellipse.v1.mods';      /* 用户装的模块源码，独立一个键，见 core/loader.js */
+const KEY_MODS = 'ellipse.v1.mods';
 
 const SETTINGS_VERSION = 2;
 
-/* 只有核心概念在这里给默认值；每个模块自己的配置由模块自己声明（settings.mods[id]） */
 const DEFAULT_SETTINGS = {
     ui: { expandAll: true, openModule: null, panels: {}, groups: {} },
     export: { frontmatter: true, includeSummary: true }
 };
 
-/* 认识的顶层键。不认识的（比如老版本写在顶层的 ai 配置）原样留着，不悄悄删掉。 */
 const KNOWN_KEYS = ['version', 'modules', 'order', 'ui', 'export', 'mods'];
 
 let records = null;
@@ -40,7 +33,6 @@ function loadRecords() {
     return records;
 }
 
-/** 把磁盘上的旧设置补成当前形状。不丢任何已有内容。 */
 function migrate(raw) {
     const src = raw && typeof raw === 'object' ? raw : {};
     const out = {
@@ -48,20 +40,15 @@ function migrate(raw) {
         modules: (src.modules && typeof src.modules === 'object') ? Object.assign({}, src.modules) : {},
         order: Array.isArray(src.order) ? src.order.slice() : [],
         ui: Object.assign({}, DEFAULT_SETTINGS.ui, src.ui || {}, {
-            /* 嵌套的对象要另开一份，否则会写到 DEFAULT_SETTINGS 身上去 */
             panels: Object.assign({}, (src.ui && src.ui.panels) || {}),
             groups: Object.assign({}, (src.ui && src.ui.groups) || {})
         }),
         export: Object.assign({}, DEFAULT_SETTINGS.export, src.export || {}),
         mods: (src.mods && typeof src.mods === 'object') ? Object.assign({}, src.mods) : {}
     };
-    /* 老版本把 AI 配置放在顶层的 ai 键里，现在归「AI 助手」模块自己管。
-       搬运一次即可；上面的 KNOWN_KEYS 会让老键继续留在磁盘上，搬错了还能捞回来。 */
     if (!out.mods.assistant && src.ai && typeof src.ai === 'object') {
         out.mods.assistant = Object.assign({}, src.ai);
     }
-    /* 老版本把波状图栏的展开状态与默认区间放在 ui.trendOpen / ui.lastRange，
-       现在前者归核心的 panels，后者归模块自己的设置。 */
     if (src.ui && typeof src.ui === 'object') {
         if (src.ui.trendOpen !== undefined && out.ui.panels.trend === undefined) {
             out.ui.panels.trend = src.ui.trendOpen !== false;
@@ -120,7 +107,6 @@ export function setSettings(patch) {
     return s;
 }
 
-/** 某个模块自己的配置（模块的作者自己决定里面有什么） */
 export function getModuleSettings(id) { return loadSettings().mods[id] || {}; }
 
 export function resetSettings() {
@@ -131,10 +117,6 @@ export function resetSettings() {
     return settings;
 }
 
-/**
- * 注册表在模块注册时调用：给新模块补上默认开关与顺序位置。
- * 已有设置原样不动，所以升级不会打乱用户自己排的顺序。
- */
 export function ensureModuleSettings(id, enabledByDefault) {
     const s = loadSettings();
     let changed = false;
@@ -153,7 +135,6 @@ export function ensureModuleSettings(id, enabledByDefault) {
     return changed;
 }
 
-/** 彻底忘掉一个模块的设置与顺序（卸载模块时用） */
 export function forgetModule(id) {
     const s = loadSettings();
     const at = s.order.indexOf(id);
@@ -176,10 +157,6 @@ export function getRecordData(key) {
     return rec && rec.data && typeof rec.data === 'object' ? rec.data : {};
 }
 
-/**
- * 细粒度写入：setField('2025-01-01', 'mood', 'morning', 7)
- * value 传 null 表示清除该字段
- */
 export function setField(key, moduleId, field, value) {
     if (!isValidKey(key)) return;
     const all = loadRecords();
@@ -196,7 +173,6 @@ export function setField(key, moduleId, field, value) {
     emit({ type: 'record', key: key, module: moduleId, field: field });
 }
 
-/** 丢掉某一天里某个模块的全部数据（卸载模块时可选） */
 export function dropModuleData(moduleId) {
     const all = loadRecords();
     let touched = 0;
@@ -214,12 +190,9 @@ export function dropModuleData(moduleId) {
     return touched;
 }
 
-/** 所有有记录的日期（升序） */
 export function allRecordKeys() {
     return Object.keys(loadRecords()).sort();
 }
-
-/* ---------------- 备份 ---------------- */
 
 export function getModsRaw() { return safeParse(localStorage.getItem(KEY_MODS), null) || {}; }
 
@@ -233,10 +206,6 @@ export function setModsRaw(all) {
     }
 }
 
-/**
- * 备份内容
- * @param {object} opts { includeMods: 是否带上已装模块的源码 }
- */
 export function exportAll(opts) {
     const o = opts || {};
     const payload = {
@@ -250,7 +219,6 @@ export function exportAll(opts) {
     return payload;
 }
 
-/** 导入备份：合并或覆盖。返回 { records, mods } 各导入了多少 */
 export function importAll(payload, mode) {
     if (!payload || typeof payload !== 'object' || !payload.records) {
         throw new Error('文件内容不是有效的 ellipse 备份');
@@ -268,7 +236,7 @@ export function importAll(payload, mode) {
         settings = null;
         try {
             localStorage.setItem(KEY_SETTINGS, JSON.stringify(payload.settings));
-        } catch (err) { /* 设置写不进去不该让记录也导不进来 */ }
+        } catch (err) {  }
         loadSettings();
     }
 
@@ -292,8 +260,6 @@ export function clearRecords() {
     persistRecords();
     emit({ type: 'bulk' });
 }
-
-/* ---------------- 订阅 ---------------- */
 
 export function subscribe(fn) {
     listeners.add(fn);

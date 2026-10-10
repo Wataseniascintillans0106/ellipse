@@ -1,27 +1,15 @@
-/* 声明式字段：一份字段声明，推导出表单 / 收起摘要 / md 导出 / 波状图指标。
-
-   本文件只拼字符串、不碰 DOM —— 这样 Node 里能直接 import，scripts/smoke.mjs 才测得动。
-
-   字段形状：
-   { key:'morning', type:'scale', label:'醒后', short:'醒后', min:1, max:10,
-     low:'1 低落', high:'10 很好' }
-   type 见下面的 renderField；short 是摘要里用的短名（默认取 label，传 '' 表示不要名字）。 */
-
 import { icon } from '../icons.js';
 import { fmtNum, escapeHtml } from '../util.js';
 
-const EMPTY_FORM = '未记录';   /* 表单标签行里的空值 */
-const EMPTY_MD = '—';          /* md 导出里的空值 */
+const EMPTY_FORM = '未记录';
+const EMPTY_MD = '—';
 
-/** 内置控件类型 */
 export const FIELD_TYPES = ['scale', 'slider', 'number', 'enum', 'text', 'textarea'];
 
-/* 有值判断：0 与 false 都算有值，''、null、undefined 算没值 */
 export function hasValue(v) {
     return v !== null && v !== undefined && String(v).trim() !== '';
 }
 
-/* 宽松比较：DOM 上的 data-value 永远是字符串，记录里可能是数字或布尔 */
 export function sameValue(a, b) {
     if (a === b) return true;
     if (a === null || a === undefined || b === null || b === undefined) return false;
@@ -29,8 +17,6 @@ export function sameValue(a, b) {
 }
 
 function esc(text) { return escapeHtml(text); }
-
-/* ---------------- 值的显示形态 ---------------- */
 
 function scaleText(v, f) { return v + ' / ' + (f.max === undefined ? 10 : f.max); }
 
@@ -41,7 +27,6 @@ function optionLabel(f, v) {
     return hit ? hit.label : String(v);
 }
 
-/** 摘要里那个值（评分只要数字，不要 "7 / 10"） */
 function previewValue(f, v) {
     if (f.type === 'scale' || f.type === 'slider') return String(v);
     if (f.type === 'number') return numberText(v, f);
@@ -49,7 +34,6 @@ function previewValue(f, v) {
     return String(v);
 }
 
-/** md 里的值 */
 function markdownValue(f, v) {
     if (f.type === 'scale' || f.type === 'slider') return scaleText(v, f);
     if (f.type === 'number') return numberText(v, f);
@@ -57,19 +41,16 @@ function markdownValue(f, v) {
     return String(v);
 }
 
-/** 表单里标签行右侧那个值 */
 function fieldValueText(f, v) {
     if (!hasValue(v)) return EMPTY_FORM;
     if (f.type === 'scale' || f.type === 'slider' || f.type === 'number') return markdownValue(f, v);
-    return '';   /* enum / text / textarea 不在标签行显示值 */
+    return '';
 }
 
 function textPreview(v) {
     const t = String(v).replace(/\s+/g, ' ').trim();
     return t.length > 46 ? t.slice(0, 46) + '…' : t;
 }
-
-/* ---------------- 表单 HTML ---------------- */
 
 function fieldShell(label, valueText, inner, extra, valueAttr) {
     const head = label
@@ -148,7 +129,6 @@ function textHtml(f, value) {
         ' value="' + esc(hasValue(value) ? value : '') + '">';
 }
 
-/* 工具按钮：只在对应工具真的注册了才出现（比如关掉「AI 助手」模块，整理按钮自己消失） */
 function toolRowHtml(f, ctx) {
     const ids = f.tools || [];
     if (!ids.length) return '';
@@ -198,19 +178,11 @@ function renderField(f, data, ctx) {
     );
 }
 
-/**
- * 渲染一整组字段
- * @param {Array} fields 字段声明
- * @param {object} data  该模块当天的记录
- * @param {object} ctx   { tool: (id) => 工具定义 | null }
- */
 export function renderFields(fields, data, ctx) {
     const m = data || {};
     const c = ctx || {};
     return (fields || []).map(function (f) { return renderField(f, m, c); }).join('');
 }
-
-/* ---------------- 收起时的摘要 ---------------- */
 
 export function summarize(fields, data) {
     const m = data || {};
@@ -232,9 +204,6 @@ export function summarize(fields, data) {
     return parts.join(' · ');
 }
 
-/* ---------------- md 导出 ---------------- */
-
-/** 一个模块当天的正文行（不含 "## 标题"） */
 export function markdownLines(fields, data) {
     const m = data || {};
     const lines = [];
@@ -246,7 +215,7 @@ export function markdownLines(fields, data) {
             return;
         }
         if (!hasValue(v)) {
-            if (f.type === 'text') return;             /* 文本空值：整行不写 */
+            if (f.type === 'text') return;
             lines.push('- ' + f.label + '：' + EMPTY_MD);
             return;
         }
@@ -255,9 +224,6 @@ export function markdownLines(fields, data) {
     return lines;
 }
 
-/* ---------------- 波状图指标 ---------------- */
-
-/** 没自己声明 metrics 时，由数值型字段推导 */
 export function metricsFromFields(fields) {
     return (fields || []).filter(function (f) {
         return f.metric !== false && (f.type === 'scale' || f.type === 'slider' || f.type === 'number');
@@ -269,7 +235,6 @@ export function metricsFromFields(fields) {
     });
 }
 
-/** 取某模块某指标在一条记录里的值（图表与 md 统计共用这一处逻辑） */
 export function metricValueOf(def, metric, m) {
     if (!m) return null;
     if (typeof metric.value === 'function') {
@@ -280,7 +245,6 @@ export function metricValueOf(def, metric, m) {
     return Number.isFinite(raw) ? raw : null;
 }
 
-/** 按 key 找字段（事件层判断控件类型用） */
 export function fieldByKey(fields, key) {
     return (fields || []).find(function (f) { return f.key === key; }) || null;
 }

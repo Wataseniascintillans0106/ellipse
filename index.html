@@ -6,8 +6,6 @@
     <meta name="theme-color" content="#FBFAED">
     <title>ellipse</title>
 
-    <!-- ======================= 装到主屏（PWA） ======================= -->
-    <!-- 部署到 HTTPS 后即可「安装应用」：全屏运行、离线可用（这些能力只在安全来源下才给） -->
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="default">
@@ -26,7 +24,6 @@
         <p style="padding:24px">本应用需要开启 JavaScript。</p>
     </noscript>
 
-    <!-- ======================= 主页（与 docs/demo.html 一致） ======================= -->
     <main class="view home" id="viewHome">
         <div class="home-block">
             <p class="wordmark">ellipse</p>
@@ -34,11 +31,8 @@
         </div>
     </main>
 
-    <!-- ======================= 状态记录（主页的下一层） ======================= -->
     <main class="view record" id="viewRecord" hidden>
         <header class="page-head">
-            <!-- 顶栏：返回在左、标题在右，和手机上的返回一样。
-                 返回按钮是全局唯一的那一个，切到模块页时由 app.js 挪去那边的顶栏。 -->
             <div class="head-row">
                 <button class="page-back" id="backHomeBtn" type="button" aria-label="返回主页" title="返回主页">
                     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><polyline points="14.5 18.5 8 12 14.5 5.5"></polyline><line x1="18.5" y1="12" x2="8.5" y2="12"></line></svg>
@@ -72,12 +66,8 @@
         <p class="foot-note">记录仅保存在本机浏览器中</p>
     </main>
 
-    <!-- ======================= 模块自己的页面（主页竖栏点进来的，比如「状态波动图」） =======================
-         这一层是通用的：标题取模块的 name，内容由模块的 mount() 画，底注取模块的 note。
-         再加一个页面型模块，这里一个字都不用改。 -->
     <main class="view page-view" id="viewPage" hidden>
         <header class="page-head">
-            <!-- 这一行空着等返回按钮搬进来（见 app.js 的 placeBackBtn） -->
             <div class="head-row">
                 <p class="head-line" id="pageTitle"></p>
             </div>
@@ -88,18 +78,12 @@
         <p class="foot-note" id="pageNote"></p>
     </main>
 
-    <!-- ======================= 右侧竖排栏（只在主页显示） ======================= -->
     <nav class="rail" id="rail" aria-label="功能栏" hidden></nav>
 
-    <!-- 返回按钮不在这儿了：它在「状态记录」页的顶栏里，
-         切到模块页时由 app.js 挪过去（导出面板打开时原位隐藏）。 -->
-
-    <!-- 右下角：设置（只在主页显示） -->
     <button class="corner-btn corner-btn--bottom" id="settingsBtn" type="button" aria-label="设置" title="设置" aria-expanded="false">
         <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
     </button>
 
-    <!-- ======================= 设置界面（右侧全屏抽屉） ======================= -->
     <div class="scrim" id="settingsScrim"></div>
 
     <aside class="settings-panel" id="settingsPanel" role="dialog" aria-modal="true" aria-labelledby="settingsTitle" aria-hidden="true">
@@ -113,7 +97,6 @@
         <div class="settings-body" id="settingsBody"></div>
     </aside>
 
-    <!-- ======================= 底部面板：md 导出 / 日期 / 输入 ======================= -->
     <section class="sheet" id="sheet" role="dialog" aria-modal="true" aria-labelledby="sheetTitle" aria-hidden="true">
         <header class="sheet-head">
             <h2 class="sheet-title" id="sheetTitle">导出</h2>
@@ -139,7 +122,6 @@
     </section>
 
     <script>
-        /* 模块加载失败时给出可读的提示，而不是一片空白 */
         window.addEventListener('error', function (evt) {
             const note = document.getElementById('bootNote');
             if (!note || note.hidden === false) return;

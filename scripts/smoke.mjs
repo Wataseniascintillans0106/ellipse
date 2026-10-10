@@ -1,6 +1,3 @@
-/* 逻辑冒烟测试：在 Node 里跑数据层 / 波状图 / md 导出（不需要浏览器） */
-
-/* ---------- 最小环境替身 ---------- */
 const store = new Map();
 globalThis.localStorage = {
     getItem: (k) => (store.has(k) ? store.get(k) : null),
@@ -25,13 +22,11 @@ const { toKey, todayKey, shiftKey } = await import('../assets/js/util.js');
 const { renderFields } = await import('../assets/js/core/fields.js');
 const { validateDefinition } = await import('../assets/js/core/validate.js');
 
-/* 读仓库里的文件（后面好几节都要用，所以放在这儿） */
 const { readFileSync, existsSync, statSync, readdirSync } = await import('node:fs');
 const path = await import('node:path');
 const root = path.resolve(import.meta.dirname, '..');
 const at = (rel) => path.join(root, rel);
 
-/* 模块系统：装好全局的 ellipse，再像浏览器那样把内置模块拉进来 */
 const { installGlobal } = await import('../assets/js/core/api.js');
 const registry = await import('../assets/js/core/registry.js');
 const loader = await import('../assets/js/core/loader.js');
@@ -52,7 +47,6 @@ function ok(label, cond, extra) {
 const today = todayKey();
 const yesterday = shiftKey(today, -1);
 
-/* ---------- 1. 记录读写 ---------- */
 console.log('\n[1] 记录读写');
 setField(today, 'mood', 'morning', 7);
 setField(today, 'mood', 'evening', 4);
@@ -63,7 +57,6 @@ setField(today, 'pain', 'note', '左侧膝关节');
 setField(today, 'exercise', 'minutes', 30);
 setField(today, 'exercise', 'discomfort', false);
 setField(today, 'diary', 'text', '今天去公园走了两圈，膝盖没有明显不适。');
-/* 微成就：故意在中间夹一个空行、一个只有空格的行，验证它们不留空列表项 */
 setField(today, 'micro', 'text', '今天多走了五分钟\n\n   \n今天把药按时吃完了');
 setField(yesterday, 'mood', 'morning', 5);
 setField(yesterday, 'pain', 'level', 3);
@@ -78,7 +71,6 @@ setField(today, 'mood', 'morning', null);
 ok('清空字段后键被删除', getRecordData(today).mood.morning === undefined);
 setField(today, 'mood', 'morning', 7);
 
-/* ---------- 2. 模块与默认顺序 ---------- */
 console.log('\n[2] 模块定义');
 ok('默认六个记录模块', MODULES.length === 6, MODULES.map((m) => m.id).join(','));
 ok('默认顺序 情绪/睡眠/疼痛/运动/微成就/日记',
@@ -95,7 +87,6 @@ const ranges = RANGES.map((r) => r.id).join(',');
 ok('区间为 7d/30d/90d', ranges === '7d,30d,90d', ranges);
 ok('rangeById 回退到 1 个月', rangeById('nope').id === '30d');
 
-/* ---------- 3. 波状图 ---------- */
 console.log('\n[3] 波状图');
 const mood = getModule('mood');
 const keys = [yesterday, today];
@@ -119,7 +110,6 @@ ok('无记录时没有数据点', empty.points.length === 0);
 const one = renderChart({ keys: keys, values: [null, 8], metric: mood.metrics[0] });
 ok('单点也能画', one.points.length === 1);
 
-/* 没记录的日子：照样占一格、按最低值画、但不画圆点 */
 const gapKeys = [shiftKey(today, -2), shiftKey(today, -1), today];
 const gap = renderChart({ keys: gapKeys, values: [7, null, 3], metric: mood.metrics[0] });
 const gapD = (gap.svg.match(/<path d="([^"]*)"/) || [])[1] || '';
@@ -129,7 +119,6 @@ ok('没记录的日子也在时间轴上占一格（折线连起来）', gapYs.l
 ok('没记录的日子画在最低处', gapYs.length === 4 && gapYs[1] === Math.max.apply(null, gapYs),
     JSON.stringify(gapYs));
 ok('没记录的日子不画圆点', gap.points.length === 2, String(gap.points.length));
-/* 0 分和「没记录」都贴在最底下，靠圆点区分：真有记录的 0 分照样画点 */
 const zero = renderChart({ keys: gapKeys, values: [0, null, 0], metric: getModule('pain').metrics[0] });
 ok('记成 0 分的那天照画圆点', zero.points.length === 2, String(zero.points.length));
 
@@ -138,7 +127,6 @@ ok('某天在横轴上的位置，不受邻居有没有记录影响',
     full.points[0].x === gap.points[0].x && full.points[2].x === gap.points[1].x,
     JSON.stringify([full.points.map((p) => p.x), gap.points.map((p) => p.x)]));
 
-/* ---------- 3b. 柱状图（运动模块） ---------- */
 console.log('\n[3b] 柱状图');
 const exercise = getModule('exercise');
 ok('运动时长声明成柱状图', exercise.metrics.length === 1 && exercise.metrics[0].style === 'bar',
@@ -151,7 +139,6 @@ ok('柱状图也生成 svg', exChart.svg.startsWith('<svg') && exChart.svg.endsW
 ok('返回值里带着图的样子', exChart.style === 'bar', String(exChart.style));
 ok('纵轴顶到「最长的那次 45 分钟」，不再是输入框上限 600',
     exChart.svg.indexOf('>45<') > 0 && exChart.svg.indexOf('>600<') < 0);
-/* PAD_T = 12：45 是最大值，纵轴上限正好 45，所以最高那根柱子的顶端落在 12 —— 顶到最上面一条线 */
 ok('最长的那根柱子顶到最上面一条线', exChart.points[1].y === 12, String(exChart.points[1].y));
 ok('矮的那根比它低', exChart.points[0].y > exChart.points[1].y);
 ok('柱子是填充色的路径', exChart.svg.indexOf('fill="#de7b49"') > 0);
@@ -167,11 +154,9 @@ const exEmpty = renderChart({ keys: exKeys, values: [null, null, null], metric: 
 ok('柱状图没记录时也是空态文案',
     exEmpty.svg.indexOf('该区间还没有记录') > 0 && exEmpty.points.length === 0);
 
-/* 折线图不受影响：同样的数据、不声明 style，还是老样子 */
 const lineStill = renderChart({ keys: exKeys, values: [30, 45, null], metric: { label: '对照', min: 0 } });
 ok('不声明 style 就还是折线图', lineStill.style === 'line' && lineStill.svg.indexOf('<circle') > 0);
 
-/* ---------- 4. md 导出 ---------- */
 console.log('\n[4] md 导出');
 const md = dayMarkdown(today);
 ok('含 frontmatter', md.startsWith('---\ndate: ' + today));
@@ -199,13 +184,11 @@ const all = allMarkdown();
 ok('全部记录包含两天', all.indexOf(yesterday) > 0 && all.indexOf(today) > 0);
 ok('文件名按日期', suggestFilename('day', today) === today + '.md');
 
-/* ---------- 4b. 微成就 ---------- */
 console.log('\n[4b] 微成就');
 const microMd = dayMarkdown(today);
 const microLines = microMd.split('\n');
 const microStart = microLines.indexOf('## 微成就');
 ok('导出里有「微成就」一节', microStart > 0);
-/* 一节的正文 = 直到下一个 ## 之间 */
 const microBody = microLines.slice(microStart + 1, microLines.indexOf('## 日记', microStart) > 0
     ? microLines.indexOf('## 日记', microStart) : undefined);
 ok('两行各自成一条 md 列表项',
@@ -220,17 +203,14 @@ ok('鼓励语没有被写进 md', microMd.indexOf('记录一些微小的成就')
 ok('微成就正文不是裸文本（日记那种）', microBody.every((l) => !l.trim() || l.trim().startsWith('- ')),
     JSON.stringify(microBody));
 
-/* 放在日记上面：顺序上确实在 ## 日记 之前 */
 ok('导出顺序里微成就排在日记前面', microStart < microLines.indexOf('## 日记'));
 
-/* 没有内容的日子，整节都不出现 */
 const everything = allMarkdown();
 const blankDay = shiftKey(today, -30);
 ok('那天没写微成就，当天 md 里就没有这一节',
     dayMarkdown(blankDay).indexOf('## 微成就') < 0);
 ok('但写过的那天在全部 md 里有', everything.indexOf('## 微成就') > 0);
 
-/* 界面长什么样：renderFields 是纯拼字符串、不碰 DOM 的，所以这里能验 */
 const microDef = getModule('micro');
 const microHtml = renderFields(microDef.fields, { text: '今天多走了五分钟' }, {});
 const labelAt = microHtml.indexOf('记录一些微小的成就');
@@ -239,8 +219,6 @@ ok('框上面有那句鼓励语', labelAt > 0 && labelAt < boxAt,
     '鼓励语在 ' + labelAt + '，文本框在 ' + boxAt);
 ok('鼓励语是字段标题（.field-label）',
     microHtml.indexOf('<div class="field-label"><span>记录一些微小的成就') > 0);
-/* 鼓励语分两行写。HTML 默认会把 \n 折成一个空格，全靠 app.css 里那句
-   white-space: pre-line —— 两边少一个，鼓励语就悄悄并回一行了 */
 ok('鼓励语分两行（label 里有换行）',
     microHtml.indexOf('<span>记录一些微小的成就\n哪怕是多吃一口饭 多喝一口水</span>') > 0,
     JSON.stringify(microDef.fields[0].label));
@@ -253,13 +231,11 @@ ok('是个多行文本框', microHtml.indexOf('<textarea class="textarea"') > 0)
 ok('框里有今天写的内容', microHtml.indexOf('今天多走了五分钟</textarea>') > 0);
 ok('框下面有一行一条的说明', microHtml.indexOf('一行一条；只保存在这台设备上') > boxAt);
 
-/* 全空 / 全是空行时，markdown() 返回空数组，而不是一条空的列表项 */
 ok('空内容返回空数组', microDef.markdown({}).length === 0
     && microDef.markdown({ text: '   \n\n  ' }).length === 0);
 ok('单行也带列表符号', JSON.stringify(microDef.markdown({ text: ' 今天多走了五分钟 ' }))
     === JSON.stringify(['- 今天多走了五分钟']), JSON.stringify(microDef.markdown({ text: ' 今天多走了五分钟 ' })));
 
-/* ---------- 5. 设置 ---------- */
 console.log('\n[5] 设置');
 const s = getSettings();
 ok('默认全部开启', Object.keys(s.modules).every((k) => s.modules[k] === true));
@@ -270,7 +246,6 @@ ok('AI 默认未配置', !getModuleSettings('assistant').apiKey && !getModuleSet
 ok('AI 密钥被声明成敏感字段（备份默认不带出去）',
     registry.secretFields('assistant').indexOf('apiKey') >= 0);
 
-/* ---------- 6. 面板型 / 页面型 / 服务型模块 ---------- */
 console.log('\n[6] 面板型 / 页面型 / 服务型模块');
 const trend = getModule('trend');
 ok('波状图是个页面型模块', !!trend && trend.kind === 'page' && !!trend.name);
@@ -290,7 +265,6 @@ ok('关掉 AI 模块，它的工具按钮就查不到了',
 ok('语音转写的工具已经删掉了', registry.tool('voice') === null);
 ok('日记不再挂任何工具按钮', !getModule('diary').fields.some((f) => f.tools));
 
-/* ---------- 7. PWA 资源 ---------- */
 console.log('\n[7] PWA 资源');
 
 let manifest = null;
@@ -306,21 +280,17 @@ if (manifest) {
     ok('manifest 从 ./ 启动', manifest.start_url === './' && manifest.scope === './');
     ok('manifest 声明了图标', Array.isArray(manifest.icons) && manifest.icons.length >= 2);
 
-    /* 最容易犯的错：改了图标文件名却忘了同步 manifest */
     const missing = (manifest.icons || [])
         .map((i) => String(i.src || '').replace(/^\.\//, ''))
         .filter((rel) => !existsSync(at(rel)));
     ok('manifest 里的图标都真的存在', missing.length === 0, missing.join(','));
 
-    /* 安卓的「安装应用」提示要求有 192 与 512 两档 */
     const sizes = (manifest.icons || []).map((i) => i.sizes);
     ok('图标含 192 与 512 两档', sizes.includes('192x192') && sizes.includes('512x512'), sizes.join(','));
 }
 
 ok('sw.js 存在且非空', existsSync(at('sw.js')) && statSync(at('sw.js')).size > 0);
 
-/* 预缓存清单是最容易腐烂的地方：加了新模块忘了写进去，
-   线上就会悄悄退回「第二次打开才有离线」，而这种问题在浏览器里很难看出来 */
 const swSrc = readFileSync(at('sw.js'), 'utf8');
 const shellBlock = (swSrc.match(/const SHELL = \[([\s\S]*?)\];/) || [])[1] || '';
 const shell = (shellBlock.match(/'([^']+)'/g) || []).map((s) => s.slice(1, -1));
@@ -335,7 +305,6 @@ ok('预缓存覆盖 assets/ 下每个文件', notCached.length === 0, notCached.
 const shellMissing = shell.filter((rel) => !existsSync(at(rel.replace(/^\.\//, ''))));
 ok('预缓存清单里的文件都真实存在', shellMissing.length === 0, shellMissing.join(','));
 
-/* ---------- 8. mod 系统：校验 / 安装 / 卸载 / 导出 ---------- */
 console.log('\n[8] mod 系统');
 const { previewSource, installSource, uninstallMod, exportSource } = loader;
 
@@ -365,7 +334,6 @@ ok('装上后出现在注册表里', inst.ok && registry.has('weight'), inst.err
 ok('字段声明被读进来', getModule('weight').fields.length === 1);
 ok('新模块排在记录页最后', registry.cardOrder()[registry.cardOrder().length - 1] === 'weight');
 
-/* 装上就自动接上：记录、md、区间汇总、波状图 —— 一行代码都不用改别处 */
 setField(today, 'weight', 'kg', 63.5);
 const wMd = dayMarkdown(today);
 ok('新模块自动出现在 md 导出里',
@@ -380,7 +348,6 @@ ok('导出模块拿回原样的源码', ex.ok && ex.text === WEIGHT, ex.error);
 const exBuiltin = await exportSource('mood');
 ok('内置模块导出在没有网络地址时给出可读提示', !exBuiltin.ok && /http/.test(exBuiltin.error), exBuiltin.error);
 
-/* 卸载：代码走，数据留，顺序留 */
 uninstallMod('weight', false);
 ok('卸载后从注册表消失', !registry.has('weight'));
 ok('卸载后数据仍在本机', !!(getRecordData(today).weight && getRecordData(today).weight.kg === 63.5));
@@ -401,13 +368,9 @@ const html = readFileSync(at('index.html'), 'utf8');
 ok('index.html 挂了 manifest', /rel="manifest"/.test(html));
 ok('index.html 有 apple-touch-icon', /rel="apple-touch-icon"/.test(html));
 ok('index.html 有 apple-mobile-web-app-capable', /apple-mobile-web-app-capable/.test(html));
-/* 模块自己的整页要有个容器等着，app.js 里的 viewPage / pageBody / pageTitle 才找得到 */
 ok('index.html 有整页模块的容器',
     /id="viewPage"/.test(html) && /id="pageBody"/.test(html) && /id="pageTitle"/.test(html));
 
-/* ---------- 9. 启动预览.bat ---------- */
-/* 这是唯一一个"坏了不报错、只是双击后一声不响"的文件：cmd 按 GBK 读、按 CR 定位行，
-   存成 UTF-8 或 LF 都会让它整份失效。编辑器保存时很容易悄悄改掉，所以在这里守着。 */
 console.log('\n[9] 启动预览.bat');
 
 const batPath = at('启动预览.bat');
@@ -421,21 +384,16 @@ if (existsSync(batPath)) {
     ok('是 CRLF 换行（纯 LF 会让 goto 与括号块解析错乱）', lf > 0 && lf === crlf,
         (lf - crlf) + ' 个裸 LF');
 
-    /* 文件里有中文，所以"是合法 UTF-8"就等于"被存成了 UTF-8"，那会被 cmd 读成乱码 */
     const decodesAsUtf8 = Buffer.compare(Buffer.from(bat.toString('utf8'), 'utf8'), bat) === 0;
     ok('没有存成 UTF-8（cmd 按 GBK 读，UTF-8 会把命令切成碎片）', !decodesAsUtf8);
 
     ok('没有 chcp 65001（中途换编码正是解析错乱的元凶）',
         bat.toString('binary').indexOf('chcp') < 0);
 
-    /* 光文件本身对还不够：eol=lf 的默认规则会在 checkout 时把 CRLF 又抹掉 */
     const attrs = readFileSync(at('.gitattributes'), 'utf8');
     ok('.gitattributes 给 *.bat 破例保留 CRLF', /\*\.bat\s+text\s+eol=crlf/.test(attrs));
 }
 
-/* ---------- 10. 版本日志.txt ---------- */
-/* 同类的坑：这是给人双击打开看的 txt，在记事本里"另存为"很容易存成 ANSI(GBK)，
-   那样别人打开就是乱码。带上 BOM 的 UTF-8 记事本一定认得。 */
 console.log('\n[10] 版本日志.txt');
 
 const logPath = at('版本日志.txt');

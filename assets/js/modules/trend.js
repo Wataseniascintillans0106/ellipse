@@ -1,12 +1,6 @@
-/* 状态波动图：页面型模块。
-   record 型是「收集字段」，panel 型是「在记录页上画一整块卡片」，
-   page 型是「不占记录页的位置，自己在主页竖栏上占一个入口、点开是一整页」——
-   它不产数据，只把别的模块的评分汇成曲线。 */
-
 function currentRange(api) {
     const conf = api.settings.get('trend');
     if (conf.range) return conf.range;
-    /* 老版本把区间存在 settings.ui.lastRange 里，读它一次，之后由本模块自己管 */
     return api.settings.global().ui.lastRange || '30d';
 }
 
@@ -17,7 +11,6 @@ ellipse.define({
     name: '状态波动图',
     icon: 'chart',
     desc: '各模块评分随时间的变化，可切 7 天 / 1 个月 / 3 个月',
-    /* 这一页最下面那行小字（页面型模块可选，不写就用外壳的默认句） */
     note: '曲线来自各模块已记录的评分；这一页只读，不会改动任何记录',
 
     actions: {
@@ -45,7 +38,6 @@ ellipse.define({
         });
         body.appendChild(row);
 
-        /* 只画还开着的、有评分项的模块；本模块自己没有指标，不会画到自己 */
         const charts = api.registry.chartModules(api.registry.cardOrder());
         if (!charts.length) {
             const note = document.createElement('p');

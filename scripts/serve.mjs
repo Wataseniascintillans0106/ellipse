@@ -1,6 +1,3 @@
-/* 本地静态服务器：给手机 / 浏览器预览用
-   node scripts/serve.mjs [端口]    默认 5173，监听 0.0.0.0 */
-
 import http from 'node:http';
 import fs from 'node:fs';
 import path from 'node:path';

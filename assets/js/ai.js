@@ -1,8 +1,3 @@
-/* AI 能力：文段整理。全部在浏览器内直接请求用户自己填写的接口。
-
-   这是「AI 助手」模块自己的实现细节，不是核心的一部分 ——
-   配置存在该模块的命名空间 settings.mods.assistant 下（老版本的顶层 ai 键会自动搬过来）。 */
-
 import { getModuleSettings } from './storage.js';
 
 const MOD_ID = 'assistant';
@@ -50,7 +45,6 @@ async function requestJson(path, options) {
     return data;
 }
 
-/** 文本整理：把零散内容整理成通顺的日记 */
 export async function polishText(raw, instruction) {
     const cfg = getAiConfig();
     if (!cfg.apiKey) throw new Error('还没有填写 API Key，请在「设置 · AI 辅助」中配置');

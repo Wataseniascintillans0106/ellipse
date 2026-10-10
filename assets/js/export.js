@@ -1,8 +1,3 @@
-/* md 导出：Obsidian 风格（YAML frontmatter + 每日一文件）
-
-   这里不认识任何具体模块 —— 正文怎么写由模块自己声明（def.markdown），
-   没声明就由 core/fields.js 按字段推导。所以外部模块的导出是自动通的。 */
-
 import { cnKey, weekdayCN, fmtNum, shortDate, recentKeys, escapeHtml } from './util.js';
 import { getRecordData, allRecordKeys, getSettings } from './storage.js';
 import { get, enabledOrder } from './core/registry.js';
@@ -40,7 +35,6 @@ function valuesOf(module, metric, keys) {
     });
 }
 
-/** 一个模块当天的正文行：模块自己声明了 markdown 就用它的，否则按字段推导 */
 function blockBody(module, m) {
     if (typeof module.markdown === 'function') {
         const lines = module.markdown(m);
@@ -49,7 +43,6 @@ function blockBody(module, m) {
     return markdownLines(module.fields, m);
 }
 
-/** 单日 md */
 export function dayMarkdown(key, opts) {
     const o = opts || {};
     const settings = getSettings();
@@ -95,7 +88,6 @@ export function dayMarkdown(key, opts) {
         try {
             lines = blockBody(module, m);
         } catch (err) {
-            /* 一个模块的正文出错，不该让整份导出失败 */
             console.warn('[ellipse] 模块「' + module.name + '」导出出错：', err);
             lines = ['> 导出这个模块的内容时出错：' + String(err.message || err)];
         }
@@ -106,7 +98,6 @@ export function dayMarkdown(key, opts) {
     return out.join('\n').replace(/\n{3,}/g, '\n\n').trimEnd() + '\n';
 }
 
-/** 区间汇总 md（含波状图的统计与数据表） */
 export function rangeMarkdown(fromKey, toKey, opts) {
     const o = opts || {};
     const order = o.order || enabledOrder();
@@ -163,7 +154,6 @@ export function rangeMarkdown(fromKey, toKey, opts) {
     return out.join('\n').replace(/\n{3,}/g, '\n\n').trimEnd() + '\n';
 }
 
-/** 全部记录：每天的记录拼成一份 md */
 export function allMarkdown() {
     const keys = allRecordKeys();
     if (!keys.length) return '# 状态记录\n\n> 还没有任何记录。\n';
@@ -202,7 +192,7 @@ export async function copyText(text) {
             await navigator.clipboard.writeText(text);
             return true;
         }
-    } catch (err) { /* 继续用兜底方案 */ }
+    } catch (err) {  }
     try {
         const ta = document.createElement('textarea');
         ta.value = text;
