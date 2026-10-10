@@ -2,7 +2,7 @@ import { FIELD_TYPES } from './fields.js';
 
 export const CORE_API_VERSION = 1;
 
-export const KINDS = ['record', 'panel', 'page', 'service'];
+export const KINDS = ['record', 'panel', 'page', 'service', 'event'];
 
 const ID_RE = /^[a-z][a-z0-9_-]{0,31}$/;
 

@@ -25,17 +25,22 @@
                 t('返回按钮隐藏', d.getElementById('backHomeBtn').hidden);
 
                 const railItems = Array.from(d.querySelectorAll('#rail .rail-item'));
-                t('竖栏两个入口（波状图 + 状态记录）', railItems.length === 2,
+                t('竖栏三个入口（波状图 + 日历及健康 + 状态记录）', railItems.length === 3,
                     String(railItems.length));
-                t('上面那个是波状图、下面是状态记录',
-                    railItems.length === 2 &&
+                t('从上到下是波状图、日历及健康、状态记录',
+                    railItems.length === 3 &&
                     railItems[0].getAttribute('data-rail-page') === 'trend' &&
-                    railItems[1].getAttribute('data-act') === 'record');
-                if (railItems.length === 2) {
+                    railItems[1].getAttribute('data-rail-page') === 'calendar' &&
+                    railItems[2].getAttribute('data-act') === 'record');
+                if (railItems.length === 3) {
                     const a = railItems[0].getBoundingClientRect();
                     const b = railItems[1].getBoundingClientRect();
-                    t('波状图入口确实压在状态记录上方', a.bottom <= b.top + 1,
-                        a.bottom + ' vs ' + b.top);
+                    const c = railItems[2].getBoundingClientRect();
+                    t('日历入口夹在波状图和状态记录中间', a.bottom <= b.top + 1 && b.bottom <= c.top + 1,
+                        a.bottom + ' / ' + b.top + ' / ' + b.bottom + ' / ' + c.top);
+                    t('三个入口一样大',
+                        Math.abs(a.height - b.height) <= 1 && Math.abs(b.height - c.height) <= 1,
+                        a.height + ' / ' + b.height + ' / ' + c.height);
                 }
                 t('竖栏无导出按钮', !d.querySelector('#rail [data-act="export-sheet"]'));
 
@@ -210,15 +215,18 @@
                 d.getElementById('settingsClose').click();
                 await sleep(250);
                 const railAfter = Array.from(d.querySelectorAll('#rail .rail-item'));
-                t('切完「状态记录」跑到「状态波动图」上面',
-                    railAfter.length === 2 &&
+                t('切完「状态记录」跑到两个页面入口上面',
+                    railAfter.length === 3 &&
                     railAfter[0].getAttribute('data-act') === 'record' &&
-                    railAfter[1].getAttribute('data-rail-page') === 'trend');
-                if (railAfter.length === 2) {
+                    railAfter[1].getAttribute('data-rail-page') === 'trend' &&
+                    railAfter[2].getAttribute('data-rail-page') === 'calendar');
+                if (railAfter.length === 3) {
                     const ra = railAfter[0].getBoundingClientRect();
                     const rb = railAfter[1].getBoundingClientRect();
-                    t('画出来也是「状态记录」压在上面', ra.bottom <= rb.top + 1,
-                        ra.bottom + ' vs ' + rb.top);
+                    const rc = railAfter[2].getBoundingClientRect();
+                    t('画出来也是「状态记录」压在上面且两个页面入口顺序不变',
+                        ra.bottom <= rb.top + 1 && rb.bottom <= rc.top + 1,
+                        ra.bottom + ' vs ' + rb.top + ' vs ' + rc.top);
                 }
 
                 d.getElementById('settingsBtn').click();
@@ -228,14 +236,17 @@
                 d.getElementById('settingsClose').click();
                 await sleep(250);
                 const railBack = Array.from(d.querySelectorAll('#rail .rail-item'));
-                t('切回默认后「状态波动图」又回到上面',
-                    railBack.length === 2 &&
+                t('切回默认后顺序又回到波状图、日历、状态记录',
+                    railBack.length === 3 &&
                     railBack[0].getAttribute('data-rail-page') === 'trend' &&
-                    railBack[1].getAttribute('data-act') === 'record');
-                if (railBack.length === 2) {
+                    railBack[1].getAttribute('data-rail-page') === 'calendar' &&
+                    railBack[2].getAttribute('data-act') === 'record');
+                if (railBack.length === 3) {
                     const ba = railBack[0].getBoundingClientRect();
                     const bb = railBack[1].getBoundingClientRect();
-                    t('画出来也回到原位', ba.bottom <= bb.top + 1, ba.bottom + ' vs ' + bb.top);
+                    const bc = railBack[2].getBoundingClientRect();
+                    t('画出来也回到原位', ba.bottom <= bb.top + 1 && bb.bottom <= bc.top + 1,
+                        ba.bottom + ' vs ' + bb.top + ' vs ' + bc.top);
                 }
 
                 say('== 设置里关闭波状图 ==');
@@ -269,7 +280,8 @@
                 }
                 t('关到最后，竖栏里「状态记录」入口消失',
                     !d.querySelector('#rail [data-act="record"]'));
-                t('一个入口都不剩时整条竖栏收起', d.getElementById('rail').hidden);
+                t('波状图那一栏之前已经关掉了，这会儿只剩日历入口',
+                    !!d.querySelector('#rail [data-rail-page="calendar"]'));
                 t('它们还在设置里，能再打开',
                     !!d.querySelector('[data-module-row="' + cardIds[0] + '"] [data-toggle]'));
 
@@ -334,7 +346,8 @@
                 await sleep(250);
                 t('整栏关光后竖栏里的「状态记录」入口又没了',
                     !d.querySelector('#rail [data-act="record"]'));
-                t('整条竖栏又收起', d.getElementById('rail').hidden);
+                t('日历入口还在，竖栏就不收起',
+                    !!d.querySelector('#rail [data-rail-page="calendar"]') && !d.getElementById('rail').hidden);
 
                 d.getElementById('settingsBtn').click();
                 await sleep(250);
@@ -344,6 +357,304 @@
                 await sleep(250);
                 t('用总开关打开，入口就回来', !!d.querySelector('#rail [data-act="record"]'));
                 t('竖栏重新露出来', !d.getElementById('rail').hidden);
+                say('== 日历及健康页（从主页竖栏进） ==');
+                d.querySelector('#rail [data-rail-page="calendar"]').click();
+                await sleep(350);
+                t('hash=#page/calendar', w.location.hash === '#page/calendar', w.location.hash);
+                t('日历页可见', !d.getElementById('viewPage').hidden);
+                t('标题是「日历及健康」', d.getElementById('pageTitle').textContent === '日历及健康',
+                    d.getElementById('pageTitle').textContent);
+                t('返回按钮跟别的一样在左边', !!d.querySelector('#viewPage .head-row > #backHomeBtn'));
+
+                const calBody = d.getElementById('pageBody');
+                const calHeadRow = d.querySelector('#viewPage .head-row');
+                const searchBtn = calHeadRow.querySelector('[data-cal="search"]');
+                t('右上角有搜索按钮', !!searchBtn);
+                t('搜索按钮贴在页头右边',
+                    !!searchBtn && searchBtn.getBoundingClientRect().right >=
+                        calHeadRow.getBoundingClientRect().right - 6,
+                    searchBtn ? searchBtn.getBoundingClientRect().right + ' vs ' +
+                        calHeadRow.getBoundingClientRect().right : '');
+
+                const monthText = () => (calBody.querySelector('.cal-month') || {}).textContent || '';
+                const nowMonth = new Date().getMonth() + 1;
+                t('打开就对准这个月', monthText().indexOf('年' + nowMonth + '月') >= 0, monthText());
+                t('月历是整周的格子', calBody.querySelectorAll('.cal-cell').length % 7 === 0,
+                    String(calBody.querySelectorAll('.cal-cell').length));
+                const todayCell = calBody.querySelector('.cal-cell.is-today');
+                t('今天那一格被标出来', !!todayCell);
+                t('今天默认被选中', !!todayCell && todayCell.classList.contains('is-sel'));
+                t('今天那格的数字是今天的号',
+                    !!todayCell && todayCell.querySelector('.cal-num').textContent === String(new Date().getDate()),
+                    todayCell ? todayCell.querySelector('.cal-num').textContent : '');
+                t('下面列出选中那天的日程', !!calBody.querySelector('.cal-day'));
+                t('这天还没有安排', /没有安排/.test(calBody.querySelector('.cal-day').textContent));
+                t('右下角有个加号', !!calBody.querySelector('.cal-add'));
+                t('还有「在这天加一项」的入口', !!calBody.querySelector('.cal-add-day'));
+
+                calBody.querySelector('.cal-add').click();
+                await sleep(300);
+                t('点加号先问是哪种日程',
+                    d.querySelectorAll('#sheetBody [data-cal="new"]').length === 4,
+                    String(d.querySelectorAll('#sheetBody [data-cal="new"]').length));
+                const typeNames = Array.from(d.querySelectorAll('#sheetBody [data-cal="new"]'))
+                    .map((b) => b.querySelector('.cal-pick').textContent.trim());
+                say('日程类型: ' + typeNames.join(','));
+                t('四个类型是服药、就医、复诊、体检',
+                    typeNames.join(',') === '服药,就医,复诊,体检', typeNames.join(','));
+
+                d.querySelector('#sheetBody [data-cal="new"][data-type="med"]').click();
+                await sleep(300);
+                t('服药表单要药名', !!d.querySelector('#sheetBody [data-key="drug"]'));
+                t('要药品公司', !!d.querySelector('#sheetBody [data-key="brand"]'));
+                t('要每次剂量和单位', !!d.querySelector('#sheetBody [data-key="dose"]') &&
+                    !!d.querySelector('#sheetBody [data-key="doseUnit"]'));
+                t('要选饭前 / 饭中 / 饭后',
+                    d.querySelectorAll('#sheetBody [data-key="meal"][data-cal="choice"]').length === 4);
+                t('要具体时间', !!d.querySelector('#sheetBody [data-key="time"]'));
+                t('频率四个选项都在',
+                    d.querySelectorAll('#sheetBody [data-cal="rep-kind"]').length === 4);
+                t('服药默认是「每天」',
+                    (d.querySelector('#sheetBody [data-cal="rep-kind"].on') || {}).textContent === '每天',
+                    d.querySelector('#sheetBody [data-cal="rep-kind"].on')
+                        ? d.querySelector('#sheetBody [data-cal="rep-kind"].on').textContent : '');
+
+                const setInput = (sel, value) => {
+                    const node = d.querySelector(sel);
+                    node.value = value;
+                    node.dispatchEvent(new w.Event('input', { bubbles: true }));
+                };
+                setInput('#sheetBody [data-key="drug"]', '舍曲林');
+                setInput('#sheetBody [data-key="brand"]', '辉瑞');
+                setInput('#sheetBody [data-key="dose"]', '1');
+                setInput('#sheetBody [data-key="doseUnit"]', '片');
+                d.querySelector('#sheetBody [data-key="meal"][data-value="after"]').click();
+                await sleep(200);
+                t('点了「饭后」，选中态跟着走',
+                    !!d.querySelector('#sheetBody [data-key="meal"][data-value="after"].on'));
+
+                d.querySelector('#sheetBody [data-key="drug"]').value = '舍曲林';
+                d.querySelector('#sheetFoot [data-action="cal-save"]').click();
+                await sleep(350);
+                t('保存后面板关上', !d.getElementById('sheet').classList.contains('open'));
+                t('那天下面出现了这条日程',
+                    /舍曲林/.test(calBody.querySelector('.cal-day').textContent));
+                t('日程带着剂量和饭前饭后',
+                    /1片/.test(calBody.querySelector('.cal-day').textContent) &&
+                    /饭后/.test(calBody.querySelector('.cal-day').textContent),
+                    calBody.querySelector('.cal-day').textContent.replace(/\s+/g, ' ').slice(0, 90));
+                t('月历上今天多了一个小点',
+                    calBody.querySelectorAll('.cal-cell.is-today .cal-dot').length === 1,
+                    String(calBody.querySelectorAll('.cal-cell.is-today .cal-dot').length));
+
+                say('== 日历的列表视图 ==');
+                calBody.querySelector('[data-cal="view"][data-value="list"]').click();
+                await sleep(300);
+                t('列表里也能看到这条', /舍曲林/.test(calBody.textContent));
+                t('列表按天分好组', calBody.querySelectorAll('.cal-day-title').length >= 1,
+                    String(calBody.querySelectorAll('.cal-day-title').length));
+
+                say('== 日历右上角搜索 ==');
+                t('记完一条日程，右上角的搜索按钮还在（没被整页重画冲掉）', d.contains(searchBtn));
+                searchBtn.click();
+                await sleep(300);
+                const searchInput = d.querySelector('#sheetBody .cal-search');
+                t('搜索框弹出来了', !!searchInput);
+                searchInput.value = '舍曲林';
+                searchInput.dispatchEvent(new w.Event('input', { bubbles: true }));
+                await sleep(200);
+                t('搜到了这条日程',
+                    d.querySelectorAll('#calResults [data-cal="jump"]').length === 1,
+                    String(d.querySelectorAll('#calResults [data-cal="jump"]').length));
+                searchInput.value = '不存在的词';
+                searchInput.dispatchEvent(new w.Event('input', { bubbles: true }));
+                await sleep(200);
+                t('搜不着的词给一句提示', /没有找到/.test(d.querySelector('#calResults').textContent));
+                searchInput.value = '辉瑞';
+                searchInput.dispatchEvent(new w.Event('input', { bubbles: true }));
+                await sleep(200);
+                t('按药品公司也能搜到',
+                    d.querySelectorAll('#calResults [data-cal="jump"]').length === 1);
+
+                d.querySelector('#calResults [data-cal="jump"]').click();
+                await sleep(350);
+                t('点搜索结果跳回那一天', !d.getElementById('sheet').classList.contains('open') &&
+                    !!calBody.querySelector('.cal-grid') && /舍曲林/.test(calBody.querySelector('.cal-day').textContent));
+
+                say('== 日程详情与删除 ==');
+                calBody.querySelector('.cal-day .cal-item').click();
+                await sleep(300);
+                t('点日程能看详情', /舍曲林/.test(d.querySelector('#sheetBody').textContent));
+                t('详情里有编辑和删除',
+                    !!d.querySelector('#sheetFoot [data-action="cal-edit"]') &&
+                    !!d.querySelector('#sheetFoot [data-action="cal-ask-delete"]'));
+                d.querySelector('#sheetFoot [data-action="cal-ask-delete"]').click();
+                await sleep(250);
+                t('删除前再问一次', !!d.querySelector('#sheetFoot [data-action="cal-delete-ok"]'));
+                d.querySelector('#sheetFoot [data-action="cal-delete-ok"]').click();
+                await sleep(350);
+                t('删掉后那天又空了', !/舍曲林/.test(calBody.textContent));
+                t('小点也跟着没了',
+                    calBody.querySelectorAll('.cal-cell.is-today .cal-dot').length === 0);
+
+                say('== 日历的月历翻页 ==');
+                const thisMonth = monthText();
+                calBody.querySelector('[data-cal="month"][data-dir="-1"]').click();
+                await sleep(200);
+                t('能翻到上个月', monthText() !== thisMonth, thisMonth + ' -> ' + monthText());
+                calBody.querySelector('.cal-today-mini').click();
+                await sleep(200);
+                t('点「今天」回到这个月', monthText() === thisMonth, monthText());
+
+                say('== 设置里的「日历及健康」 ==');
+                d.getElementById('backHomeBtn').click();
+                await sleep(350);
+                d.getElementById('settingsBtn').click();
+                await sleep(300);
+                const foldKeys = Array.from(d.querySelectorAll('#settingsBody .set-group--fold'))
+                    .map((n) => n.dataset.group);
+                t('模块栏分成三栏：数值图 → 日历及健康 → 状态记录',
+                    foldKeys.join(',') === 'chart,calendar,record', foldKeys.join(','));
+                const calFold = d.querySelector('#settingsBody [data-group="calendar"]');
+                t('日历这一栏在', !!calFold);
+                t('栏里有四个日程类型开关 + 日历自己那一个',
+                    calFold.querySelectorAll('[data-toggle]').length === 5,
+                    String(calFold.querySelectorAll('[data-toggle]').length));
+                t('每个日程类型都说明了它在哪用',
+                    /在「日历及健康」里安排/.test(
+                        calFold.querySelector('[data-module-row="med"] .set-row-desc').textContent));
+                t('栏头有总开关（能一次全关）',
+                    !!calFold.querySelector('[data-toggle-group="calendar"]'));
+                t('栏里有「新增日程类型」按钮',
+                    !!calFold.querySelector('[data-set="cal-type-new"]'));
+
+                const calSec = d.querySelector('#settingsBody [data-section="calendar"]');
+                t('日历自己有一块设置区', !!calSec);
+                t('能选打开时先看月还是列表',
+                    calSec.querySelectorAll('[data-cal-set="view"]').length === 2);
+                t('能选一周从周日还是周一开始',
+                    calSec.querySelectorAll('[data-cal-set="week"]').length === 2);
+                t('有到点提醒的开关', !!calSec.querySelector('[data-cal-set="remind"]'));
+
+                d.querySelector('[data-cal-set="view"][data-value="list"]').click();
+                await sleep(250);
+                t('选了「列表」，选中态留住了',
+                    d.querySelector('[data-cal-set="view"][data-value="list"]').classList.contains('on'));
+                d.getElementById('settingsClose').click();
+                await sleep(250);
+                d.querySelector('#rail [data-rail-page="calendar"]').click();
+                await sleep(350);
+                t('再进日历，先落在列表上', !!calBody.querySelector('.cal-list-note'));
+                calBody.querySelector('[data-cal="view"][data-value="month"]').click();
+                await sleep(250);
+
+                say('== 自己加一个日程类型 ==');
+                d.getElementById('backHomeBtn').click();
+                await sleep(300);
+                d.getElementById('settingsBtn').click();
+                await sleep(300);
+                d.querySelector('[data-set="cal-type-new"]').click();
+                await sleep(300);
+                t('弹出加类型的表单', !!d.querySelector('#sheetBody [data-calt="name"]'));
+                t('能选图标', d.querySelectorAll('#sheetBody [data-calt="icon"]').length >= 6);
+                t('能选颜色', d.querySelectorAll('#sheetBody [data-calt="color"]').length >= 4);
+                t('能勾要哪些栏', d.querySelectorAll('#sheetBody [data-calt="key"]').length === 5);
+                t('能勾支持哪些频率', d.querySelectorAll('#sheetBody [data-calt="repeat"]').length === 4);
+
+                setInput('#sheetBody [data-calt="name"]', '血压');
+                d.querySelector('#sheetBody [data-calt="icon"][data-value="checkup"]').click();
+                await sleep(200);
+                d.querySelector('#sheetBody [data-calt="key"][value="dose"]').click();
+                await sleep(150);
+                const repeatOnce = d.querySelector('#sheetBody [data-calt="repeat"][value="once"]');
+                if (repeatOnce.checked) { repeatOnce.click(); await sleep(150); }
+                d.querySelector('#sheetFoot [data-action="cal-type-save"]').click();
+                await sleep(300);
+                t('一个频率都不勾就不让存',
+                    d.getElementById('sheet').classList.contains('open') &&
+                    /至少留一个/.test(d.getElementById('toast').textContent));
+                repeatOnce.click();
+                await sleep(150);
+                d.querySelector('#sheetFoot [data-action="cal-type-save"]').click();
+                await sleep(400);
+                t('保存后面板关上', !d.getElementById('sheet').classList.contains('open'));
+                const bpRow = d.querySelector('[data-module-row^="ev_"]');
+                const bpId = bpRow ? bpRow.dataset.moduleRow : 'ev_missing';
+                t('新类型出现在「日历及健康」这一栏里', !!bpRow &&
+                    /血压/.test(bpRow.textContent), bpRow ? bpRow.textContent.trim().slice(0, 40) : '');
+                t('新类型自己带编辑和删除按钮', !!bpRow &&
+                    !!bpRow.querySelector('[data-set="cal-type-edit"]') &&
+                    !!bpRow.querySelector('[data-set="cal-type-drop"]'));
+                t('新类型默认开着',
+                    !!bpRow && bpRow.querySelector('[data-toggle]').classList.contains('on'));
+
+                d.getElementById('settingsClose').click();
+                await sleep(250);
+                d.querySelector('#rail [data-rail-page="calendar"]').click();
+                await sleep(350);
+                calBody.querySelector('.cal-add').click();
+                await sleep(300);
+                t('新类型也能排日程',
+                    !!d.querySelector('#sheetBody [data-cal="new"]'),
+                    String(d.querySelectorAll('#sheetBody [data-cal="new"]').length));
+                const bpItem = Array.prototype.filter.call(
+                    d.querySelectorAll('#sheetBody [data-cal="new"]'),
+                    (n) => /血压/.test(n.textContent))[0];
+                t('加进来的是自己建的那个', !!bpItem);
+                bpItem.click();
+                await sleep(300);
+                t('自定义类型的表单按勾选的栏画出来',
+                    !!d.querySelector('#sheetBody [data-key="title"]') &&
+                    !!d.querySelector('#sheetBody [data-key="dose"]'));
+                t('没勾的栏就不出现', !d.querySelector('#sheetBody [data-key="place"]'));
+                t('没勾的频率就不出现',
+                    d.querySelectorAll('#sheetBody [data-cal="rep-kind"]').length === 1,
+                    String(d.querySelectorAll('#sheetBody [data-cal="rep-kind"]').length));
+                d.querySelector('#sheetFoot [data-action="cal-cancel"]').click();
+                await sleep(250);
+
+                say('== 删掉自己加的类型 ==');
+                d.getElementById('backHomeBtn').click();
+                await sleep(300);
+                d.getElementById('settingsBtn').click();
+                await sleep(300);
+                d.querySelector('[data-module-row="' + bpId + '"] [data-set="cal-type-drop"]').click();
+                await sleep(300);
+                t('删除前说清楚日程会一起没', /找不回来/.test(d.querySelector('#sheetBody').textContent));
+                d.querySelector('#sheetFoot [data-action="cal-type-drop-ok"]').click();
+                await sleep(400);
+                t('类型从列表里消失', !d.querySelector('[data-module-row="' + bpId + '"]'));
+                t('重新载入后也不会回来', !d.querySelector('[data-module-row^="ev_"]'));
+
+                say('== 一个入口都不剩时，整条竖栏收起 ==');
+                d.getElementById('settingsClose').click();
+                await sleep(250);
+                d.getElementById('settingsBtn').click();
+                await sleep(300);
+                const groupMaster = (key) =>
+                    d.querySelector('#settingsBody [data-group="' + key + '"] [data-toggle-group="' + key + '"]');
+                groupMaster('record').click();
+                await sleep(300);
+                groupMaster('calendar').click();
+                await sleep(300);
+                d.getElementById('settingsClose').click();
+                await sleep(300);
+                t('关掉日历这一栏，竖栏里的日历入口消失',
+                    !d.querySelector('#rail [data-rail-page="calendar"]'));
+                t('没有别的入口时整条竖栏收起', d.getElementById('rail').hidden);
+
+                d.getElementById('settingsBtn').click();
+                await sleep(300);
+                groupMaster('record').click();
+                await sleep(300);
+                groupMaster('calendar').click();
+                await sleep(300);
+                d.getElementById('settingsClose').click();
+                await sleep(300);
+                t('再打开，两个入口都回来',
+                    !!d.querySelector('#rail [data-rail-page="calendar"]') &&
+                    !!d.querySelector('#rail [data-act="record"]'));
+
                 say('DONE');
             } catch (err) {
                 say('ERROR ' + err.message);

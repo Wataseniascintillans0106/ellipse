@@ -46,9 +46,12 @@
 
                 const rows = qa('#settingsBody [data-module-row]').map((n) => n.dataset.moduleRow);
                 say('模块行: ' + rows.join(','));
-                t('八个模块都在同一个列表里', rows.length === 8, String(rows.length));
+                t('十三个模块都在同一个列表里（6 记录 + 波状图 + 日历 + 4 个日程类型 + AI）',
+                    rows.length === 13, String(rows.length));
                 t('内置模块不提供卸载', qa('#settingsBody [data-uninstall]').length === 0);
-                t('每个模块都能导出源码', qa('#settingsBody [data-export-mod]').length === 8);
+                t('九个模块能导出源码（日程类型没有自己的源文件）',
+                    qa('#settingsBody [data-export-mod]').length === 9,
+                    String(qa('#settingsBody [data-export-mod]').length));
                 t('服务型模块不占位置、不给排序按钮',
                     qa('[data-module-row="assistant"] [data-order]').length === 0 &&
                     qa('[data-module-row="assistant"] [data-toggle]').length === 1);

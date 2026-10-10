@@ -1,4 +1,4 @@
-const CACHE = 'ellipse-cache-v5';
+const CACHE = 'ellipse-cache-v6';
 
 const NAV_TIMEOUT = 20000;
 const ASSET_TIMEOUT = 9000;
@@ -31,6 +31,7 @@ const SHELL = [
     './assets/js/modules/micro.js',
     './assets/js/modules/diary.js',
     './assets/js/modules/trend.js',
+    './assets/js/modules/calendar.js',
     './assets/js/modules/assistant.js',
     './fonts/SmileySans-Oblique.ttf.woff2'
 ];
@@ -54,6 +55,18 @@ self.addEventListener('activate', function (e) {
                     .map(function (k) { return caches.delete(k); }));
             })
             .then(function () { return self.clients.claim(); })
+    );
+});
+
+self.addEventListener('notificationclick', function (e) {
+    e.notification.close();
+    e.waitUntil(
+        self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then(function (list) {
+            const hit = list.filter(function (c) { return c.url.indexOf(self.location.origin) === 0; })[0];
+            if (hit) return hit.focus();
+            if (self.clients.openWindow) return self.clients.openWindow('./#page/calendar');
+            return null;
+        })
     );
 });
 

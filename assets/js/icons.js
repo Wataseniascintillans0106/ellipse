@@ -56,6 +56,69 @@ export const ICONS = {
         '<path d="M18.4 15.4l.7 2 2 .7-2 .7-.7 2-.7-2-2-.7 2-.7z"></path>'
     ),
 
+    calendar: wrap(
+        '<rect x="3.4" y="5" width="17.2" height="15.6" rx="2.6"></rect>' +
+        '<path d="M3.4 9.6h17.2"></path>' +
+        '<path d="M8.2 3v3.4M15.8 3v3.4"></path>' +
+        '<path d="M7.6 13.4h2.2M14.2 13.4h2.2M7.6 17h2.2"></path>'
+    ),
+
+    pill: wrap(
+        '<rect x="2.8" y="8.6" width="18.4" height="6.8" rx="3.4" ' +
+        'transform="rotate(-45 12 12)"></rect>' +
+        '<path d="M9.1 9.1l5.8 5.8" transform="rotate(0)"></path>'
+    ),
+
+    hospital: wrap(
+        '<path d="M4.6 20.4V6.6a1.6 1.6 0 0 1 1.6-1.6h11.6a1.6 1.6 0 0 1 1.6 1.6v13.8"></path>' +
+        '<path d="M3 20.4h18"></path>' +
+        '<path d="M12 8.6v4.2M9.9 10.7h4.2"></path>' +
+        '<path d="M9.6 20.4v-3.6h4.8v3.6"></path>'
+    ),
+
+    revisit: wrap(
+        '<path d="M20.2 12a8.2 8.2 0 1 1-2.5-5.9"></path>' +
+        '<polyline points="20.4 3.6 20.4 8 16 8"></polyline>' +
+        '<path d="M12 8.4V12l2.6 1.6"></path>'
+    ),
+
+    checkup: wrap(
+        '<rect x="5" y="4.4" width="14" height="16.2" rx="2"></rect>' +
+        '<path d="M9 4.4V3.2h6v1.2"></path>' +
+        '<polyline points="8.8 13.4 11 15.6 15.4 10.6"></polyline>'
+    ),
+
+    search: wrap(
+        '<circle cx="11" cy="11" r="6.4"></circle>' +
+        '<line x1="15.8" y1="15.8" x2="20.4" y2="20.4"></line>'
+    ),
+
+    plus: wrap(
+        '<line x1="12" y1="4.6" x2="12" y2="19.4"></line>' +
+        '<line x1="4.6" y1="12" x2="19.4" y2="12"></line>'
+    ),
+
+    clock: wrap(
+        '<circle cx="12" cy="12" r="8.4"></circle>' +
+        '<polyline points="12 7.2 12 12 15.6 14"></polyline>'
+    ),
+
+    trash: wrap(
+        '<path d="M4.6 6.6h14.8"></path>' +
+        '<path d="M9.4 6.6V4.8a1.2 1.2 0 0 1 1.2-1.2h2.8a1.2 1.2 0 0 1 1.2 1.2v1.8"></path>' +
+        '<path d="M6.6 6.6l1 12.2a1.6 1.6 0 0 0 1.6 1.4h5.6a1.6 1.6 0 0 0 1.6-1.4l1-12.2"></path>'
+    ),
+
+    pencil: wrap(
+        '<path d="M16.6 3.6a1.9 1.9 0 0 1 2.7 2.7L7.6 18l-3.6 1 1-3.6z"></path>' +
+        '<path d="M15.2 5l2.7 2.7"></path>'
+    ),
+
+    bell: wrap(
+        '<path d="M18 9.6a6 6 0 1 0-12 0c0 4.2-1.4 5.6-1.4 5.6h14.8S18 13.8 18 9.6z"></path>' +
+        '<path d="M13.7 18.6a2 2 0 0 1-3.4 0"></path>'
+    ),
+
     chevron: wrap('<polyline points="6 9 12 15 18 9"></polyline>'),
 
     up: wrap('<polyline points="6 14 12 8 18 14"></polyline>'),

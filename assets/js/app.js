@@ -238,6 +238,10 @@ function renderRail() {
     el.rail.hidden = state.page !== 'home' || !htmlText;
 }
 
+function pageHeadRow() {
+    return el.viewPage.querySelector('.head-row');
+}
+
 function renderPage() {
     const def = registry.get(state.page);
     if (!def) return;
@@ -245,9 +249,13 @@ function renderPage() {
     el.pageNote.textContent = def.note || DEFAULT_PAGE_NOTE;
     el.pageBody.dataset.module = def.id;
     el.pageBody.innerHTML = '';
+    const row = pageHeadRow();
+    if (row) Array.prototype.forEach.call(row.querySelectorAll('[data-head-extra]'), function (n) {
+        row.removeChild(n);
+    });
     if (typeof def.mount !== 'function') return;
     try {
-        def.mount(el.pageBody, { api: api, date: state.key, module: def });
+        def.mount(el.pageBody, { api: api, date: state.key, module: def, head: row });
     } catch (err) {
         console.error('[ellipse] 模块页「' + def.id + '」渲染出错：', err);
         el.pageBody.innerHTML = '<p class="empty-note">这个页面画不出来：' + escapeHtml(msg(err)) + '</p>';
@@ -590,7 +598,7 @@ function dispatchSheetAction(name, target) {
     if (name === 'uninstall-keep') { finishUninstall(target.getAttribute('data-id'), false); return; }
     if (name === 'uninstall-drop') { finishUninstall(target.getAttribute('data-id'), true); return; }
 
-    const handler = registry.action(name);
+    const handler = registry.action(name, { any: true });
     if (typeof handler === 'function') {
         try {
             handler({ api: api, target: target, sheet: sheet });
@@ -725,6 +733,25 @@ function moduleSection(sec) {
 const CUSTOM_BADGE = '<em class="set-badge">自装</em>';
 const OFF_BADGE = '<em class="set-badge set-badge--off">已关闭</em>';
 
+function rowTools(def) {
+    if (Array.isArray(def.rowActions) && def.rowActions.length) {
+        return def.rowActions.map(function (a) {
+            return '<button class="btn' + (a.danger ? ' danger' : '') + '" type="button" ' +
+                'data-set="' + escapeHtml(a.act) + '" data-id="' + escapeHtml(def.id) + '">' +
+                escapeHtml(a.label) + '</button>';
+        }).join('');
+    }
+    return '<button class="btn" type="button" data-export-mod="' + def.id + '">导出源码</button>' +
+        (def.builtin ? '' : '<button class="btn danger" type="button" data-uninstall="' + def.id + '">卸载</button>');
+}
+
+function rowWhere(def) {
+    if (registry.isCard(def.id)) return '';
+    if (def.kind === 'page') return '；入口在主页右侧栏';
+    if (def.kind === 'event') return '；在「日历及健康」里安排';
+    return '；不占记录页的位置';
+}
+
 function moduleRow(def, first, last) {
     const on = registry.isEnabled(def.id);
     const isCard = registry.isCard(def.id);
@@ -736,12 +763,8 @@ function moduleRow(def, first, last) {
         '<span class="set-row-main">' +
         '<span class="set-row-title">' + escapeHtml(def.name) +
         (on ? '' : OFF_BADGE) + (def.builtin ? '' : CUSTOM_BADGE) + '</span>' +
-        '<span class="set-row-desc">' + escapeHtml(def.desc || '') +
-        (isCard ? '' : (def.kind === 'page' ? '；入口在主页右侧栏' : '；不占记录页的位置')) + '</span>' +
-        '<span class="set-row-tools">' +
-        '<button class="btn" type="button" data-export-mod="' + def.id + '">导出源码</button>' +
-        (def.builtin ? '' : '<button class="btn danger" type="button" data-uninstall="' + def.id + '">卸载</button>') +
-        '</span>' +
+        '<span class="set-row-desc">' + escapeHtml(def.desc || '') + rowWhere(def) + '</span>' +
+        '<span class="set-row-tools">' + rowTools(def) + '</span>' +
         '</span>' +
         '<span class="set-row-side">' +
         (isCard
@@ -824,12 +847,60 @@ function foldGroup(id, title) {
     return { box: box, body: body, head: head };
 }
 
-function groupIds(key) {
-    return registry.orderedIds().filter(function (id) {
+function declaredGroups() {
+    const out = [];
+    registry.orderedIds().forEach(function (id) {
         const def = registry.get(id);
-        if (!def) return false;
-        return key === 'record' ? registry.isCard(id) : def.kind === 'page';
+        if (!def || !def.group) return;
+        let box = null;
+        out.forEach(function (g) { if (g.key === def.group) box = g; });
+        if (!box) { box = { key: def.group, title: def.group, ids: [] }; out.push(box); }
+        if (def.groupTitle) box.title = def.groupTitle;
+        box.ids.push(id);
     });
+    return out;
+}
+
+function declaredOwner(ids) {
+    let owner = null;
+    ids.forEach(function (id) {
+        const def = registry.get(id);
+        if (def && def.groupAction && !owner) owner = def;
+    });
+    return owner;
+}
+
+function foldDefs() {
+    const ordered = registry.orderedIds();
+    const out = [];
+
+    const pages = ordered.filter(function (id) {
+        const def = registry.get(id);
+        return !!def && def.kind === 'page' && !def.group;
+    });
+    if (pages.length) out.push({ key: 'chart', title: '数值图', ids: pages, owner: null });
+
+    declaredGroups().forEach(function (g) {
+        out.push({ key: g.key, title: g.title, ids: g.ids, owner: declaredOwner(g.ids) });
+    });
+
+    const cards = ordered.filter(function (id) { return registry.isCard(id); });
+    if (cards.length) out.push({ key: 'record', title: '状态记录', ids: cards, owner: null });
+
+    return out;
+}
+
+function groupIds(key) {
+    const hit = foldDefs().filter(function (g) { return g.key === key; })[0];
+    return hit ? hit.ids.slice() : [];
+}
+
+function looseIds() {
+    const used = [];
+    foldDefs().forEach(function (g) {
+        g.ids.forEach(function (id) { used.push(id); });
+    });
+    return registry.orderedIds().filter(function (id) { return used.indexOf(id) < 0; });
 }
 
 function groupSwitch(key, name, ids) {
@@ -881,33 +952,22 @@ function modulesGroup() {
         '<input type="file" accept=".js,text/javascript" id="modFile" hidden>' +
         '</div>'));
 
-    const ordered = registry.orderedIds();
-    const kindOf = function (id) {
-        const def = registry.get(id);
-        return def ? def.kind : '';
-    };
-
-    const pages = ordered.filter(function (id) { return kindOf(id) === 'page'; });
-    if (pages.length) {
-        const fold = foldGroup('chart', '数值图');
-        const master = groupSwitch('chart', '数值图', pages);
+    foldDefs().forEach(function (g) {
+        const fold = foldGroup(g.key, g.title);
+        const master = groupSwitch(g.key, g.title, g.ids);
         if (master) fold.head.appendChild(master);
-        rowsInOrder(pages, fold.body);
+        rowsInOrder(g.ids, fold.body);
+        if (g.owner) {
+            fold.body.appendChild(html(
+                '<div class="set-actions">' +
+                '<button class="btn primary" type="button" data-set="' + escapeHtml(g.owner.groupAction.act) + '">' +
+                escapeHtml(g.owner.groupAction.label) + '</button>' +
+                '</div>'));
+        }
         box.appendChild(fold.box);
-    }
+    });
 
-    const cards = ordered.filter(function (id) { return registry.isCard(id); });
-    if (cards.length) {
-        const fold = foldGroup('record', '状态记录');
-        const master = groupSwitch('record', '状态记录', cards);
-        if (master) fold.head.appendChild(master);
-        rowsInOrder(cards, fold.body);
-        box.appendChild(fold.box);
-    }
-
-    ordered.filter(function (id) {
-        return !registry.isCard(id) && kindOf(id) !== 'page';
-    }).forEach(function (id) {
+    looseIds().forEach(function (id) {
         box.appendChild(moduleRow(registry.get(id), false, false));
     });
 
@@ -1169,6 +1229,17 @@ function handleSettingAction(name, btn) {
             if (choice && choice.outcome === 'accepted') toast('已开始安装');
             renderSettings();
         });
+        return;
+    }
+
+    const handler = registry.action(name, { any: true });
+    if (typeof handler === 'function') {
+        try {
+            handler({ api: api, target: btn, rerender: renderSettings });
+        } catch (err) {
+            console.error('[ellipse] 设置动作「' + name + '」出错：', err);
+            toast('操作失败：' + msg(err).slice(0, 40));
+        }
     }
 }
 

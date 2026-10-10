@@ -253,7 +253,7 @@ ok('页面型模块要 mount（校验器拦得住没 mount 的）',
     validateDefinition({ apiVersion: 1, id: 'x', name: 'X', kind: 'page' }).ok === false);
 ok('页面型模块不占记录页的卡片位', registry.cardOrder().indexOf('trend') < 0,
     registry.cardOrder().join(','));
-ok('它是主页竖栏里的一个入口', registry.pageModules().join(',') === 'trend',
+ok('它是主页竖栏里的一个入口', registry.pageModules().join(',') === 'trend,calendar',
     registry.pageModules().join(','));
 ok('AI 助手是个服务型模块', getModule('assistant').kind === 'service');
 ok('服务型模块不占记录页的位置', registry.cardOrder().indexOf('assistant') < 0);
@@ -264,6 +264,71 @@ ok('关掉 AI 模块，它的工具按钮就查不到了',
     registry.tool('ai') !== null && registry.tool('nope') === null);
 ok('语音转写的工具已经删掉了', registry.tool('voice') === null);
 ok('日记不再挂任何工具按钮', !getModule('diary').fields.some((f) => f.tools));
+
+console.log('\n[6b] 日历及健康');
+const cal = getModule('calendar');
+const { setSettings } = await import('../assets/js/storage.js');
+
+ok('日历是个页面型模块', !!cal && cal.kind === 'page' && cal.name === '日历及健康');
+ok('日历排在波状图后面、记录模块前面',
+    registry.pageModules().join(',') === 'trend,calendar', registry.pageModules().join(','));
+ok('日历不占记录页的卡片位', registry.cardOrder().indexOf('calendar') < 0);
+ok('四个日程类型都注册上了', registry.eventModules().join(',') === 'med,visit,revisit,checkup',
+    registry.eventModules().join(','));
+ok('日程类型不是卡片，也不进 md 导出',
+    registry.eventModules().every((id) => registry.isCard(id) === false) &&
+    registry.eventModules().every((id) => enabledOrder().indexOf(id) < 0));
+ok('日程类型和日历归在同一栏里',
+    registry.eventModules().every((id) => getModule(id).group === 'calendar'));
+ok('关掉一个日程类型，它就不在日历里了',
+    (setSettings({ modules: { med: false } }), registry.eventModules().join(',') === 'visit,revisit,checkup',
+        registry.eventModules().join(',')) &&
+    (setSettings({ modules: { med: true } }), registry.eventModules().join(',') === 'med,visit,revisit,checkup',
+        registry.eventModules().join(',')));
+
+const on = (o, from, to) => cal.expandDates(o, from, to);
+const once = { date: '2026-03-05', time: '09:00', repeat: { kind: 'once' } };
+ok('「只这一次」只在当天出现', JSON.stringify(on(once, '2026-03-01', '2026-03-31'))
+    === JSON.stringify(['2026-03-05']), JSON.stringify(on(once, '2026-03-01', '2026-03-31')));
+ok('开始日期之前不出现', on(once, '2026-01-01', '2026-03-04').length === 0);
+
+const daily = { date: '2026-03-05', time: '08:00', repeat: { kind: 'daily' } };
+const daily31 = on(daily, '2026-03-01', '2026-03-31');
+ok('「每天」从开始那天起天天有', daily31.length === 27 && daily31[0] === '2026-03-05'
+    && daily31[daily31.length - 1] === '2026-03-31', String(daily31.length));
+
+const every3 = { date: '2026-03-05', repeat: { kind: 'interval', every: 3, unit: 'day' } };
+ok('「隔 3 天」数得对', JSON.stringify(on(every3, '2026-03-05', '2026-03-20'))
+    === JSON.stringify(['2026-03-05', '2026-03-08', '2026-03-11', '2026-03-14', '2026-03-17', '2026-03-20']),
+    JSON.stringify(on(every3, '2026-03-05', '2026-03-20')));
+
+const every2w = { date: '2026-03-05', repeat: { kind: 'interval', every: 2, unit: 'week' } };
+ok('「隔 2 周」按 14 天数', JSON.stringify(on(every2w, '2026-03-01', '2026-03-31'))
+    === JSON.stringify(['2026-03-05', '2026-03-19']), JSON.stringify(on(every2w, '2026-03-01', '2026-03-31')));
+
+const monthly = { date: '2026-01-31', repeat: { kind: 'interval', every: 1, unit: 'month' } };
+ok('每月 31 号遇到短月份就落到月尾',
+    JSON.stringify(on(monthly, '2026-01-01', '2026-04-30'))
+    === JSON.stringify(['2026-01-31', '2026-02-28', '2026-03-31', '2026-04-30']),
+    JSON.stringify(on(monthly, '2026-01-01', '2026-04-30')));
+
+const q = { date: '2026-03-05', repeat: { kind: 'interval', every: 3, unit: 'month' } };
+ok('「隔 3 个月」按季度算', JSON.stringify(on(q, '2026-01-01', '2026-12-31'))
+    === JSON.stringify(['2026-03-05', '2026-06-05', '2026-09-05', '2026-12-05']),
+    JSON.stringify(on(q, '2026-01-01', '2026-12-31')));
+
+const hourly = { date: '2026-05-01', time: '08:00', repeat: { kind: 'hourly', every: 8 } };
+ok('「每 8 小时」当天从第一次开始数',
+    JSON.stringify(cal.timesOn(hourly, '2026-05-01')) === JSON.stringify(['08:00', '16:00']),
+    JSON.stringify(cal.timesOn(hourly, '2026-05-01')));
+ok('「每 8 小时」跨过午夜接着数',
+    JSON.stringify(cal.timesOn(hourly, '2026-05-02')) === JSON.stringify(['00:00', '08:00', '16:00']),
+    JSON.stringify(cal.timesOn(hourly, '2026-05-02')));
+ok('「每几小时」天天都在', on(hourly, '2026-05-01', '2026-05-03').length === 3);
+
+const noTime = { date: '2026-03-05', repeat: { kind: 'once' } };
+ok('不填时间的日程也算一天一条', cal.timesOn(noTime, '2026-03-05').length === 0
+    && on(noTime, '2026-03-05', '2026-03-05').length === 1);
 
 console.log('\n[7] PWA 资源');
 
@@ -406,7 +471,7 @@ if (existsSync(logPath)) {
     try { new TextDecoder('utf-8', { fatal: true }).decode(log); } catch (err) { decodes = false; }
     ok('内容是真 UTF-8（存成 ANSI 的话别人的记事本会乱码）', decodes,
         '在记事本里"另存为"时编码选 UTF-8');
-    ok('记了最新那一版', log.toString('utf8').indexOf('v0.2') >= 0);
+    ok('记了最新那一版', log.toString('utf8').indexOf('v0.3.0') >= 0);
 }
 
 console.log('\n' + (fails ? '有 ' + fails + ' 项未通过' : '全部通过'));

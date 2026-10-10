@@ -115,6 +115,19 @@ export function pageModules() {
     });
 }
 
+export function isEvent(id) {
+    const def = defs.get(id);
+    return !!def && def.kind === 'event';
+}
+
+export function eventModules(list) {
+    const ids = list || orderedIds();
+    return ids.filter(function (id) {
+        const def = defs.get(id);
+        return !!def && def.kind === 'event' && isEnabled(id);
+    });
+}
+
 export function enabledCardCount() {
     return cardOrder().filter(function (id) {
         return defs.get(id).kind === 'record';
@@ -150,9 +163,10 @@ export function reorder(id, dir) {
     return true;
 }
 
-export function action(name) {
+export function action(name, opts) {
+    const any = !!(opts && opts.any);
     const hit = all().find(function (d) {
-        return isEnabled(d.id) && typeof d.actions[name] === 'function';
+        return (any || isEnabled(d.id)) && typeof d.actions[name] === 'function';
     });
     return hit ? hit.actions[name] : null;
 }

@@ -60,12 +60,16 @@ ellipse.define({
 | `apiVersion` | ✅ | 现在填 `1`。填比核心更高的数字会被拒绝，并提示「此模块需要更新的 ellipse」 |
 | `id` | ✅ | 小写字母开头，只含 `a-z 0-9 - _`，最长 32 位。**它是数据的归属**，改 id 等于换一个模块 |
 | `name` | ✅ | 记录页上显示的栏名 |
-| `kind` | | `record`（默认，收集字段）/ `panel`（在记录页上自己画一整块）/ `page`（自己在主页竖栏占一个入口，点开是一整页）/ `service`（只提供能力，不占位置） |
+| `kind` | | `record`（默认，收集字段）/ `panel`（在记录页上自己画一整块）/ `page`（自己在主页竖栏占一个入口，点开是一整页）/ `service`（只提供能力，不占位置）/ `event`（一种可以排到日子上的日程，见第四节末） |
 | `icon` | | 图标名，见 `assets/js/icons.js`；不写用 `chart` |
 | `desc` | | 一句话说明，设置的模块列表里会显示 |
 | `fields` | | 字段声明数组，`record` 型的主要工作都在这里 |
 | `defaultOff` | | `true` 表示装上后默认关闭，让用户自己去开 |
 | `secrets` | | 敏感字段名数组。声明过的字段，在「备份 JSON」里**默认不会被导出** |
+| `group` | | 归到设置页的哪一栏（如 `'calendar'`）。不写就按种类落到默认那两栏里 |
+| `groupTitle` | | 那一栏在设置里显示的名字（同栏的模块只写一次就够） |
+| `groupAction` | | `{ label, act }`：在那栏底下挂一个按钮，点它调到自己的 `actions[act]` |
+| `rowActions` | | 覆盖模块行右边的按钮，`[{ label, act, danger }]`；不写就是「导出源码 / 卸载」 |
 
 **id 的约束是硬拦的**：格式不对、跟已有模块重名、想抢内置模块的 id，导入时就会被挡下来。
 
@@ -248,6 +252,34 @@ ellipse.define({
 - 页面里的按钮用 `data-act="名字"` 标注，再在 `actions` 里认领它
   （和 `panel` 的 `actions` 是同一套，见第六节）。
 - 它同样**不产生数据**，也不进 md 导出。
+- `mount(body, ctx)` 的 `ctx` 里还有一个 **`ctx.head`**：页头那一行。想往页头右边挂个
+  自己的按钮，就 `appendChild` 进去，并给它加上 `data-head-extra` 属性 ——
+  核心每次重画这一页时会先把上次挂的清掉，不会越堆越多。
+  「日历及健康」就是这么给自己挂上搜索按钮的。
+
+### `event`：一种「可以排到日子上」的东西
+
+「服药」「就医」「复诊」「体检」是这种。它不在记录页占位置，也不自己占一整页 ——
+它是给日历那一类页面**当素材**的：日历把注册表里所有开着的 `event` 型模块列出来，
+让用户挑一个，再照它的 `form` / `schedule` 画出那张表单。
+
+```js
+ellipse.define({
+    apiVersion: 1, id: 'bp', kind: 'event', name: '量血压',
+    icon: 'checkup', color: '#7fae8f',
+    form: [{ key: 'title', type: 'text', label: '名称', required: true }],  // 时间之前填的栏
+    tail: [{ key: 'note', type: 'text', label: '备注' }],                   // 时间之后填的栏
+    schedule: { time: true, repeats: ['once', 'daily'], defaultKind: 'daily' }
+});
+```
+
+- `schedule.time` 为 `false` 就不问具体几点；`schedule.repeats` 决定频率给哪几个选项
+  （`once` 只此一次 / `daily` 每天 / `interval` 隔几天 / `hourly` 每几小时）。
+- 它不自己存数据，也不自己画界面：存哪儿、画成什么样由用它的那个页面说了算。
+  自己写一个日历类页面时，`ellipse.registry.eventModules()` 取开着的日程型模块。
+- 内置的日程类型**没有自己的源文件**（它们是「日历及健康」在设置里按
+  `settings.mods.calendar.types` 现场注册出来的），所以它们用 `rowActions` 把
+  「导出源码」换成了「编辑 / 删除」。
 
 ### `service`：只提供能力
 
@@ -283,7 +315,12 @@ ellipse.refresh()           // 你改了数据，让记录页重画一次
 // 只读查询别的模块
 ellipse.registry.all() / get(id) / ids() / has(id) / isEnabled(id)
 ellipse.registry.cardOrder() / enabledOrder() / chartModules(list)
+ellipse.registry.pageModules(list) / eventModules(list) / isEvent(id)
 ellipse.registry.tools() / settingsSections() / secretFields(id)
+
+// 注销模块（一般用不着，写「自己注册自己」的页面时会用）
+ellipse.registry.unregister(id)   // 只把定义拿掉，它的设置与数据都留着
+ellipse.registry.uninstall(id)    // 定义 + 设置一起删（等于设置页里的「卸载」）
 
 // 取用别的模块提供的能力
 ellipse.services.get('ai')  // 没有这个服务时返回 null
@@ -339,6 +376,8 @@ ellipse.copy(text)                 // 复制到剪贴板
 { api, def, date, target, card }
 // 底部面板里的按钮（ellipse.sheet.open 出去的 HTML）
 { api, target, sheet }
+// 设置页里的按钮（模块行右边的、或 groupAction 挂的那个）
+{ api, target, rerender }
 ```
 
 `settingsSections` 里函数的 `ctx`：
@@ -420,8 +459,9 @@ http://localhost:5173/index.html?nomods=1
   `ellipse-mod-<你的文件>` 这样的名字，一眼能认出是谁。
 - **改一行看一行**：设置 → 模块 → 导出 → 改 → 重新导入（同 id 即更新）→ 重新打开记录页。
   比重新装一遍快。
-- **想抄内置模块**：内置的 8 个模块就是最好的范例，同样可以在设置里导出源码
-  （需要从 `http://localhost:5173` 打开页面才取得到）。
+- **想抄内置模块**：内置的模块就是最好的范例，同样可以在设置里导出源码
+  （需要从 `http://localhost:5173` 打开页面才取得到。四个日程类型导不出来 ——
+  它们没有自己的源文件，是「日历及健康」在设置里现场注册的）。
   - `mood.js` —— `scale` 评分格 + 派生指标（日内变化）
   - `sleep.js` —— 两种数值字段
   - `pain.js` —— `slider` + `text`
@@ -429,6 +469,8 @@ http://localhost:5173/index.html?nomods=1
   - `micro.js` —— `textarea` + 自定义 `markdown`（一行一条，导出成列表）
   - `diary.js` —— `textarea`（纯文本，目前不挂工具按钮）
   - `trend.js` —— `page` 型样板（自己在竖栏占入口、点开一整页）
+  - `calendar.js` —— `page` + `event` + 自定义设置分区的样板（页头挂按钮、
+    底部面板做表单、按 `settings.mods` 现场注册别的模块，都在这一个文件里）
   - `assistant.js` —— `service` 型样板（服务 / 工具 / 设置分区 / 动作，四样占全）
 - **逻辑回归**：改完核心代码跑 `node scripts/smoke.mjs`；浏览器交互自检看
   `http://localhost:5173/scripts/flowcheck.html` 和 `.../modcheck.html`。
