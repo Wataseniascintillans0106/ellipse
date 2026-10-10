@@ -1,4 +1,4 @@
-const CACHE = 'ellipse-cache-v9';
+const CACHE = 'ellipse-cache-v10';
 
 const NAV_TIMEOUT = 20000;
 const ASSET_TIMEOUT = 9000;

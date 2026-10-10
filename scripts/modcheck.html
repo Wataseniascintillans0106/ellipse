@@ -47,12 +47,17 @@
                     !!q('#settingsBody [data-group="chart"] [data-section="trend"]'));
                 t('弦音那一折的标题带了 AI 前缀',
                     foldTitles.indexOf('AI——弦音') >= 0, foldTitles.join(','));
-                t('弦音填接口那一节的标题也一起改了，且只剩一处写「弦音」',
-                    groups.filter((g) => g === 'AI——弦音').length === 2 &&
-                    groups.indexOf('弦音') < 0,
+                t('弦音填接口那一整节搬进了它自己那一折，不再单占一节',
+                    groups.filter((g) => g === 'AI——弦音').length === 1 &&
+                    groups.indexOf('弦音') < 0 &&
+                    !!q('#settingsBody [data-group="assistant"] [data-section="ai"]'),
                     groups.filter((g) => /弦音/.test(g)).join(','));
                 t('主页右侧栏顺序挪进了弦音那一折',
                     !!q('#settingsBody [data-group="assistant"] [data-rail-order-row]'));
+                t('搬进去以后，那一折标题旁边还留着「可选，密钥只存在本机」那句小字',
+                    /密钥只存在本机/.test(
+                        (q('#settingsBody [data-group="assistant"] .set-group-head') || {})
+                            .textContent || ''));
                 t('数据与安装分组还在', groups.indexOf('数据') > 0 && groups.indexOf('安装到主屏') > 0);
 
                 const rows = qa('#settingsBody [data-module-row]').map((n) => n.dataset.moduleRow);

@@ -1050,6 +1050,11 @@ function modulesGroup() {
                 '</div>'));
         }
         foldSections(g.key).forEach(function (sec) {
+            // 挂进来的分区不再有自己的标题，它那句说明小字挪到折子标题旁边，别弄丢
+            if (sec.note) {
+                fold.head.appendChild(html(
+                    '<span class="set-group-note">' + escapeHtml(sec.note) + '</span>'));
+            }
             fold.body.appendChild(sectionBody(sec, document.createElement('div')));
         });
         if (g.key === RAIL_ORDER_FOLD) {

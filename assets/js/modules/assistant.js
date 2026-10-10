@@ -1116,6 +1116,7 @@ ellipse.define({
         id: 'ai',
         title: 'AI——弦音',
         note: '可选，密钥只存在本机',
+        group: 'assistant',      // 填接口这些就是它自己的设置，挂进同名那一折，别再单占一节
 
         html: function () { return sectionHtml(); },
 

@@ -462,6 +462,7 @@ if (existsSync(batPath)) {
 
 console.log('\n[10] 版本日志.txt');
 
+const VERSION = 'v0.5.2';   // 发新版时改这里，和 版本日志.txt 最上面那条对齐
 const logPath = at('版本日志.txt');
 ok('版本日志.txt 在', existsSync(logPath));
 if (existsSync(logPath)) {
@@ -474,7 +475,7 @@ if (existsSync(logPath)) {
         '在记事本里"另存为"时编码选 UTF-8');
     const logText = log.toString('utf8').replace(/^﻿/, '');
     const newest = (logText.match(/^  (v\d+\.\d+\.\d+)/m) || [])[1];
-    ok('最新那一版记在最上面（不是塞到了开头或末尾）', newest === 'v0.5.1', newest || '(没找到)');
+    ok('最新那一版记在最上面（不是塞到了开头或末尾）', newest === VERSION, newest || '(没找到)');
 }
 
 console.log('\n[11] 弦音的脑子（chat.js 纯函数）');
@@ -655,8 +656,11 @@ ok('填接口那一节的标题也一起改名了',
 const trendDef = registry.get('trend');
 ok('波状图那块设置声明了要挂进「数值图」这一折',
     trendDef.settingsSections.some((s) => s.id === 'trend' && s.group === 'chart'));
-ok('别的模块的设置区没被顺手搬走',
-    registry.all().every((d) => d.settingsSections.every((s) => !s.group || s.group === 'chart')));
+ok('弦音填接口那一整节也搬进了它自己那一折',
+    chordDef.settingsSections.some((s) => s.id === 'ai' && s.group === 'assistant'));
+ok('别处没被顺手搬走：挂折子的，挂的都是自己那一折（波状图归「数值图」那折）',
+    registry.all().every((d) => d.settingsSections.every(
+        (s) => !s.group || s.group === d.group || (d.id === 'trend' && s.group === 'chart'))));
 ok('关掉的模块不进竖栏',
     registry.pageModules().every((id) => registry.isEnabled(id)));
 

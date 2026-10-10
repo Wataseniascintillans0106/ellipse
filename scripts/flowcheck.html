@@ -253,8 +253,9 @@
                 ).map((n) => n.textContent.trim()).slice(1);
                 say('单占一节的: ' + looseTitles.join(' / '));
                 t('「显示」不再单独占一节', looseTitles.indexOf('显示') < 0, looseTitles.join(','));
-                t('填接口那一节还叫「AI——弦音」',
-                    looseTitles.indexOf('AI——弦音') >= 0, looseTitles.join(','));
+                t('填接口那一整节也搬进了弦音那一折，不再单占一节',
+                    !!d.querySelector('#settingsBody [data-group="assistant"] [data-section="ai"]') &&
+                    looseTitles.indexOf('AI——弦音') < 0, looseTitles.join(','));
 
                 railRows[2].querySelector('[data-rail-move="up"]').click();
                 await sleep(200);
