@@ -216,19 +216,26 @@ function renderExport() {
 
 function renderRail() {
     el.rail.className = 'rail rail--home';
-    el.rail.hidden = state.page !== 'home';
 
-    let htmlText = '';
+    const recordBtn = registry.cardOrder().length
+        ? '<button class="rail-item" type="button" data-act="record" ' +
+          'aria-label="状态记录" title="状态记录">' + icon('log') + '</button>'
+        : '';
+
+    let pageBtns = '';
     registry.pageModules().forEach(function (id) {
         const def = registry.get(id);
         if (!def) return;
-        htmlText += '<button class="rail-item" type="button" data-rail-page="' + escapeHtml(id) + '" ' +
+        pageBtns += '<button class="rail-item" type="button" data-rail-page="' + escapeHtml(id) + '" ' +
             'aria-label="' + escapeHtml(def.name) + '" title="' + escapeHtml(def.name) + '">' +
             icon(def.icon) + '</button>';
     });
-    htmlText += '<button class="rail-item" type="button" data-act="record" ' +
-        'aria-label="状态记录" title="状态记录">' + icon('log') + '</button>';
+
+    const recordFirst = getSettings().ui.railRecordFirst === true;
+    const htmlText = recordFirst ? recordBtn + pageBtns : pageBtns + recordBtn;
+
     el.rail.innerHTML = htmlText;
+    el.rail.hidden = state.page !== 'home' || !htmlText;
 }
 
 function renderPage() {
@@ -260,6 +267,11 @@ function render() {
             history.replaceState({ ellipse: 'home' }, '', '#home');
             state.page = 'home';
         }
+    }
+
+    if (state.booted && state.page === 'record' && !registry.cardOrder().length) {
+        history.replaceState({ ellipse: 'home' }, '', '#home');
+        state.page = 'home';
     }
 
     const page = state.page;
@@ -763,6 +775,25 @@ function problemRow(p) {
     return row;
 }
 
+function railOrderRow() {
+    const recordFirst = getSettings().ui.railRecordFirst === true;
+    const row = document.createElement('div');
+    row.className = 'set-row';
+    row.dataset.railOrderRow = '';
+    row.innerHTML =
+        '<span class="set-row-main">' +
+        '<span class="set-row-title">主页右侧栏顺序</span>' +
+        '<span class="set-row-desc">主页右侧栏里，「状态记录」和「状态波动图」谁在上面</span>' +
+        '<span class="seg">' +
+        '<button class="seg-item' + (recordFirst ? ' on' : '') + '" type="button" ' +
+        'data-rail-order="record">状态记录在上</button>' +
+        '<button class="seg-item' + (recordFirst ? '' : ' on') + '" type="button" ' +
+        'data-rail-order="chart">状态记录在下</button>' +
+        '</span>' +
+        '</span>';
+    return row;
+}
+
 function foldGroup(id, title) {
     const groups = getSettings().ui.groups || {};
     const open = groups[id] !== false;
@@ -841,6 +872,8 @@ function modulesGroup() {
         box.appendChild(problemRow(p));
     });
 
+    box.appendChild(railOrderRow());
+
     box.appendChild(html('<p class="sheet-note">关掉模块不会删掉它的数据；' +
         '卸载自装模块只移走代码，记录同样保留。' +
         '装进来的模块是一段能在本机运行的代码，只装你信得过的文件。</p>'));
@@ -915,6 +948,14 @@ el.settingsBody.addEventListener('click', function (evt) {
         return;
     }
 
+    const railBtn = evt.target.closest('[data-rail-order]');
+    if (railBtn) {
+        setSettings({ ui: { railRecordFirst: railBtn.getAttribute('data-rail-order') === 'record' } });
+        renderSettings();
+        render();
+        return;
+    }
+
     const exportBtn = evt.target.closest('[data-export-mod]');
     if (exportBtn) { exportModule(exportBtn.getAttribute('data-export-mod'), exportBtn); return; }
 
@@ -936,10 +977,6 @@ function toggleModule(id) {
     const def = registry.get(id);
     if (!def) return;
     const turningOn = !registry.isEnabled(id);
-    if (!turningOn && def.kind === 'record' && registry.enabledOrder().length <= 1) {
-        toast('至少保留一个记录模块');
-        return;
-    }
     const patch = {};
     patch[id] = turningOn;
     setSettings({ modules: patch });

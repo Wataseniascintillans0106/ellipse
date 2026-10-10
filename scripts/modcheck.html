@@ -165,6 +165,7 @@
                 f2.src = '../index.html?nomods=1';
                 await new Promise((r) => { f2.addEventListener('load', r); d.body.appendChild(f2); });
                 const w2 = f2.contentWindow, d2 = f2.contentDocument;
+                for (let i = 0; i < 60 && !d2.querySelector('#rail [data-act="record"]'); i++) await sleep(50);
                 d2.querySelector('#rail [data-act="record"]').click();
                 let cards2 = [];
                 for (let i = 0; i < 40; i++) {

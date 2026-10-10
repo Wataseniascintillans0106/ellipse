@@ -17,6 +17,8 @@
             const w = frame.contentWindow, d = frame.contentDocument;
             const t = (label, cond) => say((cond ? 'ok   ' : 'FAIL ') + label);
             try {
+                for (let i = 0; i < 60 && !d.querySelector('#rail .rail-item'); i++) await sleep(50);
+
                 say('== 主页 ==');
                 t('主页可见', !d.getElementById('viewHome').hidden);
                 t('设置按钮在主页显示', !d.getElementById('settingsBtn').hidden);
@@ -194,6 +196,48 @@
                 t('再点返回回到主页', !d.getElementById('viewHome').hidden);
                 t('主页上设置按钮恢复', !d.getElementById('settingsBtn').hidden);
 
+                say('== 设置里切换主页栏顺序 ==');
+                d.getElementById('settingsBtn').click();
+                await sleep(200);
+                const orderRow = d.querySelector('[data-rail-order-row]');
+                t('设置里有主页栏顺序这一行', !!orderRow);
+                t('默认选中「状态记录在下」', !!orderRow &&
+                    orderRow.querySelector('[data-rail-order="chart"]').classList.contains('on') &&
+                    !orderRow.querySelector('[data-rail-order="record"]').classList.contains('on'));
+
+                orderRow.querySelector('[data-rail-order="record"]').click();
+                await sleep(200);
+                d.getElementById('settingsClose').click();
+                await sleep(250);
+                const railAfter = Array.from(d.querySelectorAll('#rail .rail-item'));
+                t('切完「状态记录」跑到「状态波动图」上面',
+                    railAfter.length === 2 &&
+                    railAfter[0].getAttribute('data-act') === 'record' &&
+                    railAfter[1].getAttribute('data-rail-page') === 'trend');
+                if (railAfter.length === 2) {
+                    const ra = railAfter[0].getBoundingClientRect();
+                    const rb = railAfter[1].getBoundingClientRect();
+                    t('画出来也是「状态记录」压在上面', ra.bottom <= rb.top + 1,
+                        ra.bottom + ' vs ' + rb.top);
+                }
+
+                d.getElementById('settingsBtn').click();
+                await sleep(200);
+                d.querySelector('[data-rail-order="chart"]').click();
+                await sleep(200);
+                d.getElementById('settingsClose').click();
+                await sleep(250);
+                const railBack = Array.from(d.querySelectorAll('#rail .rail-item'));
+                t('切回默认后「状态波动图」又回到上面',
+                    railBack.length === 2 &&
+                    railBack[0].getAttribute('data-rail-page') === 'trend' &&
+                    railBack[1].getAttribute('data-act') === 'record');
+                if (railBack.length === 2) {
+                    const ba = railBack[0].getBoundingClientRect();
+                    const bb = railBack[1].getBoundingClientRect();
+                    t('画出来也回到原位', ba.bottom <= bb.top + 1, ba.bottom + ' vs ' + bb.top);
+                }
+
                 say('== 设置里关闭波状图 ==');
                 d.getElementById('settingsBtn').click();
                 await sleep(200);
@@ -210,6 +254,32 @@
                 t('关掉后竖栏里的波状图入口消失',
                     !d.querySelector('#rail [data-rail-page="trend"]'));
                 t('状态记录入口还在', !!d.querySelector('#rail [data-act="record"]'));
+
+                say('== 关掉「状态记录」栏全部模块 ==');
+                d.getElementById('settingsBtn').click();
+                await sleep(200);
+                const cardIds = Array.from(
+                    d.querySelectorAll('#settingsBody [data-group="record"] [data-toggle]'))
+                    .map((b) => b.getAttribute('data-toggle'));
+                say('要关的卡片: ' + cardIds.join(','));
+                t('「状态记录」栏里有模块可关', cardIds.length > 0);
+                for (const id of cardIds) {
+                    d.querySelector('[data-module-row="' + id + '"] [data-toggle]').click();
+                    await sleep(150);
+                }
+                t('关到最后，竖栏里「状态记录」入口消失',
+                    !d.querySelector('#rail [data-act="record"]'));
+                t('一个入口都不剩时整条竖栏收起', d.getElementById('rail').hidden);
+                t('它们还在设置里，能再打开',
+                    !!d.querySelector('[data-module-row="' + cardIds[0] + '"] [data-toggle]'));
+
+                d.querySelector('[data-module-row="' + cardIds[0] + '"] [data-toggle]').click();
+                await sleep(150);
+                d.getElementById('settingsClose').click();
+                await sleep(250);
+                t('重新打开任意一个，「状态记录」入口就回来',
+                    !!d.querySelector('#rail [data-act="record"]'));
+                t('竖栏重新露出来', !d.getElementById('rail').hidden);
                 say('DONE');
             } catch (err) {
                 say('ERROR ' + err.message);

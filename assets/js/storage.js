@@ -5,7 +5,7 @@ const KEY_MODS = 'ellipse.v1.mods';
 const SETTINGS_VERSION = 2;
 
 const DEFAULT_SETTINGS = {
-    ui: { expandAll: true, openModule: null, panels: {}, groups: {} },
+    ui: { expandAll: true, openModule: null, panels: {}, groups: {}, railRecordFirst: false },
     export: { frontmatter: true, includeSummary: true }
 };
 

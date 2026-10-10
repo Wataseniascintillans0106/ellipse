@@ -808,6 +808,8 @@ body.is-locked .page-back { pointer-events: none; }
 
 .set-row-side { flex: 0 0 auto; display: flex; align-items: center; gap: 4px; }
 
+.set-row-main > .seg { margin-top: 9px; }
+
 .switch {
     position: relative;
     width: 48px;
