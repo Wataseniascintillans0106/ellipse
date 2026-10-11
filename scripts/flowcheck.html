@@ -1214,6 +1214,91 @@
                 t('这两种都没惊动 AI', asks === asksBeforeBad, asks + ' / ' + asksBeforeBad);
                 w.fetch = realFetch;
 
+                say('== 弦音：生成到一半能喊停，退出去再回来也还在生成 ==');
+                const held = (function () {
+                    const enc = new w.TextEncoder();
+                    let push = null;
+                    let kill = null;
+                    let over = false;
+                    const stream = new w.ReadableStream({
+                        start(c) {
+                            push = function (t) {
+                                if (!over) c.enqueue(enc.encode('data: ' + parcel(t) + '\n\n'));
+                            };
+                            kill = function () {
+                                if (over) return;
+                                over = true;
+                                try {
+                                    c.error(new w.DOMException('aborted', 'AbortError'));
+                                } catch (err) {
+                                    c.close();
+                                }
+                            };
+                        }
+                    });
+                    return { stream: stream, push: function (t) { push(t); }, kill: function () { kill(); } };
+                })();
+
+                w.fetch = function (url, opts) {
+                    asks++;
+                    if (String(url).indexOf('chat/completions') < 0) return realFetch.apply(w, arguments);
+                    const sig = opts && opts.signal;
+                    if (sig) sig.addEventListener('abort', held.kill);
+                    return Promise.resolve(new w.Response(held.stream, {
+                        status: 200, headers: { 'Content-Type': 'text/event-stream' }
+                    }));
+                };
+
+                const asksBeforeStop = asks;
+                typeIn('你慢慢想');
+                await waitFor(() => d.querySelector('#viewPage .chord-dots'));
+                t('刚发出去、还没吐字时，先冒三个点',
+                    !!d.querySelector('#viewPage .chord-dots'));
+                t('生成中「停止」露出来、「发送」收起来',
+                    !d.getElementById('chordStop').hidden && d.getElementById('chordSend').hidden);
+                t('生成中打不了字（免得又多发一条）',
+                    d.getElementById('chordInput').disabled === true);
+
+                d.getElementById('backHomeBtn').click();
+                await sleep(300);
+                t('退出界面，回到主页了', !d.getElementById('viewHome').hidden);
+                d.querySelector('#rail [data-rail-page="assistant"]').click();
+                await sleep(300);
+
+                t('退出去再回来，三个点还在转',
+                    !!d.querySelector('#viewPage .chord-dots'),
+                    chordText('#viewPage #chordList').slice(0, 60));
+                t('退出去再回来，「停止」也还在',
+                    !d.getElementById('chordStop').hidden);
+
+                const liveBubble = Array.from(
+                    d.querySelectorAll('#viewPage .chord-msg--ai .chord-bubble')).pop();
+                held.push('我先慢点说，第一句是：今晚早点睡，别熬。');
+                await waitFor(() => liveBubble && /我先慢点说/.test(liveBubble.textContent));
+                t('回来以后接着吐字，字落在屏幕上那个气泡里（不是没人看的那份）',
+                    !!liveBubble && liveBubble.isConnected && /我先慢点说/.test(liveBubble.textContent),
+                    liveBubble ? liveBubble.textContent : '（没找到气泡）');
+
+                d.getElementById('chordStop').click();
+                await waitFor(() => /停在这里了/.test(chordText('#viewPage')));
+                t('点「停止」是真的停下来了', /停在这里了/.test(chordText('#viewPage')),
+                    chordText('#viewPage .chord-card').slice(0, 80));
+                t('停完「发送」回来、「停止」收起',
+                    d.getElementById('chordSend').hidden === false &&
+                    d.getElementById('chordStop').hidden === true);
+                t('停下时能接着打字', d.getElementById('chordInput').disabled === false);
+                t('喊停之前吐出来的话留住了',
+                    /我先慢点说/.test(chordText('#viewPage .chord-bubble')),
+                    chordText('#viewPage .chord-bubble'));
+                t('喊停没有偷偷再发一次请求', asks === asksBeforeStop + 1,
+                    asks + ' / ' + (asksBeforeStop + 1));
+
+                const savedChat = JSON.parse(w.localStorage.getItem('ellipse.v1.settings'))
+                    .mods.assistant.chat;
+                t('喊停时吐了一半的话也存住了（没丢）',
+                    savedChat.some((m) => /我先慢点说/.test(m.text || '')),
+                    JSON.stringify(savedChat.slice(-2)).slice(0, 140));
+
                 say('== 弦音：关掉它，主页退回原样 ==');
                 d.getElementById('backHomeBtn').click();
                 await sleep(250);

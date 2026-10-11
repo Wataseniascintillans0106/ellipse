@@ -541,7 +541,7 @@ function oneField(f, draft) {
             '<div class="ev-dose">' +
             '<input class="num-input" type="text" inputmode="decimal" data-cal="val" data-key="' + f.key + '" ' +
             'placeholder="1" value="' + escapeHtml(has ? v : '') + '">' +
-            '<input class="ev-unit" type="text" data-cal="val" data-key="doseUnit" ' +
+            '<input class="text-input ev-unit" type="text" data-cal="val" data-key="doseUnit" ' +
             'placeholder="片" value="' + escapeHtml(unit) + '">' +
             '</div>' +
             '<div class="chip-row">' + UNITS.map(function (u) {

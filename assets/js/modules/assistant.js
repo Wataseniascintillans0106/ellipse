@@ -56,6 +56,7 @@ let log = [];
 let rootEl = null;
 let busy = false;
 let ctrl = null;
+let active = null;
 let typingTimer = 0;
 let pending = null;
 let wired = false;
@@ -570,12 +571,22 @@ function watchViewport() {
     apply();
 }
 
-function reveal(holder, acc) {
+function bindHolder(holder) {
+    if (typingTimer) { clearInterval(typingTimer); typingTimer = 0; }
+    const list = listEl();
+    holder.node = list ? list.querySelector('[data-msg="' + holder.id + '"]') : null;
     if (!holder.node) return;
     const bubble = holder.node.querySelector('.chord-bubble');
-    if (!bubble) return;
+    if (bubble && holder.shown) bubble.textContent = holder.shown;
+}
+
+function reveal(holder, acc) {
     const cut = splitReply(acc);
-    streamTo(bubble, cut.found ? cut.prose : proseSoFar(acc));
+    holder.shown = cut.found ? cut.prose : proseSoFar(acc);
+    if (!holder.node || !holder.node.isConnected) bindHolder(holder);
+    const bubble = holder.node ? holder.node.querySelector('.chord-bubble') : null;
+    if (!bubble) return;
+    streamTo(bubble, holder.shown);
     scrollBottom();
 }
 
@@ -591,19 +602,22 @@ function turnNote(messages, err) {
 
 async function runTurn(messages, budget) {
     let next = null;
+    let halted = false;
     setBusy(true);
     ctrl = new AbortController();
 
     const holder = { id: uid(), role: 'ai', text: '', raw: '', at: stamp(), acts: [], pending: true };
     log.push(holder);
+    active = holder;
     paint();
-    holder.node = listEl() ? listEl().querySelector('[data-msg="' + holder.id + '"]') : null;
+    bindHolder(holder);
 
     try {
         const res = await chatStream(messages, {
             signal: ctrl.signal,
             onDelta: function (acc) { reveal(holder, acc); }
         });
+        halted = !!res.stopped;
         next = settle(holder, res.text, res.stopped, budget);
     } catch (err) {
         if (typingTimer) { clearInterval(typingTimer); typingTimer = 0; }
@@ -615,10 +629,11 @@ async function runTurn(messages, budget) {
         save();
     } finally {
         ctrl = null;
+        if (active === holder) active = null;
         setBusy(false);
     }
 
-    if (next) next();
+    if (next && !halted) next();
 }
 
 function buildActs(acts) {
@@ -899,7 +914,7 @@ function wipeChat() {
 function mountChat(box) {
     rootEl = box;
     pendingPhoto = null;
-    load();
+    if (!active) load();
     watchConfig();
     watchViewport();
 
@@ -915,7 +930,7 @@ function mountChat(box) {
         'placeholder="说点什么…" aria-label="给弦音发消息"></textarea>' +
         '<button class="chord-send" id="chordSend" type="submit" aria-label="发送">' +
         A().icon('send') + '</button>' +
-        '<button class="chord-stop" id="chordStop" type="button" hidden aria-label="停止">' +
+        '<button class="chord-stop" id="chordStop" type="button" data-chord="stop" hidden aria-label="停止">' +
         A().icon('stop') + '</button>' +
         '</form>' +
         '<p class="chord-disclaimer">弦音不是医生，说的话不能替代医嘱。' +
@@ -923,6 +938,7 @@ function mountChat(box) {
         '</div>';
     paint();
     renderPending();
+    if (active) bindHolder(active);
 
     const form = box.querySelector('#chordForm');
     const input = box.querySelector('#chordInput');
