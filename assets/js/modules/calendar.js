@@ -1,7 +1,6 @@
 import { fromKey, toKey, pad2, todayKey, WEEK_CN, escapeHtml } from '../util.js';
 
 const REMIND_KEY = 'ellipse.v1.calRemind';
-const DAYS_IN_LIST = 60;
 const SWEEP_MS = 30000;
 
 const MEAL_OPTIONS = [
@@ -424,51 +423,27 @@ function buildMonth(body, cursor, selected) {
     body.appendChild(day);
 }
 
-function buildList(body, cursor, selected) {
-    const from = todayKey();
-    const to = shiftKey(from, DAYS_IN_LIST);
+function todayTitle() {
+    const key = todayKey();
+    const p = String(key).split('-');
+    return '今天 · ' + Number(p[1]) + '月' + Number(p[2]) + '日 ' + WEEK_CN[fromKey(key).getDay()];
+}
+
+function buildToday(body) {
+    const key = todayKey();
     const list = types();
-    const rows = [];
+    const items = itemsOn(key);
 
-    list.forEach(function (type) {
-        eventsOf(type.id).forEach(function (entry) {
-            expandDates(entry, from, to).forEach(function (date) {
-                const times = timesOn(entry, date);
-                if (!times.length) {
-                    rows.push({ type: type, entry: entry, date: date, time: '' });
-                    return;
-                }
-                times.forEach(function (t) {
-                    rows.push({ type: type, entry: entry, date: date, time: t });
-                });
-            });
-        });
-    });
-
-    rows.sort(function (a, b) {
-        if (a.date !== b.date) return a.date < b.date ? -1 : 1;
-        return toMinutes(a.time) - toMinutes(b.time);
-    });
-
-    body.appendChild(el('p', 'cal-list-note',
-        '从今天起 ' + DAYS_IN_LIST + ' 天，共 ' + rows.length + ' 项'));
-
-    if (!rows.length) {
-        body.appendChild(emptyEl(list.length ? '接下来没有安排' : '这块日历还是空的'));
-        return;
+    const day = el('section', 'cal-day');
+    if (!items.length) {
+        day.appendChild(emptyEl(list.length ? '今天没有安排' : '这块日历还是空的'));
+    } else {
+        items.forEach(function (item) { day.appendChild(el('div', 'cal-row', itemHtml(item))); });
     }
-
-    let last = '';
-    rows.forEach(function (item) {
-        if (item.date !== last) {
-            last = item.date;
-            body.appendChild(el('h3', 'cal-day-title', escapeHtml(dayLabel(item.date))));
-        }
-        body.appendChild(el('div', 'cal-row', itemHtml(item)));
-    });
-    body.appendChild(el('button', 'cal-add-day', api().icon('plus') + '<span>加一项</span>'));
-    body.querySelector('.cal-add-day').setAttribute('data-cal', 'add');
-    body.querySelector('.cal-add-day').setAttribute('data-date', cursor);
+    day.appendChild(el('button', 'cal-add-day', api().icon('plus') + '<span>加一项</span>'));
+    day.querySelector('.cal-add-day').setAttribute('data-cal', 'add');
+    day.querySelector('.cal-add-day').setAttribute('data-date', key);
+    body.appendChild(day);
 }
 
 function fieldWrap(label, inner, note) {
@@ -1073,19 +1048,21 @@ function paint() {
     body.innerHTML = '';
     const head = el('div', 'cal-head');
     head.innerHTML =
-        '<button class="date-nav" type="button" data-cal="month" data-dir="-1" aria-label="上一个月">' +
-        api().icon('back') + '</button>' +
-        '<span class="cal-month">' + escapeHtml(monthLabel(cursor)) + '</span>' +
-        '<button class="date-nav cal-next" type="button" data-cal="month" data-dir="1" aria-label="下一个月">' +
-        api().icon('back') + '</button>' +
+        (view === 'month'
+            ? '<button class="date-nav" type="button" data-cal="month" data-dir="-1" aria-label="上一个月">' +
+              api().icon('back') + '</button>' +
+              '<span class="cal-month">' + escapeHtml(monthLabel(cursor)) + '</span>' +
+              '<button class="date-nav cal-next" type="button" data-cal="month" data-dir="1" aria-label="下一个月">' +
+              api().icon('back') + '</button>'
+            : '<span class="cal-month">' + escapeHtml(todayTitle()) + '</span>') +
         '<span class="cal-views">' +
         '<button class="seg-mini' + (view === 'month' ? ' on' : '') + '" type="button" data-cal="view" data-value="month">月</button>' +
-        '<button class="seg-mini' + (view === 'list' ? ' on' : '') + '" type="button" data-cal="view" data-value="list">列表</button>' +
+        '<button class="seg-mini' + (view === 'today' ? ' on' : '') + '" type="button" data-cal="view" data-value="today">今日</button>' +
         '</span>';
     body.appendChild(head);
 
     if (view === 'month') buildMonth(body, cursor, selected);
-    else buildList(body, cursor, selected);
+    else buildToday(body);
 
     const add = el('button', 'cal-add', api().icon('plus'));
     add.type = 'button';
@@ -1102,7 +1079,7 @@ function selectDay(key) {
 }
 
 function setView(next) {
-    view = next === 'list' ? 'list' : 'month';
+    view = next === 'today' ? 'today' : 'month';
     api().settings.set('calendar', { lastView: view });
     paint();
 }
@@ -1229,7 +1206,8 @@ ellipse.define({
 
     mount: function (body, ctx) {
         const a = ctx.api;
-        view = a.settings.get('calendar').lastView === 'list' ? 'list' : 'month';
+        const lastView = a.settings.get('calendar').lastView;
+        view = lastView === 'today' || lastView === 'list' ? 'today' : 'month';
         cursor = monthStart(ctx.date || todayKey());
         selected = ctx.date || todayKey();
 
@@ -1254,7 +1232,7 @@ ellipse.define({
         note: '打开先看哪个、每周从哪天开始、要不要到点提醒',
         html: function (ctx) {
             const c = ctx.api.settings.get('calendar');
-            const viewId = c.lastView === 'list' ? 'list' : 'month';
+            const viewId = c.lastView === 'today' || c.lastView === 'list' ? 'today' : 'month';
             const start = c.weekStart === 1 ? 1 : 0;
             const granted = typeof Notification !== 'undefined' && Notification.permission === 'granted';
             const canNotify = typeof Notification !== 'undefined';
@@ -1265,8 +1243,8 @@ ellipse.define({
                 '<span class="set-row-side"><span class="seg">' +
                 '<button class="seg-item' + (viewId === 'month' ? ' on' : '') +
                 '" type="button" data-cal-set="view" data-value="month">月</button>' +
-                '<button class="seg-item' + (viewId === 'list' ? ' on' : '') +
-                '" type="button" data-cal-set="view" data-value="list">列表</button>' +
+                '<button class="seg-item' + (viewId === 'today' ? ' on' : '') +
+                '" type="button" data-cal-set="view" data-value="today">今日</button>' +
                 '</span></span></div>' +
 
                 '<div class="set-row">' +

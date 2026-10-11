@@ -1332,13 +1332,6 @@ body.is-locked .cal-search-btn { pointer-events: none; }
     cursor: pointer;
 }
 
-.cal-list-note {
-    margin: 16px 0 0;
-    font-size: 11px;
-    letter-spacing: 0.8px;
-    color: var(--ink-3);
-}
-
 .cal-row { border-bottom: 1px solid var(--line-2); }
 .cal-row:last-child { border-bottom: none; }
 

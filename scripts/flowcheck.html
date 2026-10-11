@@ -506,12 +506,18 @@
                     calBody.querySelectorAll('.cal-cell.is-today .cal-dot').length === 1,
                     String(calBody.querySelectorAll('.cal-cell.is-today .cal-dot').length));
 
-                say('== 日历的列表视图 ==');
-                calBody.querySelector('[data-cal="view"][data-value="list"]').click();
+                say('== 日历的今日视图 ==');
+                calBody.querySelector('[data-cal="view"][data-value="today"]').click();
                 await sleep(300);
-                t('列表里也能看到这条', /舍曲林/.test(calBody.textContent));
-                t('列表按天分好组', calBody.querySelectorAll('.cal-day-title').length >= 1,
-                    String(calBody.querySelectorAll('.cal-day-title').length));
+                t('今日页顶上只写今天',
+                    /今天/.test((calBody.querySelector('.cal-month') || {}).textContent || ''),
+                    (calBody.querySelector('.cal-month') || {}).textContent);
+                t('今日页不再出现翻月的箭头', !calBody.querySelector('[data-cal="month"]'));
+                t('今日页里也能看到这条', /舍曲林/.test(calBody.textContent));
+                t('今日页只摆今天这一天，不往后堆',
+                    calBody.querySelectorAll('.cal-day-title').length === 0 &&
+                    calBody.querySelectorAll('.cal-item').length === 1,
+                    calBody.querySelectorAll('.cal-item').length + ' 项');
 
                 say('== 日历右上角搜索 ==');
                 t('记完一条日程，右上角的搜索按钮还在（没被整页重画冲掉）', d.contains(searchBtn));
@@ -589,21 +595,23 @@
 
                 const calSec = d.querySelector('#settingsBody [data-section="calendar"]');
                 t('日历自己有一块设置区', !!calSec);
-                t('能选打开时先看月还是列表',
+                t('能选打开时先看月还是今日',
                     calSec.querySelectorAll('[data-cal-set="view"]').length === 2);
                 t('能选一周从周日还是周一开始',
                     calSec.querySelectorAll('[data-cal-set="week"]').length === 2);
                 t('有到点提醒的开关', !!calSec.querySelector('[data-cal-set="remind"]'));
 
-                d.querySelector('[data-cal-set="view"][data-value="list"]').click();
+                d.querySelector('[data-cal-set="view"][data-value="today"]').click();
                 await sleep(250);
-                t('选了「列表」，选中态留住了',
-                    d.querySelector('[data-cal-set="view"][data-value="list"]').classList.contains('on'));
+                t('选了「今日」，选中态留住了',
+                    d.querySelector('[data-cal-set="view"][data-value="today"]').classList.contains('on'));
                 d.getElementById('settingsClose').click();
                 await sleep(250);
                 d.querySelector('#rail [data-rail-page="calendar"]').click();
                 await sleep(350);
-                t('再进日历，先落在列表上', !!calBody.querySelector('.cal-list-note'));
+                t('再进日历，先落在今日上',
+                    /今天/.test((calBody.querySelector('.cal-month') || {}).textContent || '') &&
+                    !calBody.querySelector('[data-cal="month"]'));
                 calBody.querySelector('[data-cal="view"][data-value="month"]').click();
                 await sleep(250);
 
