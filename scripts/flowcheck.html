@@ -486,6 +486,21 @@
                 setInput('#sheetBody [data-key="drug"]', '舍曲林');
                 setInput('#sheetBody [data-key="brand"]', '辉瑞');
                 setInput('#sheetBody [data-key="dose"]', '1');
+                t('剂量单位是一排按钮，点了就填（不再用手机上弹不出候选的那种框）',
+                    d.querySelectorAll('#sheetBody [data-key="doseUnit"][data-cal="choice"]').length === 8 &&
+                    !d.querySelector('#sheetBody [data-key="doseUnit"]').hasAttribute('list'),
+                    String(d.querySelectorAll('#sheetBody [data-key="doseUnit"][data-cal="choice"]').length));
+                d.querySelector('#sheetBody [data-key="doseUnit"][data-value="片"]').click();
+                await sleep(200);
+                t('点「片」，单位就填进右边那个框',
+                    d.querySelector('#sheetBody [data-key="doseUnit"]').value === '片',
+                    d.querySelector('#sheetBody [data-key="doseUnit"]').value);
+                t('选中的那个按钮是亮着的',
+                    !!d.querySelector('#sheetBody [data-key="doseUnit"][data-value="片"].on'));
+                setInput('#sheetBody [data-key="doseUnit"]', '半片');
+                await sleep(150);
+                t('不想用现成的，照样能自己打「半片」',
+                    d.querySelector('#sheetBody [data-key="doseUnit"]').value === '半片');
                 setInput('#sheetBody [data-key="doseUnit"]', '片');
                 setInput('#sheetBody [data-key="time"]', '00:00');
                 d.querySelector('#sheetBody [data-key="meal"][data-value="after"]').click();

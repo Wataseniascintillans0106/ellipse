@@ -536,16 +536,19 @@ function oneField(f, draft) {
             }).join('') + '</div>');
     }
     if (f.type === 'dose') {
+        const unit = draft.values.doseUnit || '';
         return fieldWrap(f.label,
             '<div class="ev-dose">' +
             '<input class="num-input" type="text" inputmode="decimal" data-cal="val" data-key="' + f.key + '" ' +
             'placeholder="1" value="' + escapeHtml(has ? v : '') + '">' +
-            '<input class="ev-unit" type="text" list="calUnits" data-cal="val" data-key="doseUnit" ' +
-            'placeholder="片" value="' + escapeHtml(draft.values.doseUnit || '') + '">' +
+            '<input class="ev-unit" type="text" data-cal="val" data-key="doseUnit" ' +
+            'placeholder="片" value="' + escapeHtml(unit) + '">' +
             '</div>' +
-            '<datalist id="calUnits">' + UNITS.map(function (u) {
-                return '<option value="' + u + '"></option>';
-            }).join('') + '</datalist>');
+            '<div class="chip-row">' + UNITS.map(function (u) {
+                return '<button class="chip' + (unit === u ? ' on' : '') + '" type="button" ' +
+                    'data-cal="choice" data-key="doseUnit" data-value="' + escapeHtml(u) + '">' +
+                    escapeHtml(u) + '</button>';
+            }).join('') + '</div>');
     }
     if (f.type === 'textarea') {
         return fieldWrap(f.label,
