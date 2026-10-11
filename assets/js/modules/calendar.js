@@ -193,6 +193,46 @@ function saveEvents(id, list) {
     api().settings.set(id, patch[id]);
 }
 
+const DOSE_MOD = 'med';
+
+function doseLog() {
+    const box = api().settings.get(DOSE_MOD).doses;
+    return box && typeof box === 'object' ? box : {};
+}
+
+function doseSig(item) {
+    return item.entry.id + '|' + item.date + '|' + item.time;
+}
+
+function doseAt(item) {
+    return Number(doseLog()[doseSig(item)]) || 0;
+}
+
+function saveDose(id, date, time, at) {
+    const box = Object.assign({}, doseLog());
+    box[id + '|' + date + '|' + time] = at;
+    api().settings.set(DOSE_MOD, { doses: box });
+}
+
+function clockOf(ts) {
+    const d = new Date(ts);
+    return pad2(d.getHours()) + ':' + pad2(d.getMinutes());
+}
+
+function stampFor(date, hhmm) {
+    const d = fromKey(date);
+    d.setHours(0, 0, 0, 0);
+    return d.getTime() + toMinutes(hhmm) * 60000;
+}
+
+function isDose(item) {
+    return item.type.id === DOSE_MOD && !!item.time;
+}
+
+function dosePast(item) {
+    return fromKey(item.date).getTime() + toMinutes(item.time) * 60000 <= Date.now();
+}
+
 function repeatOf(entry) {
     const r = entry && entry.repeat;
     return r && typeof r === 'object' ? r : { kind: 'once' };
@@ -365,6 +405,35 @@ function itemHtml(item) {
         '</button>';
 }
 
+function rowEl(item) {
+    const row = el('div', 'cal-row', itemHtml(item));
+    if (!isDose(item) || item.date > todayKey()) return row;
+
+    const at = doseAt(item);
+    const taken = !!at;
+    const miss = !taken && dosePast(item);
+
+    const mark = el('span', 'cal-dose');
+    mark.textContent = taken ? '已服 ' + clockOf(at) : (miss ? '服药缺漏' : '');
+    if (taken) mark.classList.add('is-done');
+    if (miss) mark.classList.add('is-miss');
+
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'cal-dose-btn';
+    btn.textContent = taken ? '改' : '记';
+    btn.setAttribute('data-cal', 'dose');
+    btn.setAttribute('data-id', item.entry.id);
+    btn.setAttribute('data-date', item.date);
+    btn.setAttribute('data-time', item.time);
+    btn.setAttribute('aria-label', (taken ? '修改' : '补记') + itemTitle(item.type, item.entry) + '的服药时间');
+
+    row.classList.add('is-med');
+    row.appendChild(mark);
+    row.appendChild(btn);
+    return row;
+}
+
 function emptyHtml(text) {
     return '<p class="empty-note">' + escapeHtml(text) + '</p>';
 }
@@ -376,7 +445,7 @@ function emptyEl(text) {
     return p;
 }
 
-function buildMonth(body, cursor, selected) {
+function buildMonth(body, cursor) {
     const list = types();
     const cells = gridDays(cursor);
     const month = cursor.slice(0, 7);
@@ -415,7 +484,7 @@ function buildMonth(body, cursor, selected) {
     if (!items.length) {
         day.appendChild(emptyEl(list.length ? '这天没有安排' : '这块日历还是空的'));
     } else {
-        items.forEach(function (item) { day.appendChild(el('div', 'cal-row', itemHtml(item))); });
+        items.forEach(function (item) { day.appendChild(rowEl(item)); });
     }
     day.appendChild(el('button', 'cal-add-day', api().icon('plus') + '<span>在这天加一项</span>'));
     day.querySelector('.cal-add-day').setAttribute('data-cal', 'add');
@@ -423,22 +492,26 @@ function buildMonth(body, cursor, selected) {
     body.appendChild(day);
 }
 
-function todayTitle() {
-    const key = todayKey();
+function dayHeadLabel(key) {
     const p = String(key).split('-');
-    return '今天 · ' + Number(p[1]) + '月' + Number(p[2]) + '日 ' + WEEK_CN[fromKey(key).getDay()];
+    const day = Number(p[1]) + '月' + Number(p[2]) + '日';
+    const today = todayKey();
+    if (key === today) return day + ' · 今天';
+    if (key === shiftKey(today, -1)) return day + ' · 昨天';
+    if (key === shiftKey(today, 1)) return day + ' · 明天';
+    return day + ' ' + WEEK_CN[fromKey(key).getDay()];
 }
 
 function buildToday(body) {
-    const key = todayKey();
+    const key = selected;
     const list = types();
     const items = itemsOn(key);
 
     const day = el('section', 'cal-day');
     if (!items.length) {
-        day.appendChild(emptyEl(list.length ? '今天没有安排' : '这块日历还是空的'));
+        day.appendChild(emptyEl(list.length ? (key === todayKey() ? '今天没有安排' : '这天没有安排') : '这块日历还是空的'));
     } else {
-        items.forEach(function (item) { day.appendChild(el('div', 'cal-row', itemHtml(item))); });
+        items.forEach(function (item) { day.appendChild(rowEl(item)); });
     }
     day.appendChild(el('button', 'cal-add-day', api().icon('plus') + '<span>加一项</span>'));
     day.querySelector('.cal-add-day').setAttribute('data-cal', 'add');
@@ -691,10 +764,38 @@ function openDetail(typeId, entryId) {
         '" data-id="' + escapeHtml(entryId) + '">编辑</button>');
 }
 
+function dayKeyOf(y, mo, d) {
+    const yy = Number(y);
+    const mm = Number(mo);
+    const dd = Number(d);
+    if (!(mm >= 1 && mm <= 12) || !(dd >= 1 && dd <= 31)) return null;
+    const dt = new Date(yy, mm - 1, dd);
+    if (dt.getFullYear() !== yy || dt.getMonth() !== mm - 1 || dt.getDate() !== dd) return null;
+    return toKey(dt);
+}
+
+function parseDay(text) {
+    const s = String(text || '').trim();
+    if (!s) return null;
+    let m = /^(\d{4})\s*[-/.年月]\s*(\d{1,2})\s*[-/.月]\s*(\d{1,2})\s*日?$/.exec(s);
+    if (m) return dayKeyOf(m[1], m[2], m[3]);
+    m = /^(\d{1,2})\s*[-/.月]\s*(\d{1,2})\s*日?$/.exec(s);
+    if (m) return dayKeyOf(todayKey().slice(0, 4), m[1], m[2]);
+    return null;
+}
+
 function searchRows(needle) {
     const q = String(needle || '').trim().toLowerCase();
     const out = [];
     if (!q) return out;
+
+    const day = parseDay(needle);
+    if (day) {
+        return itemsOn(day).map(function (item) {
+            return { type: item.type, entry: item.entry, date: day, time: item.time, exact: true };
+        });
+    }
+
     const from = todayKey();
 
     types().forEach(function (type) {
@@ -718,7 +819,7 @@ function searchRows(needle) {
 function openSearch() {
     api().sheet.open('搜索日程',
         '<input class="text-input cal-search" type="search" data-cal="searchbox" ' +
-        'placeholder="药物名、医院、备注里的词…" autocomplete="off">' +
+        'placeholder="药名、医院、备注，或直接打日期…" autocomplete="off">' +
         '<div class="cal-results" id="calResults"></div>',
         '<button class="btn" type="button" data-action="cal-cancel">关闭</button>');
     const input = api().sheet.body().querySelector('.cal-search');
@@ -728,21 +829,31 @@ function openSearch() {
 function drawResults(needle) {
     const box = api().sheet.body().querySelector('#calResults');
     if (!box) return;
+    const text = String(needle || '').trim();
     const rows = searchRows(needle);
-    if (!String(needle).trim()) {
-        box.innerHTML = '<p class="sheet-note">输入几个字，比如药的名字或医院的名字。</p>';
+    if (!text) {
+        box.innerHTML = '<p class="sheet-note">输入几个字，比如药的名字或医院的名字；也可以直接打出某一天，例如 2025-10-11、10月11日。</p>';
         return;
     }
     if (!rows.length) {
-        box.innerHTML = emptyHtml('没有找到');
+        box.innerHTML = emptyHtml(parseDay(text) ? '那天没有安排' : '没有找到');
         return;
     }
     box.innerHTML = rows.map(function (item) {
+        if (item.exact) {
+            return '<button class="pick-item" type="button" data-cal="jump" data-date="' + escapeHtml(item.date) + '">' +
+                '<span>' + escapeHtml(itemTitle(item.type, item.entry)) + '</span>' +
+                '<span class="pick-meta">' + escapeHtml(typeOfText(item) + ' · ' + dayHeadLabel(item.date)) + '</span></button>';
+        }
         const when = item.next ? dayLabel(item.next) : dayLabel(item.entry.date) + '（已过去）';
         return '<button class="pick-item" type="button" data-cal="jump" data-date="' + escapeHtml(item.next || item.entry.date) + '">' +
             '<span>' + escapeHtml(itemTitle(item.type, item.entry)) + '</span>' +
             '<span class="pick-meta">' + escapeHtml(item.type.name + ' · ' + when) + '</span></button>';
     }).join('');
+}
+
+function typeOfText(item) {
+    return item.type.name + (item.time ? ' · ' + item.time : '');
 }
 
 function typeFormDef(spec) {
@@ -887,6 +998,82 @@ function dropType(id) {
     api().refresh();
 }
 
+let doseAsk = [];
+let doseEdit = null;
+let pokeSig = '';
+
+function doseRowHtml(item) {
+    const extra = valueText(item.type, item.entry).join(' · ');
+    return '<div class="dose-row">' +
+        '<span class="dose-main">' +
+        '<span class="cal-item-name">' + escapeHtml(itemTitle(item.type, item.entry)) + '</span>' +
+        '<span class="cal-item-meta">' + escapeHtml(item.time + (extra ? ' · ' + extra : '')) + '</span>' +
+        '</span>' +
+        '<button class="btn primary dose-yes" type="button" data-action="dose-yes" ' +
+        'data-id="' + escapeHtml(item.entry.id) + '" data-date="' + escapeHtml(item.date) +
+        '" data-time="' + escapeHtml(item.time) + '">是</button>' +
+        '</div>';
+}
+
+function doseStill() {
+    return doseAsk.filter(function (item) { return !doseAt(item); });
+}
+
+function openDoseAsk(items) {
+    doseAsk = items.filter(function (item) { return !doseAt(item); });
+    if (!doseAsk.length) { api().sheet.close(); return; }
+    api().sheet.open('是否吃药',
+        '<p class="sheet-note">到点了，这几样吃了吗？</p>' +
+        '<div class="dose-list">' + doseAsk.map(doseRowHtml).join('') + '</div>',
+        '<button class="btn" type="button" data-action="dose-later">等一会儿</button>' +
+        '<button class="btn primary" type="button" data-action="dose-all">全部服用了</button>');
+}
+
+function drawDoseSheet() {
+    if (!doseEdit) return;
+    const type = typeById(DOSE_MOD);
+    const entry = eventsOf(DOSE_MOD).filter(function (e) { return e.id === doseEdit.id; })[0];
+    if (!type || !entry) return;
+
+    api().sheet.open('记录服药',
+        '<div class="cal-detail">' +
+        '<div class="cal-detail-row"><span class="cal-detail-key">药</span>' +
+        '<span class="cal-detail-val">' + escapeHtml(itemTitle(type, entry)) + '</span></div>' +
+        '<div class="cal-detail-row"><span class="cal-detail-key">原定</span>' +
+        '<span class="cal-detail-val">' + escapeHtml(dayLabel(doseEdit.date) + ' ' + doseEdit.time) + '</span></div>' +
+        '</div>' +
+        fieldWrap('实际吃的时间',
+            '<div class="dose-edit"><input class="text-input" type="time" data-dose="at" value="' +
+            escapeHtml(doseEdit.at) + '">' +
+            '<button class="seg-mini" type="button" data-action="dose-now">就是现在</button></div>') +
+        (doseEdit.had ? '<p class="sheet-note">改完保存，就换成新的时间。</p>' : ''),
+        '<button class="btn" type="button" data-action="dose-cancel">取消</button>' +
+        '<button class="btn primary" type="button" data-action="dose-save">保存</button>');
+}
+
+function openDoseSheet(id, date, time) {
+    const type = typeById(DOSE_MOD);
+    const entry = eventsOf(DOSE_MOD).filter(function (e) { return e.id === id; })[0];
+    if (!type || !entry) return;
+    const at = doseAt({ type: type, entry: entry, date: date, time: time });
+    doseEdit = { id: id, date: date, time: time, at: clockOf(at || Date.now()), had: !!at };
+    drawDoseSheet();
+}
+
+function pokeDoses() {
+    if (!conf().remind) return;
+    const a = api();
+    if (!a.sheet || a.sheet.isOpen()) return;
+    const due = itemsOn(todayKey()).filter(function (item) {
+        return isDose(item) && dosePast(item) && !doseAt(item);
+    });
+    if (!due.length) return;
+    const sig = due.map(sigOf).join(',');
+    if (sig === pokeSig) return;
+    pokeSig = sig;
+    openDoseAsk(due);
+}
+
 function remindState() {
     try {
         const raw = JSON.parse(localStorage.getItem(REMIND_KEY) || 'null');
@@ -929,6 +1116,8 @@ function describe(item) {
 
 function sweep(boot) {
     if (typeof document === 'undefined' || !document.getElementById || !document.getElementById('toast')) return;
+    if (!currentBody()) pokeSig = '';
+
     const a = api();
     if (!a || !a.registry || !a.registry.isEnabled('calendar')) return;
     if (!conf().remind) return;
@@ -946,15 +1135,23 @@ function sweep(boot) {
 
     due.forEach(function (item) { markReminded(sigOf(item)); });
 
-    if (boot || due.length > 1) {
-        const head = due.length + ' 项没做：' + describe(due[0]);
-        notify('今天的日程', due.slice(0, 4).map(describe).join('；'));
-        a.toast(head);
-        return;
+    const doses = due.filter(isDose);
+    const rest = due.filter(function (item) { return !isDose(item); });
+
+    if (rest.length) {
+        if (boot || rest.length > 1) {
+            notify('今天的日程', rest.slice(0, 4).map(describe).join('；'));
+            a.toast(rest.length + ' 项没做：' + describe(rest[0]));
+        } else {
+            notify(rest[0].type.name, describe(rest[0]));
+            a.toast('该做：' + describe(rest[0]));
+        }
     }
-    const one = due[0];
-    notify(one.type.name, describe(one));
-    a.toast('该做：' + describe(one));
+
+    if (doses.length && !a.sheet.isOpen()) {
+        pokeSig = doses.map(sigOf).join(',');
+        openDoseAsk(doses);
+    }
 }
 
 function handleClick(evt) {
@@ -971,6 +1168,11 @@ function handleClick(evt) {
     if (act === 'pick') { selectDay(node.getAttribute('data-key')); return; }
     if (act === 'today') { selectDay(todayKey()); return; }
     if (act === 'month') { cursor = shiftMonth(cursor, Number(node.getAttribute('data-dir')) || 1); paint(); return; }
+    if (act === 'day') { selected = shiftKey(selected, Number(node.getAttribute('data-dir')) || 1); paint(); return; }
+    if (act === 'dose') {
+        openDoseSheet(node.getAttribute('data-id'), node.getAttribute('data-date'), node.getAttribute('data-time'));
+        return;
+    }
     if (act === 'view') { setView(node.getAttribute('data-value')); return; }
     if (act === 'add') { openTypeSheet(date || selected); return; }
     if (act === 'new') { openForm(node.getAttribute('data-type'), null, date); return; }
@@ -1006,6 +1208,10 @@ function onTypeClick(kind, node) {
 function handleInput(evt) {
     const node = evt.target;
     if (!node || !node.getAttribute) return;
+    if (node.getAttribute('data-dose')) {
+        if (doseEdit) doseEdit.at = node.value;
+        return;
+    }
     const calt = node.getAttribute('data-calt');
     if (calt) {
         if (!typeDraft) return;
@@ -1054,20 +1260,25 @@ function paint() {
               '<span class="cal-month">' + escapeHtml(monthLabel(cursor)) + '</span>' +
               '<button class="date-nav cal-next" type="button" data-cal="month" data-dir="1" aria-label="下一个月">' +
               api().icon('back') + '</button>'
-            : '<span class="cal-month">' + escapeHtml(todayTitle()) + '</span>') +
+            : '<button class="date-nav" type="button" data-cal="day" data-dir="-1" aria-label="前一天">' +
+              api().icon('back') + '</button>' +
+              '<span class="cal-month cal-month--day">' + escapeHtml(dayHeadLabel(selected)) + '</span>' +
+              '<button class="date-nav cal-next" type="button" data-cal="day" data-dir="1" aria-label="后一天">' +
+              api().icon('back') + '</button>' +
+              (selected === todayKey() ? '' : '<button class="cal-today-mini" type="button" data-cal="today">今天</button>')) +
         '<span class="cal-views">' +
         '<button class="seg-mini' + (view === 'month' ? ' on' : '') + '" type="button" data-cal="view" data-value="month">月</button>' +
         '<button class="seg-mini' + (view === 'today' ? ' on' : '') + '" type="button" data-cal="view" data-value="today">今日</button>' +
         '</span>';
     body.appendChild(head);
 
-    if (view === 'month') buildMonth(body, cursor, selected);
+    if (view === 'month') buildMonth(body, cursor);
     else buildToday(body);
 
     const add = el('button', 'cal-add', api().icon('plus'));
     add.type = 'button';
     add.setAttribute('data-cal', 'add');
-    add.setAttribute('data-date', view === 'month' ? selected : todayKey());
+    add.setAttribute('data-date', selected);
     add.setAttribute('aria-label', '添加日程');
     body.appendChild(add);
 }
@@ -1201,7 +1412,40 @@ ellipse.define({
         'cal-edit': function (ctx) {
             openForm(ctx.target.getAttribute('data-type'), eventsOf(ctx.target.getAttribute('data-type'))
                 .filter(function (e) { return e.id === ctx.target.getAttribute('data-id'); })[0] || null, null);
-        }
+        },
+        'dose-yes': function (ctx) {
+            const t = ctx.target;
+            saveDose(t.getAttribute('data-id'), t.getAttribute('data-date'), t.getAttribute('data-time'), Date.now());
+            api().toast('已记下 ' + clockOf(Date.now()));
+            const left = doseStill();
+            if (left.length) openDoseAsk(left);
+            else api().sheet.close();
+            paint();
+        },
+        'dose-all': function () {
+            const now = Date.now();
+            doseAsk.forEach(function (item) { saveDose(item.entry.id, item.date, item.time, now); });
+            api().toast('都记下了 ' + clockOf(now));
+            api().sheet.close();
+            paint();
+        },
+        'dose-later': function () { api().sheet.close(); },
+        'dose-now': function () {
+            if (!doseEdit) return;
+            doseEdit.at = clockOf(Date.now());
+            drawDoseSheet();
+        },
+        'dose-save': function () {
+            if (!doseEdit) return;
+            if (!doseEdit.at) { api().toast('先填一个时间'); return; }
+            const at = doseEdit.at;
+            saveDose(doseEdit.id, doseEdit.date, doseEdit.time, stampFor(doseEdit.date, at));
+            doseEdit = null;
+            api().sheet.close();
+            api().toast('已记下 ' + at);
+            paint();
+        },
+        'dose-cancel': function () { doseEdit = null; api().sheet.close(); }
     },
 
     mount: function (body, ctx) {
@@ -1224,6 +1468,7 @@ ellipse.define({
         }
 
         paint();
+        pokeDoses();
     },
 
     settingsSections: [{
@@ -1260,8 +1505,8 @@ ellipse.define({
                 '<div class="set-row' + (c.remind ? '' : ' is-off') + '">' +
                 '<span class="set-row-main"><span class="set-row-title">到点提醒' +
                 (granted ? '' : '<em class="set-badge set-badge--off">未授权</em>') + '</span>' +
-                '<span class="set-row-desc">打开这个页面就会把今天该做的事列出来；' +
-                '装到主屏并允许通知后，到点会弹系统通知（手机上要 iOS 16.4 以上）。</span></span>' +
+                '<span class="set-row-desc">打开这个页面就会把今天该做的事列出来；服药到点会弹一张「是否吃药」的卡；' +
+                '装到主屏并允许通知后，到点还会弹系统通知（手机上要 iOS 16.4 以上）。</span></span>' +
                 '<span class="set-row-side"><button class="switch' + (c.remind ? ' on' : '') +
                 '" type="button" role="switch" aria-checked="' + (c.remind ? 'true' : 'false') +
                 '" data-cal-set="remind"><span class="switch-label" aria-hidden="true">' +

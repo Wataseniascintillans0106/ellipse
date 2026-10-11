@@ -487,6 +487,7 @@
                 setInput('#sheetBody [data-key="brand"]', '辉瑞');
                 setInput('#sheetBody [data-key="dose"]', '1');
                 setInput('#sheetBody [data-key="doseUnit"]', '片');
+                setInput('#sheetBody [data-key="time"]', '00:00');
                 d.querySelector('#sheetBody [data-key="meal"][data-value="after"]').click();
                 await sleep(200);
                 t('点了「饭后」，选中态跟着走',
@@ -541,10 +542,137 @@
                 t('按药品公司也能搜到',
                     d.querySelectorAll('#calResults [data-cal="jump"]').length === 1);
 
+                const pad2 = (n) => String(n).padStart(2, '0');
+                const nowD = new Date();
+                const dayStr = nowD.getFullYear() + '-' + pad2(nowD.getMonth() + 1) + '-' + pad2(nowD.getDate());
+                searchInput.value = dayStr;
+                searchInput.dispatchEvent(new w.Event('input', { bubbles: true }));
+                await sleep(200);
+                t('直接打日期，能搜出那天的日程',
+                    d.querySelectorAll('#calResults [data-cal="jump"]').length === 1,
+                    String(d.querySelectorAll('#calResults [data-cal="jump"]').length));
+                t('搜的日子会写清楚是哪天',
+                    /今天/.test(d.querySelector('#calResults').textContent),
+                    d.querySelector('#calResults').textContent.replace(/\s+/g, ' ').slice(0, 60));
+                searchInput.value = (nowD.getMonth() + 1) + '月' + nowD.getDate() + '日';
+                searchInput.dispatchEvent(new w.Event('input', { bubbles: true }));
+                await sleep(200);
+                t('中文写法的日期也认',
+                    d.querySelectorAll('#calResults [data-cal="jump"]').length === 1,
+                    String(d.querySelectorAll('#calResults [data-cal="jump"]').length));
+                searchInput.value = '2020-01-01';
+                searchInput.dispatchEvent(new w.Event('input', { bubbles: true }));
+                await sleep(200);
+                t('搜一个空日子，说明那天没有安排',
+                    /那天没有安排/.test(d.querySelector('#calResults').textContent),
+                    d.querySelector('#calResults').textContent.replace(/\s+/g, ' ').slice(0, 60));
+                searchInput.value = '13月45日';
+                searchInput.dispatchEvent(new w.Event('input', { bubbles: true }));
+                await sleep(200);
+                t('不像日期的怪串，走普通搜索', /没有找到/.test(d.querySelector('#calResults').textContent));
+                searchInput.value = '辉瑞';
+                searchInput.dispatchEvent(new w.Event('input', { bubbles: true }));
+                await sleep(200);
+
                 d.querySelector('#calResults [data-cal="jump"]').click();
                 await sleep(350);
                 t('点搜索结果跳回那一天', !d.getElementById('sheet').classList.contains('open') &&
                     !!calBody.querySelector('.cal-grid') && /舍曲林/.test(calBody.querySelector('.cal-day').textContent));
+
+                say('== 吃药到点要确认 ==');
+                t('过了点的药，右边写着「服药缺漏」',
+                    /服药缺漏/.test((calBody.querySelector('.cal-dose.is-miss') || {}).textContent || ''),
+                    (calBody.querySelector('.cal-dose') || {}).textContent);
+                t('没记之前右边没有服药时间', !calBody.querySelector('.cal-dose.is-done'));
+                t('右边那个按钮写着「记」',
+                    (calBody.querySelector('.cal-dose-btn') || {}).textContent === '记',
+                    (calBody.querySelector('.cal-dose-btn') || {}).textContent);
+
+                d.getElementById('backHomeBtn').click();
+                await sleep(350);
+                d.getElementById('settingsBtn').click();
+                await sleep(300);
+                d.querySelector('[data-cal-set="remind"]').click();
+                await sleep(300);
+                t('在设置里把到点提醒打开',
+                    d.querySelector('[data-cal-set="remind"]').classList.contains('on'));
+                d.getElementById('settingsClose').click();
+                await sleep(300);
+                d.querySelector('#rail [data-rail-page="calendar"]').click();
+                await sleep(450);
+                t('一进日历页就弹出「是否吃药」',
+                    /是否吃药/.test(d.getElementById('sheetTitle').textContent),
+                    d.getElementById('sheetTitle').textContent);
+                t('卡里点名了该吃的那一样', /舍曲林/.test(d.getElementById('sheetBody').textContent));
+                t('每一条后面有个「是」', !!d.querySelector('#sheetBody [data-action="dose-yes"]'));
+                t('下面还有「全部服用了」', !!d.querySelector('#sheetFoot [data-action="dose-all"]'));
+                t('不想马上记也能先关掉', !!d.querySelector('#sheetFoot [data-action="dose-later"]'));
+
+                d.querySelector('#sheetBody [data-action="dose-yes"]').click();
+                await sleep(400);
+                t('点完「是」卡片自己收起来', !d.getElementById('sheet').classList.contains('open'));
+                t('列表右边记上了吃药时间', !!calBody.querySelector('.cal-dose.is-done'),
+                    (calBody.querySelector('.cal-dose') || {}).textContent);
+                t('缺漏两个字没了', !calBody.querySelector('.cal-dose.is-miss'));
+                t('按钮从「记」变成「改」',
+                    (calBody.querySelector('.cal-dose-btn') || {}).textContent === '改',
+                    (calBody.querySelector('.cal-dose-btn') || {}).textContent);
+
+                say('== 吃过药了还能改时间 ==');
+                calBody.querySelector('.cal-dose-btn').click();
+                await sleep(300);
+                t('弹出「记录服药」', /记录服药/.test(d.getElementById('sheetTitle').textContent),
+                    d.getElementById('sheetTitle').textContent);
+                t('里面能直接选时间', !!d.querySelector('#sheetBody [data-dose="at"]'));
+                setInput('#sheetBody [data-dose="at"]', '09:30');
+                d.querySelector('#sheetFoot [data-action="dose-save"]').click();
+                await sleep(400);
+                t('改成 09:30，右边就显示 09:30',
+                    /已服 09:30/.test(calBody.textContent),
+                    (calBody.querySelector('.cal-dose') || {}).textContent);
+
+                calBody.querySelector('.cal-dose-btn').click();
+                await sleep(300);
+                t('有「就是现在」按钮', !!d.querySelector('#sheetBody [data-action="dose-now"]'));
+                setInput('#sheetBody [data-dose="at"]', '00:05');
+                d.querySelector('#sheetBody [data-action="dose-now"]').click();
+                await sleep(250);
+                t('点「就是现在」就把时间填成此刻',
+                    /^\d{2}:\d{2}$/.test(d.querySelector('#sheetBody [data-dose="at"]').value) &&
+                    d.querySelector('#sheetBody [data-dose="at"]').value !== '00:05',
+                    d.querySelector('#sheetBody [data-dose="at"]').value);
+                d.querySelector('#sheetFoot [data-action="dose-cancel"]').click();
+                await sleep(300);
+                t('取消不会把记下的时间改掉', /已服 09:30/.test(calBody.textContent));
+
+                say('== 今日页也能左右翻 ==');
+                calBody.querySelector('[data-cal="view"][data-value="today"]').click();
+                await sleep(300);
+                const dayHead = () => (calBody.querySelector('.cal-month--day') || {}).textContent || '';
+                t('今日页顶上写的是今天', /今天/.test(dayHead()), dayHead());
+                t('今日页左右各有一个箭头',
+                    !!calBody.querySelector('[data-cal="day"][data-dir="-1"]') &&
+                    !!calBody.querySelector('[data-cal="day"][data-dir="1"]'));
+                t('还在今天就先不摆「今天」小按钮', !calBody.querySelector('.cal-today-mini'));
+                calBody.querySelector('[data-cal="day"][data-dir="1"]').click();
+                await sleep(250);
+                t('往后翻一天是「明天」', /明天/.test(dayHead()), dayHead());
+                calBody.querySelector('[data-cal="day"][data-dir="1"]').click();
+                await sleep(250);
+                t('再往后就不是今明两天了', !/今天|明天|昨天/.test(dayHead()), dayHead());
+                t('翻走了才冒出「今天」小按钮', !!calBody.querySelector('.cal-today-mini'));
+                calBody.querySelector('.cal-today-mini').click();
+                await sleep(250);
+                t('点「今天」就翻回来，药又在了',
+                    /今天/.test(dayHead()) && /舍曲林/.test(calBody.textContent), dayHead());
+                calBody.querySelector('[data-cal="day"][data-dir="-1"]').click();
+                await sleep(250);
+                t('往前也能翻，是「昨天」', /昨天/.test(dayHead()), dayHead());
+                calBody.querySelector('.cal-today-mini').click();
+                await sleep(250);
+                calBody.querySelector('[data-cal="view"][data-value="month"]').click();
+                await sleep(300);
+                t('切回月历，选中的还是今天', !!calBody.querySelector('.cal-cell.is-today.is-sel'));
 
                 say('== 日程详情与删除 ==');
                 calBody.querySelector('.cal-day .cal-item').click();

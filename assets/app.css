@@ -65,11 +65,24 @@ body.is-locked { overflow: hidden; }
 }
 
 .home {
+    position: relative;
     min-height: 100%;
     display: flex;
     align-items: center;
     justify-content: center;
     padding: calc(24px + env(safe-area-inset-top)) 24px calc(120px + env(safe-area-inset-bottom));
+}
+
+.home-notice {
+    position: absolute;
+    top: calc(6px + env(safe-area-inset-top));
+    left: 0;
+    right: 0;
+    margin: 0;
+    text-align: center;
+    font-size: 12px;
+    letter-spacing: 2.4px;
+    color: var(--accent-deep);
 }
 
 .home-block { text-align: center; }
@@ -1231,6 +1244,10 @@ body.is-locked .cal-search-btn { pointer-events: none; }
     white-space: nowrap;
 }
 
+.cal-month--day { font-size: 15px; letter-spacing: 1.2px; }
+
+.cal-head > .cal-today-mini { margin-left: 2px; }
+
 .cal-next svg { transform: rotate(180deg); }
 
 .cal-views { margin-left: auto; display: flex; gap: 4px; }
@@ -1376,6 +1393,50 @@ body.is-locked .cal-search-btn { pointer-events: none; }
     white-space: nowrap;
 }
 
+.cal-row.is-med { display: flex; align-items: center; gap: 8px; }
+.cal-row.is-med .cal-item { flex: 1 1 auto; width: auto; min-width: 0; }
+
+.cal-dose {
+    flex: 0 0 auto;
+    font-size: 11px;
+    letter-spacing: 0.6px;
+    color: var(--ink-3);
+    white-space: nowrap;
+}
+.cal-dose.is-done { color: var(--accent-deep); }
+.cal-dose.is-miss { color: #b4553b; }
+
+.cal-dose-btn {
+    flex: 0 0 auto;
+    padding: 4px 11px;
+    background: rgba(255, 255, 255, 0.5);
+    border: 1px solid var(--line-2);
+    border-radius: 999px;
+    font: inherit;
+    font-size: 11px;
+    letter-spacing: 1px;
+    color: var(--ink-2);
+    cursor: pointer;
+    transition: background 0.18s ease;
+}
+.cal-dose-btn:hover { background: rgba(255, 255, 255, 0.85); }
+
+.dose-list { display: flex; flex-direction: column; }
+
+.dose-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 11px 0;
+    border-bottom: 1px solid var(--line-2);
+}
+.dose-row:last-child { border-bottom: none; }
+.dose-main { flex: 1 1 auto; min-width: 0; }
+.dose-row .btn { flex: 0 0 auto; padding: 7px 18px; }
+
+.dose-edit { display: flex; align-items: center; gap: 8px; }
+.dose-edit .text-input { flex: 1 1 auto; width: auto; }
+
 .cal-add-day {
     width: 100%;
     margin-top: 14px;
@@ -1494,19 +1555,6 @@ body.is-locked .cal-search-btn { pointer-events: none; }
 .cal-detail-row:last-child { border-bottom: none; }
 .cal-detail-key { flex: 0 0 auto; min-width: 62px; font-size: 12px; letter-spacing: 1.4px; color: var(--ink-3); }
 .cal-detail-val { flex: 1 1 auto; font-size: 14px; letter-spacing: 1px; word-break: break-word; white-space: pre-wrap; }
-
-.corner-btn.is-due::after {
-    content: '';
-    position: absolute;
-    top: 7px;
-    right: 7px;
-    width: 9px;
-    height: 9px;
-    border-radius: 50%;
-    background: var(--accent-deep);
-    box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.92);
-    pointer-events: none;
-}
 
 .chord {
     display: flex;
@@ -1843,6 +1891,7 @@ body.is-locked .cal-search-btn { pointer-events: none; }
     .scale { gap: 3px; }
     .scale-cell { height: 32px; font-size: 11.5px; border-radius: 8px; }
     .cal-month { font-size: 16px; letter-spacing: 1.6px; }
+    .cal-month--day { font-size: 13.5px; letter-spacing: 0.8px; }
     .cal-time { width: 36px; }
 }
 

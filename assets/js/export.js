@@ -174,7 +174,7 @@ export function suggestFilename(kind, key) {
     return 'ellipse-summary-' + (key || '') + '.md';
 }
 
-const REMIND_DAYS = 14;
+const REMIND_DAYS = 21;
 
 function daysSince(from, today) {
     if (!from) return null;

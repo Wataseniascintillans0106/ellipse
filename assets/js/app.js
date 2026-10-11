@@ -36,6 +36,7 @@ const state = {
 
 const el = {
     viewHome: document.getElementById('viewHome'),
+    homeNotice: document.getElementById('homeNotice'),
     viewRecord: document.getElementById('viewRecord'),
     viewPage: document.getElementById('viewPage'),
     pageTitle: document.getElementById('pageTitle'),
@@ -1155,7 +1156,7 @@ function remindState() {
         remind: getRemind()
     });
     state.remind = due;
-    if (el.settingsBtn) el.settingsBtn.classList.toggle('is-due', !!due);
+    if (el.homeNotice) el.homeNotice.hidden = !due;
     return due;
 }
 

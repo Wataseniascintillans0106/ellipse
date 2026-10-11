@@ -462,7 +462,7 @@ if (existsSync(batPath)) {
 
 console.log('\n[10] 版本日志.txt');
 
-const VERSION = 'v0.5.3';   // 发新版时改这里，和 版本日志.txt 最上面那条对齐
+const VERSION = 'v0.5.4';   // 发新版时改这里，和 版本日志.txt 最上面那条对齐
 const logPath = at('版本日志.txt');
 ok('版本日志.txt 在', existsSync(logPath));
 if (existsSync(logPath)) {
@@ -687,16 +687,21 @@ ok('刚记完不提醒',
         today: '2026-10-10', oldestRecordKey: '2026-10-09', newestRecordKey: '2026-10-10',
         remind: {}
     }) === null);
-ok('满 14 天没导就提醒',
+ok('满 21 天没导就提醒',
     remindDue({
         today: '2026-10-20', oldestRecordKey: '2026-09-01', newestRecordKey: '2026-10-20',
         remind: {}
     }) !== null);
-ok('提醒里写清了隔了多少天',
+ok('没满 21 天不提醒',
     remindDue({
         today: '2026-10-20', oldestRecordKey: '2026-09-01', newestRecordKey: '2026-10-20',
         remind: { records: '2026-10-01' }
-    }).records.days === 19);
+    }) === null);
+ok('提醒里写清了隔了多少天',
+    remindDue({
+        today: '2026-10-20', oldestRecordKey: '2026-09-01', newestRecordKey: '2026-10-20',
+        remind: { records: '2026-09-25' }
+    }).records.days === 25);
 ok('导过之后就不再提醒',
     remindDue({
         today: '2026-10-20', oldestRecordKey: '2026-09-01', newestRecordKey: '2026-10-05',
