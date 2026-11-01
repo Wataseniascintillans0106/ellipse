@@ -58,7 +58,7 @@ Service Worker、离线缓存、「安装到主屏」全都不生效。那不是
 主屏那个图标一直用同一个网址。
 
 > 只有一个例外：**如果新增或删除了文件**（或者改了 `sw.js` 本身），记得把里面的
-> `CACHE` 版本号 +1（现在是 `ellipse-cache-v6`，下次改成 `v7`），并把新文件补进
+> `CACHE` 版本号 +1（现在的版本号看 `sw.js` 第一行，当前是 `ellipse-cache-v17`），并把新文件补进
 > `SHELL` 清单。只改
 > `index.html` / `assets/` / `fonts/` 下**已有**文件的内容不用管。原因见
 > [docs/PWA部署与安装.md](docs/PWA部署与安装.md) 第五节。
@@ -417,13 +417,24 @@ modules: [mood, sleep, pain, exercise, micro, diary]
 | 键 | 内容 |
 | --- | --- |
 | `ellipse.v1.records` | 全部记录，按 `YYYY-MM-DD` 分组 |
-| `ellipse.v1.settings` | 模块开关 / 顺序 / 默认区间 / 各模块自己的配置（含 AI 配置）；**日历的日程也在这里**（`settings.mods[日程类型].events`；**吃药的记录在 `settings.mods.med.doses`**，键是 `日程id|日期|原定时刻`，值是时间戳）；竖栏排行在 `settings.ui.railOrder`；**弦音的聊天记录（含照片缩图）也在 `settings.mods.assistant.chat`** |
+| `ellipse.v1.settings` | 模块开关 / 顺序 / 默认区间 / 各模块自己的配置（含 AI 配置）；**日历的日程也在这里**（`settings.mods[日程类型].events`；**吃药的记录在 `settings.mods.med.doses`**，键是 `日程id|日期|原定时刻`，值是时间戳）；竖栏排行在 `settings.ui.railOrder` |
+| `ellipse.v1.chat` | 弦音的聊天记录（含照片缩图）。**单独一格，不跟设置挤在一起**——发一条消息只重写这一格，设置不会被连带写坏 |
 | `ellipse.v1.mods` | 自己导入的模块源码（下次打开页面时重新装载） |
+| `ellipse.v1.snapshot` | 清空全部记录之前自动留下的一份底（文字与聊天在，照片不在），可以在「设置 · 数据」里恢复 |
 | `ellipse.v1.calRemind` | 日历提醒的记账：今天已经提醒过哪几条（只当天有效，用来避免重复提醒） |
 | `ellipse.v1.remind` | 导出提醒的记账：上次导出是几号、免打扰到哪天 |
 
 > 清理浏览器数据会一并清空，请定期在设置里备份 JSON。
-> 第一、第二行是会被备份带走的；`calRemind`、`remind` 是记账，不算数据。
+> 带 `ellipse.v1.` 前缀的记录、设置、聊天、模块、快照都会被备份带走；`calRemind`、`remind` 是记账，不算数据。
+> 旧版本把聊天存在 `settings.mods.assistant.chat` 里，第一次打开新版会自动搬到 `ellipse.v1.chat`，设置里那一份随即删掉——不用你做什么。
+
+「设置 · 数据」里还有两行是给数据兜底的：
+
+- **存储保护**：打开页面时会问浏览器「空间紧张时不要自动清掉这里的站点数据」。
+  答应了就写「已开启」；没答应会写清楚，建议把 ellipse 装到主屏、经常打开。
+  （这条管不了你自己去清浏览器数据，定期备份仍然要做。）
+- **清空前的那一份还留着**：点过「清空全部记录」之后才出现。清空之前会自动把记录和聊天
+  （不含照片）留一份在本机，点了「恢复到那一份」就能整个换回去。下次再清空会覆盖这一份。
 
 导出的 md 有两种：按天的记录，和**弦音的聊天记录**
 （文件名形如 `ellipse-chord-2026-10-10.md`，按天分段、分得清谁说的、也记下了哪条执行了）。

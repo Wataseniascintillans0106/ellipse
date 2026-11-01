@@ -8,7 +8,7 @@ import { ICONS, icon } from '../icons.js';
 import { escapeHtml, fmtNum, debounce, toast } from '../util.js';
 import {
     getSettings, setSettings, getModuleSettings, subscribe as subscribeStorage,
-    getRecordData, setField, dropModuleData, allRecordKeys
+    getRecordData, setField, dropModuleData, allRecordKeys, getChat, setChat
 } from '../storage.js';
 import * as sheet from './sheet.js';
 import { renderChart, chartBlock, RANGES, rangeById } from '../charts.js';
@@ -106,6 +106,11 @@ function buildFacade() {
             setField: setField,
             drop: dropModuleData,
             allKeys: allRecordKeys
+        },
+
+        chat: {
+            get: getChat,
+            set: setChat
         },
 
         settings: {

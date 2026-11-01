@@ -131,6 +131,9 @@ console.log('\n[3b] 柱状图');
 const exercise = getModule('exercise');
 ok('运动时长声明成柱状图', exercise.metrics.length === 1 && exercise.metrics[0].style === 'bar',
     JSON.stringify(exercise.metrics));
+ok('运动时长的快捷键是四个（10 / 20 / 30 / 45），一行排得开',
+    JSON.stringify(exercise.fields[0].chips) === JSON.stringify([10, 20, 30, 45]),
+    JSON.stringify(exercise.fields[0].chips));
 
 const exKeys = [shiftKey(today, -2), shiftKey(today, -1), today];
 const exMetric = exercise.metrics[0];
@@ -467,7 +470,7 @@ if (existsSync(batPath)) {
 
 console.log('\n[10] 版本日志.txt');
 
-const VERSION = 'v0.5.8';   // 发新版时改这里，和 版本日志.txt 最上面那条对齐
+const VERSION = 'v0.5.9';   // 发新版时改这里，和 版本日志.txt 最上面那条对齐
 const logPath = at('版本日志.txt');
 ok('版本日志.txt 在', existsSync(logPath));
 if (existsSync(logPath)) {
@@ -814,6 +817,63 @@ ok('导出 md 时带照片的消息标一下，别留个空格子',
 ok('没留底的照片导出时也说得明白',
     chat.chatMarkdown([{ id: 'm1', role: 'user', at: '2026-10-10T09:00:00', text: '',
         photoDropped: true }]).indexOf('没留底') >= 0);
+
+console.log('\n[14] 聊天记录自己一格（不再跟设置挤在一起）');
+
+const kv = await import('../assets/js/storage.js');
+
+kv.setChat([{ id: 'm1', role: 'user', text: '在' }]);
+ok('写进去读得回来', kv.getChat()[0].text === '在');
+ok('它有自己的键',
+    JSON.parse(globalThis.localStorage.getItem('ellipse.v1.chat'))[0].text === '在');
+ok('设置里不再有 chat 这一项', !(getSettings().mods.assistant || {}).chat);
+
+ok('旧版存在设置里的聊天，第一次读就搬出来', (function () {
+    globalThis.localStorage.removeItem('ellipse.v1.chat');
+    const cur = getSettings();
+    cur.mods.assistant = Object.assign({}, cur.mods.assistant, {
+        chat: [{ id: 'old', role: 'user', text: '旧的' }]
+    });
+    const moved = kv.getChat();
+    const onDisk = JSON.parse(globalThis.localStorage.getItem('ellipse.v1.chat'));
+    return moved.length === 1 && moved[0].text === '旧的' &&
+        onDisk[0].text === '旧的' && !(getSettings().mods.assistant || {}).chat;
+})());
+
+ok('存不下时明确说失败，不假装存好了', (function () {
+    const real = globalThis.localStorage.setItem;
+    const quiet = console.error;
+    globalThis.localStorage.setItem = function () { throw new Error('quota'); };
+    console.error = function () {};
+    const saved = kv.setChat([{ id: 'x' }]);
+    console.error = quiet;
+    globalThis.localStorage.setItem = real;
+    return saved === false;
+})());
+
+ok('一键备份把聊天带上', Array.isArray(kv.exportAll().chat));
+ok('导入备份能把聊天拿回来', (function () {
+    kv.importAll({ records: {}, chat: [{ id: 'b', role: 'user', text: '备份里的' }] }, 'merge');
+    return kv.getChat()[0].text === '备份里的';
+})());
+
+console.log('\n[15] 清空之前自动留底');
+
+kv.setChat([{ id: 'p', role: 'user', text: '看图', photo: 'data:image/jpeg;base64,AAAA' }]);
+const snap = kv.takeSnapshot('测试');
+ok('快照存下了', snap.ok === true);
+ok('快照里有那几天的记录', Object.keys(kv.getSnapshot().records).length > 0);
+ok('快照里的聊天不带照片字节，但留了记号',
+    kv.getSnapshot().chat.every((m) => !m.photo) &&
+    kv.getSnapshot().chat[0].photoDropped === true);
+ok('快照里没有那张临时清楚图',
+    kv.getSnapshot().chat.every((m) => m.photoSend === undefined));
+
+kv.clearRecords();
+ok('清空之后记录真的空了', kv.allRecordKeys().length === 0);
+kv.restoreSnapshot();
+ok('恢复之后记录回来了', kv.allRecordKeys().length > 0);
+ok('恢复之后聊天也回来了', kv.getChat().length > 0);
 
 console.log('\n' + (fails ? '有 ' + fails + ' 项未通过' : '全部通过'));
 process.exit(fails ? 1 : 0);

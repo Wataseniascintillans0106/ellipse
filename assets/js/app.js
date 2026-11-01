@@ -6,7 +6,8 @@ import {
 import {
     getSettings, setSettings, getRecordData, setField,
     subscribe as subscribeStorage, allRecordKeys, importAll, clearRecords,
-    exportAll, getModuleSettings, getRemind, setRemind
+    exportAll, getRemind, setRemind,
+    getChat, takeSnapshot, getSnapshot, restoreSnapshot
 } from './storage.js';
 import {
     dayMarkdown, rangeMarkdown, allMarkdown, downloadMarkdown,
@@ -31,7 +32,8 @@ const state = {
     openModule: null,
     settingsOpen: false,
     installPrompt: null,
-    booted: false
+    booted: false,
+    persisted: undefined
 };
 
 const el = {
@@ -589,14 +591,24 @@ function dispatchSheetAction(name, target) {
         render();
         return;
     }
-    if (name === 'wipe-cancel' || name === 'mod-cancel') { sheet.close(); return; }
+    if (name === 'wipe-cancel' || name === 'mod-cancel' || name === 'snap-cancel') { sheet.close(); return; }
 
     if (name === 'wipe-confirm') {
+        const snap = takeSnapshot('清空全部记录之前');
         clearRecords();
         sheet.close();
         renderSettings();
         render();
-        toast('已清空本机记录');
+        toast(snap.ok ? '已清空；清空前的样子在本机留了一份' : '已清空（这一份底没存下：空间不够）');
+        return;
+    }
+
+    if (name === 'snap-ok') {
+        const res = restoreSnapshot();
+        sheet.close();
+        renderSettings();
+        render();
+        toast(res.ok ? '已恢复到清空前那一份' : '没能恢复：' + res.error);
         return;
     }
 
@@ -1113,6 +1125,37 @@ function remindRow() {
         '</div></span></div>';
 }
 
+function stampText(iso) {
+    const s = String(iso || '');
+    if (s.length < 16) return s;
+    return s.slice(0, 10) + ' ' + s.slice(11, 16);
+}
+
+function storageRow() {
+    const on = state.persisted === true;
+    const desc = state.persisted === undefined
+        ? '正在问浏览器，能不能不因为空间紧张把这里的数据自动清掉。'
+        : (on
+            ? '浏览器已经答应：空间紧张时不自动清掉这里的数据。它管不了你自己去清浏览器数据。'
+            : '浏览器没有答应这个请求。把它装到主屏、经常打开，会更稳一些。');
+    return '<div class="set-row"><span class="set-row-main">' +
+        '<span class="set-row-title">存储保护' + (on ? '：已开启' : '') + '</span>' +
+        '<span class="set-row-desc">' + escapeHtml(desc) + '</span>' +
+        '</span></div>';
+}
+
+function snapshotRow() {
+    const snap = getSnapshot();
+    if (!snap) return '';
+    return '<div class="set-row"><span class="set-row-main">' +
+        '<span class="set-row-title">清空前的那一份还留着</span>' +
+        '<span class="set-row-desc">' + escapeHtml(stampText(snap.at)) +
+        ' 清空之前的记录（文字在，照片不在）。恢复会把现在的记录整个换成它。</span>' +
+        '<div class="set-actions">' +
+        '<button class="btn" type="button" data-set="snapshot-restore">恢复到那一份</button>' +
+        '</div></span></div>';
+}
+
 function dataGroup() {
     const box = group('数据', allRecordKeys().length + ' 天记录');
     box.appendChild(html(
@@ -1127,6 +1170,8 @@ function dataGroup() {
         '<label class="set-check"><input type="checkbox" id="backupSecrets">' +
         '备份里带上 AI 密钥（默认不带，免得把备份发给别人时一起泄露）</label>' +
         remindRow() +
+        storageRow() +
+        snapshotRow() +
         '<div class="set-actions">' +
         '<button class="btn danger" type="button" data-set="wipe">清空全部记录</button>' +
         '</div>' +
@@ -1135,7 +1180,7 @@ function dataGroup() {
 }
 
 function chatKeys() {
-    const chat = getModuleSettings('assistant').chat;
+    const chat = getChat();
     if (!Array.isArray(chat)) return [];
     return chat.map(function (m) {
         return String((m && m.at) || '').slice(0, 10);
@@ -1389,9 +1434,21 @@ function handleSettingAction(name, btn) {
     }
     if (name === 'wipe') {
         sheet.open('清空全部记录',
-            '<p class="sheet-note">将删除本机保存的全部状态记录与设置，操作无法撤销。建议先导出备份。</p>',
+            '<p class="sheet-note">将删除本机保存的全部状态记录与设置，操作无法撤销。' +
+            '清空之前会自动在这里留一份底（文字在，照片不在），事后能在数据里恢复。' +
+            '想留得更稳，先导出备份。</p>',
             '<button class="btn" type="button" data-action="wipe-cancel">取消</button>' +
             '<button class="btn danger" type="button" data-action="wipe-confirm">确认清空</button>');
+        return;
+    }
+    if (name === 'snapshot-restore') {
+        const snap = getSnapshot();
+        if (!snap) { toast('本机没有留下快照'); return; }
+        sheet.open('恢复到清空前那一份',
+            '<p class="sheet-note">' + escapeHtml(stampText(snap.at)) + ' 的那一份。' +
+            '恢复会把现在本机的记录整个换成它，现在的会被覆盖。照片不在里面。</p>',
+            '<button class="btn" type="button" data-action="snap-cancel">先不要</button>' +
+            '<button class="btn primary" type="button" data-action="snap-ok">恢复</button>');
         return;
     }
     if (name === 'install') {
@@ -1529,7 +1586,25 @@ const skipMods = new URLSearchParams(location.search).get('nomods') === '1';
     state.booted = true;
     render();
     remindState();
+    askPersist();
 })();
+
+function askPersist() {
+    const box = navigator.storage;
+    if (!box || typeof box.persist !== 'function') {
+        state.persisted = false;
+        return;
+    }
+    const settle = function (ok) {
+        state.persisted = !!ok;
+        if (state.settingsOpen) renderSettings();
+    };
+    const check = typeof box.persisted === 'function' ? box.persisted() : Promise.resolve(false);
+    check.then(function (already) {
+        if (already) { settle(true); return; }
+        box.persist().then(settle, function () { settle(false); });
+    }).catch(function () { settle(false); });
+}
 
 globalThis.addEventListener('ellipse:chat-exported', function () {
     setRemind({ chat: todayKey() });

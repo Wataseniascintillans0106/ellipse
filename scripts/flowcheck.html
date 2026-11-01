@@ -1176,8 +1176,11 @@
                 t('请求体里那串图确实是张 JPEG',
                     String(outMsg.content[0].image_url.url).indexOf('data:image/jpeg') === 0);
 
-                const stored = JSON.parse(w.localStorage.getItem('ellipse.v1.settings'))
-                    .mods.assistant.chat;
+                const stored = JSON.parse(w.localStorage.getItem('ellipse.v1.chat') || '[]');
+                const settingsBox = JSON.parse(w.localStorage.getItem('ellipse.v1.settings') || '{}') || {};
+                const chatBox = settingsBox.mods && settingsBox.mods.assistant;
+                t('聊天记录自己有键，设置里不再夹着它',
+                    Array.isArray(stored) && stored.length > 0 && !(chatBox && chatBox.chat));
                 const mine = stored.filter((m) => m.role === 'user').pop();
                 t('存本机的那条有照片', !!(mine && mine.photo));
                 t('那张临时清楚图没有落盘', !!mine && mine.photoSend === undefined,
@@ -1328,8 +1331,7 @@
                 t('喊停没有偷偷再发一次请求', asks === asksBeforeStop + 1,
                     asks + ' / ' + (asksBeforeStop + 1));
 
-                const savedChat = JSON.parse(w.localStorage.getItem('ellipse.v1.settings'))
-                    .mods.assistant.chat;
+                const savedChat = JSON.parse(w.localStorage.getItem('ellipse.v1.chat') || '[]');
                 t('喊停时吐了一半的话也存住了（没丢）',
                     savedChat.some((m) => /我先慢点说/.test(m.text || '')),
                     JSON.stringify(savedChat.slice(-2)).slice(0, 140));

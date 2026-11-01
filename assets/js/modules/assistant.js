@@ -5,7 +5,6 @@ import {
 } from '../chat.js';
 import { suggestFilename } from '../export.js';
 import { todayKey, toKey, pad2, escapeHtml } from '../util.js';
-import { KEY_SETTINGS } from '../storage.js';
 
 const MOD_ID = 'assistant';
 const MAX_KEEP = 2000;
@@ -94,31 +93,15 @@ function uid() {
 function msg(err) { return String((err && err.message) || err); }
 
 function load() {
-    const saved = conf().chat;
+    const saved = A().chat ? A().chat.get() : conf().chat;
     log = Array.isArray(saved) ? saved : [];
     log.forEach(function (m) {
         if (m.pending) { m.pending = false; m.text = m.text || ''; }
     });
 }
 
-function lastId() {
-    return log.length ? log[log.length - 1].id : '';
-}
-
-function savedOnDisk() {
-    const want = lastId();
-    if (!want) return true;
-    try {
-        const box = JSON.parse(globalThis.localStorage.getItem(KEY_SETTINGS) || '');
-        const chat = box && box.mods && box.mods.assistant && box.mods.assistant.chat;
-        return Array.isArray(chat) && chat.some(function (m) { return m.id === want; });
-    } catch (err) {
-        return false;
-    }
-}
-
-function dropNewestPhoto() {
-    for (let i = log.length - 1; i >= 0; i--) {
+function dropOldestPhoto() {
+    for (let i = 0; i < log.length; i++) {
         if (log[i] && log[i].photo) {
             log[i] = Object.assign({}, log[i], { photo: null, photoDropped: true });
             return true;
@@ -127,22 +110,25 @@ function dropNewestPhoto() {
     return false;
 }
 
+function writeChat() {
+    if (A().chat && typeof A().chat.set === 'function') return A().chat.set(log) === true;
+    A().settings.set(MOD_ID, { chat: log });
+    return true;
+}
+
 function save() {
     const over = log.length - MAX_KEEP;
     if (over > 0) log = log.slice(over);
+
     const trimmed = trimPhotos(log, PHOTO_BUDGET);
     log = trimmed.list;
     log.forEach(function (m) { if (m.photoSend) delete m.photoSend; });
-    A().settings.set(MOD_ID, { chat: log });
+
+    let ok = writeChat();
+    while (!ok && dropOldestPhoto()) ok = writeChat();
+
     if (trimmed.dropped) A().toast('照片太多了，早一些的照片没再留底');
-    if (!log.some(function (m) { return !!m.photo; })) return;
-    if (savedOnDisk()) return;
-    if (dropNewestPhoto()) {
-        A().settings.set(MOD_ID, { chat: log });
-        A().toast(savedOnDisk() ? '这台设备存不下照片了，这张没留底' : '这台设备存不下新的聊天内容了');
-        return;
-    }
-    A().toast('这台设备存不下新的聊天内容了');
+    if (!ok) A().toast('这台设备存不下新的聊天内容了，先把这一段复制出去吧');
 }
 
 function recordWorld() {

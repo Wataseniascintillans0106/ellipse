@@ -8,7 +8,7 @@ ellipse.define({
     fields: [
         {
             key: 'minutes', type: 'number', label: '运动时长', short: '', unit: '分钟',
-            step: 5, min: 0, max: 600, chips: [10, 20, 30, 45, 60], chipUnit: '分'
+            step: 5, min: 0, max: 600, chips: [10, 20, 30, 45], chipUnit: '分'
         },
         {
             key: 'discomfort', type: 'enum', label: '是否不适', short: '',

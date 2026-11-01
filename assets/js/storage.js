@@ -2,6 +2,8 @@ const KEY_RECORDS = 'ellipse.v1.records';
 const KEY_SETTINGS = 'ellipse.v1.settings';
 const KEY_MODS = 'ellipse.v1.mods';
 const KEY_REMIND = 'ellipse.v1.remind';
+const KEY_CHAT = 'ellipse.v1.chat';
+const KEY_SNAPSHOT = 'ellipse.v1.snapshot';
 
 const SETTINGS_VERSION = 2;
 
@@ -227,6 +229,76 @@ export function setRemind(patch) {
     return value;
 }
 
+export function getChat() {
+    const own = safeParse(localStorage.getItem(KEY_CHAT), null);
+    if (Array.isArray(own)) return own;
+
+    const mods = loadSettings().mods || {};
+    const legacy = mods.assistant && mods.assistant.chat;
+    if (!Array.isArray(legacy)) return [];
+
+    if (!setChat(legacy)) return legacy;
+    const s = loadSettings();
+    if (s.mods && s.mods.assistant) {
+        delete s.mods.assistant.chat;
+        persistSettings();
+    }
+    return legacy;
+}
+
+export function setChat(list) {
+    try {
+        localStorage.setItem(KEY_CHAT, JSON.stringify(Array.isArray(list) ? list : []));
+        return true;
+    } catch (err) {
+        console.error('[ellipse] 聊天记录写入失败：', err);
+        return false;
+    }
+}
+
+export function takeSnapshot(reason) {
+    const chat = getChat().map(function (m) {
+        const copy = Object.assign({}, m);
+        if (copy.photo) {
+            copy.photo = null;
+            copy.photoDropped = true;
+        }
+        delete copy.photoSend;
+        return copy;
+    });
+    const payload = {
+        app: 'ellipse',
+        version: 2,
+        kind: 'snapshot',
+        reason: reason || '',
+        at: new Date().toISOString(),
+        records: loadRecords(),
+        chat: chat
+    };
+    try {
+        localStorage.setItem(KEY_SNAPSHOT, JSON.stringify(payload));
+        return { ok: true, at: payload.at };
+    } catch (err) {
+        console.error('[ellipse] 快照没能存下：', err);
+        return { ok: false, error: String((err && err.message) || err) };
+    }
+}
+
+export function getSnapshot() {
+    const raw = safeParse(localStorage.getItem(KEY_SNAPSHOT), null);
+    return raw && raw.records && typeof raw.records === 'object' ? raw : null;
+}
+
+export function restoreSnapshot() {
+    const snap = getSnapshot();
+    if (!snap) return { ok: false, error: '本机没有留下快照' };
+    records = snap.records;
+    persistRecords();
+    if (Array.isArray(snap.chat)) setChat(snap.chat);
+    emit({ type: 'bulk' });
+    return { ok: true, at: snap.at };
+}
+
 export function exportAll(opts) {
     const o = opts || {};
     const payload = {
@@ -234,7 +306,8 @@ export function exportAll(opts) {
         version: 2,
         exportedAt: new Date().toISOString(),
         settings: loadSettings(),
-        records: loadRecords()
+        records: loadRecords(),
+        chat: getChat()
     };
     if (o.includeMods) payload.mods = getModsRaw();
     return payload;
@@ -271,6 +344,8 @@ export function importAll(payload, mode) {
         setModsRaw(merged);
     }
 
+    if (Array.isArray(payload.chat)) setChat(payload.chat);
+
     emit({ type: 'settings' });
     emit({ type: 'bulk' });
     return { records: Object.keys(incoming).length, mods: mods };
@@ -293,4 +368,4 @@ function emit(evt) {
     });
 }
 
-export { DEFAULT_SETTINGS, SETTINGS_VERSION, KEY_RECORDS, KEY_SETTINGS, KEY_MODS, KEY_REMIND };
+export { DEFAULT_SETTINGS, SETTINGS_VERSION, KEY_RECORDS, KEY_SETTINGS, KEY_MODS, KEY_REMIND, KEY_CHAT, KEY_SNAPSHOT };
