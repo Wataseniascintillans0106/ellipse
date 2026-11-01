@@ -47,17 +47,13 @@
                     !!q('#settingsBody [data-group="chart"] [data-section="trend"]'));
                 t('弦音那一折的标题带了 AI 前缀',
                     foldTitles.indexOf('AI——弦音') >= 0, foldTitles.join(','));
-                t('弦音填接口那一整节搬进了它自己那一折，不再单占一节',
-                    groups.filter((g) => g === 'AI——弦音').length === 1 &&
-                    groups.indexOf('弦音') < 0 &&
-                    !!q('#settingsBody [data-group="assistant"] [data-section="ai"]'),
-                    groups.filter((g) => /弦音/.test(g)).join(','));
-                t('主页右侧栏顺序挪进了弦音那一折',
+                t('填接口那一整节不再占设置页的位置',
+                    !q('#settingsBody [data-section="ai"]') && !q('#settingsBody [data-ai]'));
+                t('弦音那一折里只剩开关和栏顺序',
+                    !!q('#settingsBody [data-group="assistant"] [data-module-row="assistant"]') &&
                     !!q('#settingsBody [data-group="assistant"] [data-rail-order-row]'));
-                t('搬进去以后，那一折标题旁边还留着「可选，密钥只存在本机」那句小字',
-                    /密钥只存在本机/.test(
-                        (q('#settingsBody [data-group="assistant"] .set-group-head') || {})
-                            .textContent || ''));
+                t('主页右侧栏顺序还在弦音那一折',
+                    !!q('#settingsBody [data-group="assistant"] [data-rail-order-row]'));
                 t('数据与安装分组还在', groups.indexOf('数据') > 0 && groups.indexOf('安装到主屏') > 0);
 
                 const rows = qa('#settingsBody [data-module-row]').map((n) => n.dataset.moduleRow);
@@ -72,13 +68,6 @@
                     qa('[data-module-row="assistant"] [data-order]').length === 0 &&
                     qa('[data-module-row="assistant"] [data-toggle]').length === 1);
 
-                t('弦音分区有四个输入框（接口 / 密钥 / 模型 / 读取开关）',
-                    qa('#settingsBody [data-ai]').length === 4, String(qa('#settingsBody [data-ai]').length));
-                t('读记录的开关默认是关的',
-                    (q('#settingsBody [data-ai="readAllow"]') || {}).checked === false);
-                t('弦音状态显示未配置', /^当前状态：还没配置/.test((q('#aiStatus') || {}).textContent || ''));
-                t('弦音分区能导出聊天 md', !!q('#settingsBody [data-set="ai-export-chat"]'));
-                t('弦音分区能清空聊天', !!q('#settingsBody [data-set="ai-clear-chat"]'));
                 t('模块行上写明它的入口在主页右侧栏',
                     ((q('[data-module-row="assistant"] .set-row-desc') || {}).textContent || '')
                         .indexOf('入口在主页右侧栏') > 0);
@@ -100,8 +89,27 @@
                     d.getElementById('pageTitle').textContent === '弦音');
                 t('聊天框画出来了', !!q('#viewPage #chordList') && !!q('#viewPage #chordInput'));
                 t('输入框下面常驻一行免责小字',
-                    /弦音不是医生/.test((q('#viewPage .chord-disclaimer') || {}).textContent || ''));
+                    /内容由 AI 生成/.test((q('#viewPage .chord-disclaimer') || {}).textContent || ''));
                 t('免责小字只有这一行', qa('#viewPage .chord-disclaimer').length === 1);
+
+                say('== 弦音页右上角齿轮：专属设置 ==');
+                const gear = q('#viewPage .head-row [data-head-extra]');
+                t('右上角有弦音设置按钮', !!gear && gear.tagName === 'BUTTON');
+                click(gear);
+                await sleep(300);
+                t('点齿轮弹出弦音设置',
+                    d.getElementById('sheet').classList.contains('open') &&
+                    d.getElementById('sheetTitle').textContent === '弦音设置');
+                t('面板里有四个输入框（接口 / 密钥 / 模型 / 读取开关）',
+                    qa('#sheetBody [data-ai]').length === 4, String(qa('#sheetBody [data-ai]').length));
+                t('读记录的开关默认是关的',
+                    (q('#sheetBody [data-ai="readAllow"]') || {}).checked === false);
+                t('弦音状态显示未配置',
+                    /^当前状态：还没配置/.test((q('#aiStatus') || {}).textContent || ''));
+                t('面板里能导出聊天 md', !!q('#sheetBody [data-set="ai-export-chat"]'));
+                t('面板里能清空聊天', !!q('#sheetBody [data-set="ai-clear-chat"]'));
+                click(d.getElementById('sheetClose'));
+                await sleep(300);
 
                 say('== 日记不挂工具按钮 / 关掉弦音，入口和 AI 分区一起消失 ==');
                 click(d.getElementById('backHomeBtn'));
@@ -117,7 +125,8 @@
                 await sleep(250);
                 click(q('[data-module-row="assistant"] [data-toggle]'));
                 await sleep(250);
-                t('弦音分区跟着消失', !q('#settingsBody [data-section="ai"]'));
+                t('弦音那一行标成已关闭',
+                    !!q('[data-module-row="assistant"] .set-badge--off'));
                 click(d.getElementById('settingsClose'));
                 await sleep(250);
                 t('竖栏里的弦音入口跟着消失', !q('#rail [data-rail-page="assistant"]'));
@@ -133,7 +142,8 @@
                 await sleep(250);
                 click(q('[data-module-row="assistant"] [data-toggle]'));
                 await sleep(250);
-                t('重新打开后弦音分区回来', !!q('#settingsBody [data-section="ai"]'));
+                t('重新打开后弦音那一行不再标已关闭',
+                    !q('[data-module-row="assistant"] .set-badge--off'));
                 click(d.getElementById('settingsClose'));
                 await sleep(250);
                 t('弦音入口也回来', !!q('#rail [data-rail-page="assistant"]'));

@@ -253,9 +253,13 @@
                 ).map((n) => n.textContent.trim()).slice(1);
                 say('单占一节的: ' + looseTitles.join(' / '));
                 t('「显示」不再单独占一节', looseTitles.indexOf('显示') < 0, looseTitles.join(','));
-                t('填接口那一整节也搬进了弦音那一折，不再单占一节',
-                    !!d.querySelector('#settingsBody [data-group="assistant"] [data-section="ai"]') &&
+                t('填接口那一整节不再占设置页的位置',
+                    !d.querySelector('#settingsBody [data-section="ai"]') &&
                     looseTitles.indexOf('AI——弦音') < 0, looseTitles.join(','));
+                t('弦音那一折里只剩开关和栏顺序',
+                    !!d.querySelector('#settingsBody [data-group="assistant"] [data-module-row="assistant"]') &&
+                    !!d.querySelector('#settingsBody [data-group="assistant"] [data-rail-order-row]') &&
+                    !d.querySelector('#settingsBody [data-ai]'));
 
                 railRows[2].querySelector('[data-rail-move="up"]').click();
                 await sleep(200);
@@ -944,6 +948,37 @@
                     barEdge.bottom >= pageEdge.bottom - 120,
                     barEdge.bottom + ' / ' + pageEdge.bottom);
 
+                say('== 弦音页右上角的齿轮：专属设置 ==');
+                const gear = d.querySelector('#viewPage .head-row [data-head-extra]');
+                t('右上角有弦音设置按钮', !!gear && gear.tagName === 'BUTTON');
+                if (gear) {
+                    gear.click();
+                    await sleep(300);
+                    const sheetBox = d.getElementById('sheet');
+                    t('点齿轮弹出弦音设置',
+                        sheetBox.classList.contains('open') &&
+                        d.getElementById('sheetTitle').textContent === '弦音设置');
+                    t('设置里有四个输入框（接口 / 密钥 / 模型 / 读取开关）',
+                        d.querySelectorAll('#sheetBody [data-ai]').length === 4);
+                    t('读记录的开关默认是关的',
+                        (d.querySelector('#sheetBody [data-ai="readAllow"]') || {}).checked === false);
+                    t('状态显示还没配置',
+                        /^当前状态：还没配置/.test((d.getElementById('aiStatus') || {}).textContent || ''));
+                    t('能导出聊天 md、能清空聊天',
+                        !!d.querySelector('#sheetBody [data-set="ai-export-chat"]') &&
+                        !!d.querySelector('#sheetBody [data-set="ai-clear-chat"]'));
+                    const keyInput = d.querySelector('#sheetBody [data-ai="apiKey"]');
+                    keyInput.value = 'sheet-key';
+                    keyInput.dispatchEvent(new w.Event('change', { bubbles: true }));
+                    await sleep(80);
+                    t('在面板里填的密钥会存下来',
+                        w.ellipse.settings.get('assistant').apiKey === 'sheet-key');
+                    d.getElementById('sheetClose').click();
+                    await sleep(300);
+                    t('关掉面板还留在弦音页',
+                        !sheetBox.classList.contains('open') && !d.getElementById('viewPage').hidden);
+                }
+
                 w.ellipse.settings.set('assistant', { apiKey: 'test-key', baseUrl: 'https://api.openai.com/v1' });
                 await sleep(250);
                 t('填上密钥后「还没接上」就收起来',
@@ -1010,9 +1045,9 @@
                 };
                 const asksBeforeRead = asks;
                 typeIn('我最近睡得怎么样');
-                await waitFor(() => /设置 · AI——弦音/.test(chordText('#viewPage .chord-card-done')));
+                await waitFor(() => /右上角的齿轮/.test(chordText('#viewPage .chord-card-done')));
                 t('读取开关关着时，卡上说清楚去哪儿开',
-                    /设置 · AI——弦音/.test(chordText('#viewPage .chord-card-done')));
+                    /右上角的齿轮/.test(chordText('#viewPage .chord-card-done')));
                 t('只花了拿到回话的那一次，没再为读记录多花一次',
                     asks === asksBeforeRead + 1, asks + ' / ' + (asksBeforeRead + 1));
 

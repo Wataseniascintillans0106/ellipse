@@ -312,7 +312,7 @@ function actCard(m) {
         const why = document.createElement('p');
         why.className = 'chord-card-done';
         why.textContent = m.noRead
-            ? '读记录这项功能现在关着。要用的话，到「设置 · AI——弦音」里打开「允许弦音读取我的记录」。'
+            ? '读记录这项功能现在关着。要用的话，点右上角的齿轮，打开「允许弦音读取我的记录」。'
             : '已经读过了（你之前勾过「以后不用再问」）。';
         box.appendChild(why);
         if (m.noRead) {
@@ -453,7 +453,7 @@ function setupNode() {
     const box = document.createElement('div');
     box.className = 'chord-empty';
     const p = document.createElement('p');
-    p.textContent = '弦音还没接上。到设置里填一下接口地址和密钥就能聊了。';
+    p.textContent = '弦音还没接上。点右上角的齿轮，填一下接口地址和密钥就能聊了。';
     box.appendChild(p);
     box.appendChild(chordBtn('去设置', 'settings', '', true));
     return box;
@@ -595,7 +595,7 @@ function turnNote(messages, err) {
     const hadPhoto = (messages || []).some(function (m) { return Array.isArray(m.content); });
     if (hadPhoto && /返回 4\d\d/.test(said)) {
         return '这个模型看不了图片（' + said + '）。' +
-            '到「设置 · AI——弦音」里换一个支持图片的模型，比如 gpt-4o 或 gpt-4o-mini。';
+            '点右上角的齿轮，换一个支持图片的模型，比如 gpt-4o 或 gpt-4o-mini。';
     }
     return '没连上：' + said;
 }
@@ -801,11 +801,7 @@ function handleChord(evt) {
     if (!node) return;
     const what = node.dataset.chord;
 
-    if (what === 'settings') {
-        const btn = document.getElementById('settingsBtn');
-        if (btn) btn.click();
-        return;
-    }
+    if (what === 'settings') { openAiSettings(); return; }
     if (what === 'say') { send(node.dataset.text || ''); return; }
     if (what === 'stop') { if (ctrl) ctrl.abort(); return; }
     if (what === 'drop-photo') { pendingPhoto = null; renderPending(); return; }
@@ -885,7 +881,7 @@ function send(text) {
     if (!isConfigured()) {
         log.push({
             id: uid(), role: 'ai', at: stamp(),
-            text: '弦音还没接上。到「设置 · AI——弦音」里填一下接口地址和密钥，我就能回话了。'
+            text: '弦音还没接上。点右上角的齿轮，填一下接口地址和密钥，我就能回话了。'
         });
         paint();
         save();
@@ -911,12 +907,24 @@ function wipeChat() {
     A().toast('聊天记录已清空');
 }
 
-function mountChat(box) {
+function mountChat(box, ctx) {
     rootEl = box;
     pendingPhoto = null;
     if (!active) load();
     watchConfig();
     watchViewport();
+
+    if (ctx && ctx.head) {
+        const gear = document.createElement('button');
+        gear.type = 'button';
+        gear.className = 'page-back chord-gear-btn';
+        gear.setAttribute('data-head-extra', '');
+        gear.setAttribute('aria-label', '弦音设置');
+        gear.setAttribute('title', '弦音设置');
+        gear.innerHTML = A().icon('gear');
+        gear.addEventListener('click', openAiSettings);
+        ctx.head.appendChild(gear);
+    }
 
     box.innerHTML =
         '<div class="chord">' +
@@ -933,7 +941,7 @@ function mountChat(box) {
         '<button class="chord-stop" id="chordStop" type="button" data-chord="stop" hidden aria-label="停止">' +
         A().icon('stop') + '</button>' +
         '</form>' +
-        '<p class="chord-disclaimer">弦音不是医生，说的话不能替代医嘱。' +
+        '<p class="chord-disclaimer">' +
         '内容由 AI 生成，仅供参考，只辅助记录，不做任何医学判断。</p>' +
         '</div>';
     paint();
@@ -998,7 +1006,7 @@ function refreshStatus() {
     if (status) status.textContent = statusText();
 }
 
-function sectionHtml() {
+function aiSettingsHtml() {
     const ai = A().settings.get(MOD_ID);
     const cfg = getAiConfig();
     const readOn = ai.readAllow === true;
@@ -1045,13 +1053,56 @@ function testConnection(api, btn) {
         });
 }
 
-function restoreFocus(key, pos) {
-    if (!key) return;
-    const next = document.querySelector('[data-ai="' + key + '"]');
-    if (!next) return;
-    next.focus();
-    if (pos === null || !next.setSelectionRange || next.type === 'password') return;
-    try { next.setSelectionRange(pos, pos); } catch (err) { }
+function openAiSettings() {
+    A().sheet.open('弦音设置', aiSettingsHtml(), '');
+    bindAiSettings();
+}
+
+function bindAiSettings() {
+    const body = A().sheet.body();
+    if (!body) return;
+
+    function saveInputs() {
+        const patch = {};
+        body.querySelectorAll('[data-ai]').forEach(function (input) {
+            patch[input.dataset.ai] = input.type === 'checkbox' ? input.checked : input.value.trim();
+        });
+        A().settings.set(MOD_ID, patch);
+    }
+    const saveSoon = A().debounce(saveInputs, 600);
+    body.querySelectorAll('[data-ai]').forEach(function (input) {
+        input.addEventListener('input', saveSoon);
+        input.addEventListener('change', function () {
+            saveInputs();
+            refreshStatus();
+        });
+    });
+
+    const testBtn = body.querySelector('[data-set="ai-test"]');
+    if (testBtn) testBtn.addEventListener('click', function () { testConnection(A(), testBtn); });
+
+    const clearBtn = body.querySelector('[data-set="ai-clear"]');
+    if (clearBtn) clearBtn.addEventListener('click', function () {
+        A().settings.set(MOD_ID, { apiKey: '', baseUrl: '', model: '' });
+        ['baseUrl', 'apiKey', 'model'].forEach(function (key) {
+            const input = body.querySelector('[data-ai="' + key + '"]');
+            if (input) input.value = '';
+        });
+        refreshStatus();
+        A().toast('已清除 AI 配置');
+    });
+
+    const exportBtn = body.querySelector('[data-set="ai-export-chat"]');
+    if (exportBtn) exportBtn.addEventListener('click', exportChat);
+
+    const wipeBtn = body.querySelector('[data-set="ai-clear-chat"]');
+    if (wipeBtn) wipeBtn.addEventListener('click', function () {
+        A().sheet.open('清空聊天记录',
+            '<p class="sheet-note">本机存着的弦音对话会全删掉，删了找不回来。' +
+            '想留一份的话，先点「导出弦音聊天 md」。</p>',
+            '<button class="btn" type="button" data-action="chat-cancel">取消</button>' +
+            '<button class="btn danger" type="button" data-action="chat-wipe">确认清空</button>');
+    });
 }
 
 function runPolish(ctx) {
@@ -1063,7 +1114,7 @@ function runPolish(ctx) {
         '<p class="sheet-note" id="aiNote">' +
         (isConfigured()
             ? '内容会发送到你填的接口（' + api.escapeHtml(getAiConfig().baseUrl) + '）。'
-            : '还没有配置弦音，请先到「设置 · AI——弦音」填写 API Key。') +
+            : '还没有配置弦音，请先点弦音页右上角的齿轮填写 API Key。') +
         '</p>',
         '<button class="btn" type="button" data-action="ai-cancel">取消</button>' +
         '<button class="btn primary" type="button" data-action="ai-run"' +
@@ -1126,60 +1177,5 @@ ellipse.define({
         'chat-cancel': function (ctx) { ctx.api.sheet.close(); },
 
         'chat-wipe': function () { wipeChat(); }
-    },
-
-    settingsSections: [{
-        id: 'ai',
-        title: 'AI——弦音',
-        note: '可选，密钥只存在本机',
-        group: 'assistant',      // 填接口这些就是它自己的设置，挂进同名那一折，别再单占一节
-
-        html: function () { return sectionHtml(); },
-
-        bind: function (root, ctx) {
-            const api = ctx.api;
-
-            function saveInputs() {
-                const active = document.activeElement;
-                const key = active && active.dataset ? active.dataset.ai : null;
-                const pos = key && active.type !== 'password' && active.selectionStart !== undefined
-                    ? active.selectionStart : null;
-
-                const patch = {};
-                root.querySelectorAll('[data-ai]').forEach(function (input) {
-                    patch[input.dataset.ai] = input.type === 'checkbox' ? input.checked : input.value.trim();
-                });
-                api.settings.set(MOD_ID, patch);
-                restoreFocus(key, pos);
-            }
-
-            root.addEventListener('input', api.debounce(saveInputs, 600));
-            root.addEventListener('change', function () {
-                saveInputs();
-                refreshStatus();
-            });
-
-            root.addEventListener('click', function (evt) {
-                const btn = evt.target.closest('[data-set]');
-                if (!btn) return;
-                const name = btn.getAttribute('data-set');
-                if (name === 'ai-test') { testConnection(api, btn); return; }
-                if (name === 'ai-clear') {
-                    api.settings.set(MOD_ID, { apiKey: '', baseUrl: '', model: '' });
-                    api.toast('已清除 AI 配置');
-                    return;
-                }
-                if (name === 'ai-export-chat') { exportChat(); return; }
-                if (name === 'ai-clear-chat') {
-                    api.sheet.open('清空聊天记录',
-                        '<p class="sheet-note">本机存着的弦音对话会全删掉，删了找不回来。' +
-                        '想留一份的话，先点上面的「导出弦音聊天 md」。</p>',
-                        '<button class="btn" type="button" data-action="chat-cancel">取消</button>' +
-                        '<button class="btn danger" type="button" data-action="chat-wipe">确认清空</button>');
-                }
-            });
-
-            refreshStatus();
-        }
-    }]
+    }
 });

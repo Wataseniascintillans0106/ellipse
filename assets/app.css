@@ -129,6 +129,8 @@ body.is-locked { overflow: hidden; }
 
 .page--chat .foot-note { display: none; }
 
+.chord-gear-btn { margin-left: auto; }
+
 .page-head { margin-bottom: 20px; }
 
 .head-row {

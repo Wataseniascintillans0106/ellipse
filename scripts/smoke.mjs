@@ -462,7 +462,7 @@ if (existsSync(batPath)) {
 
 console.log('\n[10] 版本日志.txt');
 
-const VERSION = 'v0.5.6';   // 发新版时改这里，和 版本日志.txt 最上面那条对齐
+const VERSION = 'v0.5.7';   // 发新版时改这里，和 版本日志.txt 最上面那条对齐
 const logPath = at('版本日志.txt');
 ok('版本日志.txt 在', existsSync(logPath));
 if (existsSync(logPath)) {
@@ -648,16 +648,14 @@ const chordDef = registry.get('assistant');
 ok('弦音是独立的一页', chordDef.kind === 'page');
 ok('页面得能画出来', chordDef.mount instanceof Function);
 ok('聊天页有自己的整屏样式', chordDef.pageClass === 'page--chat');
-ok('它自己占一折设置，标题带 AI 前缀',
+ok('它在设置里占一折，标题带 AI 前缀',
     chordDef.group === 'assistant' && chordDef.groupTitle === 'AI——弦音');
-ok('填接口那一节的标题也一起改名了',
-    chordDef.settingsSections.some((s) => s.id === 'ai' && s.title === 'AI——弦音'));
+ok('设置里只留开关，填接口这些不再占一节',
+    chordDef.settingsSections.length === 0);
 
 const trendDef = registry.get('trend');
 ok('波状图那块设置声明了要挂进「数值图」这一折',
     trendDef.settingsSections.some((s) => s.id === 'trend' && s.group === 'chart'));
-ok('弦音填接口那一整节也搬进了它自己那一折',
-    chordDef.settingsSections.some((s) => s.id === 'ai' && s.group === 'assistant'));
 ok('别处没被顺手搬走：挂折子的，挂的都是自己那一折（波状图归「数值图」那折）',
     registry.all().every((d) => d.settingsSections.every(
         (s) => !s.group || s.group === d.group || (d.id === 'trend' && s.group === 'chart'))));
