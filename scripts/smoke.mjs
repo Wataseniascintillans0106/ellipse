@@ -223,6 +223,11 @@ ok('鼓励语分两行（label 里有换行）',
     microHtml.indexOf('<span>记录一些微小的成就\n哪怕是多吃一口饭 多喝一口水</span>') > 0,
     JSON.stringify(microDef.fields[0].label));
 const cssSrc = readFileSync(at('assets/app.css'), 'utf8');
+const fontRef = (cssSrc.match(/url\("([^"]+\.woff2)"\)/) || [])[1] || '';
+const fontFile = fontRef ? path.resolve(at('assets'), fontRef) : '';
+ok('字体路径从 css 所在目录算，正好落在 fonts/ 里（GitHub Pages 子目录也能找到）',
+    !!fontRef && fontRef.charAt(0) !== '/' && fontRef.indexOf('../../') < 0 &&
+    existsSync(fontFile), fontRef || '（没找到 woff2）');
 const labelRule = cssSrc.slice(cssSrc.indexOf('.field-label {'),
     cssSrc.indexOf('}', cssSrc.indexOf('.field-label {')));
 ok('.field-label 开了换行（写在 label 里的换行符才真的断行）',
@@ -462,7 +467,7 @@ if (existsSync(batPath)) {
 
 console.log('\n[10] 版本日志.txt');
 
-const VERSION = 'v0.5.7';   // 发新版时改这里，和 版本日志.txt 最上面那条对齐
+const VERSION = 'v0.5.8';   // 发新版时改这里，和 版本日志.txt 最上面那条对齐
 const logPath = at('版本日志.txt');
 ok('版本日志.txt 在', existsSync(logPath));
 if (existsSync(logPath)) {
