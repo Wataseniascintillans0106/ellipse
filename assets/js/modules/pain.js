@@ -8,6 +8,10 @@ ellipse.define({
     fields: [
         { key: 'level', type: 'slider', label: '疼痛程度', short: '疼痛', min: 0, max: 10, low: '0 无痛', high: '10 剧烈' },
         { key: 'note', type: 'text', label: '部位 / 备注', short: '', maxlength: 40, placeholder: '例如：左侧膝关节' }
+    ],
+
+    metrics: [
+        { key: 'level', label: '疼痛程度', field: 'level', min: 0, max: 10, style: 'bar' }
     ]
 
 });

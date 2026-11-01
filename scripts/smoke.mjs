@@ -90,28 +90,29 @@ ok('rangeById 回退到 1 个月', rangeById('nope').id === '30d');
 console.log('\n[3] 波状图');
 const mood = getModule('mood');
 const keys = [yesterday, today];
+const lineMetric = { label: '对照折线', min: 0, max: 10 };
 const series = metricSeries(mood, mood.metrics[0], keys, getRecordData);
 ok('醒后心情序列 = [5,7]', JSON.stringify(series) === '[5,7]', JSON.stringify(series));
 
 const painSeries = metricSeries(getModule('pain'), getModule('pain').metrics[0], keys, getRecordData);
 ok('疼痛序列保留 0 分 = [3,0]', JSON.stringify(painSeries) === '[3,0]', JSON.stringify(painSeries));
 
-const chart = renderChart({ keys, values: series, metric: mood.metrics[0] });
+const chart = renderChart({ keys, values: series, metric: lineMetric });
 ok('生成 svg', chart.svg.startsWith('<svg') && chart.svg.endsWith('</svg>'));
 ok('两个数据点', chart.points.length === 2, String(chart.points.length));
 ok('曲线路径存在', chart.svg.indexOf('<path d="M') > 0);
 ok('纵轴刻度按 0–10 上限', chart.svg.indexOf('>10<') > 0);
 ok('横轴有日期标签', chart.svg.indexOf('text-anchor') > 0);
 
-const empty = renderChart({ keys: keys, values: [null, null], metric: mood.metrics[0] });
+const empty = renderChart({ keys: keys, values: [null, null], metric: lineMetric });
 ok('无记录时给出空态文案', empty.svg.indexOf('该区间还没有记录') > 0);
 ok('无记录时没有数据点', empty.points.length === 0);
 
-const one = renderChart({ keys: keys, values: [null, 8], metric: mood.metrics[0] });
+const one = renderChart({ keys: keys, values: [null, 8], metric: lineMetric });
 ok('单点也能画', one.points.length === 1);
 
 const gapKeys = [shiftKey(today, -2), shiftKey(today, -1), today];
-const gap = renderChart({ keys: gapKeys, values: [7, null, 3], metric: mood.metrics[0] });
+const gap = renderChart({ keys: gapKeys, values: [7, null, 3], metric: lineMetric });
 const gapD = (gap.svg.match(/<path d="([^"]*)"/) || [])[1] || '';
 const gapYs = [];
 gapD.replace(/[ML]([\d.]+) ([\d.]+)/g, function (all, x, y) { gapYs.push(Number(y)); return all; });
@@ -119,10 +120,10 @@ ok('没记录的日子也在时间轴上占一格（折线连起来）', gapYs.l
 ok('没记录的日子画在最低处', gapYs.length === 4 && gapYs[1] === Math.max.apply(null, gapYs),
     JSON.stringify(gapYs));
 ok('没记录的日子不画圆点', gap.points.length === 2, String(gap.points.length));
-const zero = renderChart({ keys: gapKeys, values: [0, null, 0], metric: getModule('pain').metrics[0] });
+const zero = renderChart({ keys: gapKeys, values: [0, null, 0], metric: lineMetric });
 ok('记成 0 分的那天照画圆点', zero.points.length === 2, String(zero.points.length));
 
-const full = renderChart({ keys: gapKeys, values: [7, 5, 3], metric: mood.metrics[0] });
+const full = renderChart({ keys: gapKeys, values: [7, 5, 3], metric: lineMetric });
 ok('某天在横轴上的位置，不受邻居有没有记录影响',
     full.points[0].x === gap.points[0].x && full.points[2].x === gap.points[1].x,
     JSON.stringify([full.points.map((p) => p.x), gap.points.map((p) => p.x)]));
@@ -152,6 +153,12 @@ ok('没记录的日子不出柱子', exChart.points.length === 2, String(exChart
 const exZero = renderChart({ keys: exKeys, values: [0, 30, null], metric: exMetric });
 ok('记成 0 分钟的那天照样出一根（跟「没记录」区分开）', exZero.points.length === 2,
     String(exZero.points.length));
+const zeroBarYs = [];
+((exZero.svg.match(/<path d="([^"]*)"/) || [])[1] || '').replace(/[MLQ]([\d.]+) ([\d.]+)/g,
+    function (all, x, y) { zeroBarYs.push(Number(y)); return all; });
+ok('0 分那根细柱贴在底线上边，不挂到轴底下',
+    zeroBarYs.length > 0 && Math.min.apply(null, zeroBarYs) < 90 &&
+    Math.max.apply(null, zeroBarYs) <= 90.01, JSON.stringify(zeroBarYs));
 
 const exEmpty = renderChart({ keys: exKeys, values: [null, null, null], metric: exMetric });
 ok('柱状图没记录时也是空态文案',
@@ -159,6 +166,28 @@ ok('柱状图没记录时也是空态文案',
 
 const lineStill = renderChart({ keys: exKeys, values: [30, 45, null], metric: { label: '对照', min: 0 } });
 ok('不声明 style 就还是折线图', lineStill.style === 'line' && lineStill.svg.indexOf('<circle') > 0);
+
+console.log('\n[3c] 都换成柱状图');
+ok('情绪、睡眠、疼痛的每一项都声明了柱状图',
+    ['mood', 'sleep', 'pain'].every(function (id) {
+        return getModule(id).metrics.length > 0 &&
+            getModule(id).metrics.every(function (m) { return m.style === 'bar'; });
+    }));
+
+function barStartY(svg) {
+    const d = (String(svg).match(/<path d="(M[^"]*)"/) || [])[1] || '';
+    const hit = /^M([\d.]+) ([\d.]+)/.exec(d);
+    return hit ? Number(hit[2]) : null;
+}
+
+const changeMetric = getModule('mood').metrics[2];
+const negChart = renderChart({ keys: [today], values: [-4], metric: changeMetric });
+ok('负分从零线往下画，不是贴着底往上长',
+    barStartY(negChart.svg) === 66.6, String(barStartY(negChart.svg)));
+const posChart = renderChart({ keys: [today], values: [4], metric: changeMetric });
+ok('正分从零线往上长，零线在中间（51）',
+    barStartY(posChart.svg) === 51, String(barStartY(posChart.svg)));
+ok('负值那一天，纵轴把 0 画在中间一格', negChart.svg.indexOf('>0<') > 0);
 
 console.log('\n[4] md 导出');
 const md = dayMarkdown(today);
@@ -470,7 +499,7 @@ if (existsSync(batPath)) {
 
 console.log('\n[10] 版本日志.txt');
 
-const VERSION = 'v0.5.9';   // 发新版时改这里，和 版本日志.txt 最上面那条对齐
+const VERSION = 'v0.5.10';  // 发新版时改这里，和 版本日志.txt 最上面那条对齐
 const logPath = at('版本日志.txt');
 ok('版本日志.txt 在', existsSync(logPath));
 if (existsSync(logPath)) {

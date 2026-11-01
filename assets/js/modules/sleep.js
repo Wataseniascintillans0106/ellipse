@@ -14,7 +14,7 @@ ellipse.define({
     ],
 
     metrics: [
-        { key: 'quality', label: '睡眠质量', field: 'quality', min: 0, max: 10 },
-        { key: 'hours', label: '睡眠时长', field: 'hours', min: 0 }
+        { key: 'quality', label: '睡眠质量', field: 'quality', min: 0, max: 10, style: 'bar' },
+        { key: 'hours', label: '睡眠时长', field: 'hours', min: 0, style: 'bar' }
     ]
 });

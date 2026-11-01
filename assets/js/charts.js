@@ -152,14 +152,17 @@ function drawBars(f) {
     const bw = Math.max(1.4, Math.min(slot * BAR_RATIO, BAR_MAX_W));
     const out = [];
     const points = [];
+    const zero = Math.min(Math.max(0, f.lo), f.top);
+    const zeroY = f.yOf(zero);
 
     f.present.forEach(function (p) {
         const cx = f.xOf(p.i);
         const y = f.yOf(p.v);
-        const h = Math.max(BAR_MIN_H, f.base - y);
+        const h = Math.max(BAR_MIN_H, Math.abs(y - zeroY));
+        const top = p.v >= 0 ? zeroY - h : zeroY;
         out.push('<rect data-point="' + p.i + '" x="' + (cx - slot / 2).toFixed(2) + '" y="' + PAD_T +
             '" width="' + slot.toFixed(2) + '" height="' + f.plotH + '" fill="transparent"/>');
-        out.push('<path d="' + barPath(cx - bw / 2, y, bw, h) + '" fill="' + BAR + '" pointer-events="none"/>');
+        out.push('<path d="' + barPath(cx - bw / 2, top, bw, h) + '" fill="' + BAR + '" pointer-events="none"/>');
         points.push({ x: cx, y: y, i: p.i, v: p.v });
     });
 

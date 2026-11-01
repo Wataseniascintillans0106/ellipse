@@ -11,10 +11,10 @@ ellipse.define({
     ],
 
     metrics: [
-        { key: 'morning', label: '醒后心情', field: 'morning', min: 0, max: 10 },
-        { key: 'evening', label: '睡前心情', field: 'evening', min: 0, max: 10 },
+        { key: 'morning', label: '醒后心情', field: 'morning', min: 0, max: 10, style: 'bar' },
+        { key: 'evening', label: '睡前心情', field: 'evening', min: 0, max: 10, style: 'bar' },
         {
-            key: 'day_change', label: '日内变化（睡前 − 醒后）', unit: '分', min: -10, max: 10,
+            key: 'day_change', label: '日内变化（睡前 − 醒后）', unit: '分', min: -10, max: 10, style: 'bar',
             value: function (m) {
                 if (typeof m.morning !== 'number' || typeof m.evening !== 'number') return null;
                 return m.evening - m.morning;
